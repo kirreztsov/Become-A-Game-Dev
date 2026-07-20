@@ -117,13 +117,14 @@ function UI.init()
 
 		local connection
 		connection = game:GetService("RunService").RenderStepped:Connect(function()
+			if not developing then
+				connection:Disconnect()
+				return
+			end
+
 			local elapsed = os.clock() - startClock
 			local fraction = math.clamp(elapsed / devTime, 0, 1)
 			progressBar.Size = UDim2.fromScale(fraction, 1)
-
-			if not developing then
-				connection:Disconnect()
-			end
 		end)
 	end)
 

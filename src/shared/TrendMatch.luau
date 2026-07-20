@@ -26,7 +26,7 @@ end
 
 function TrendMatch.computeCash(genre, topic, trend1, trend2, qualityBoostLevel, randomFn)
 	randomFn = randomFn or math.random
-	local baseCash = GameData.getBaseCash(qualityBoostLevel)
+	local baseCash = math.floor(GameData.getBaseCash(qualityBoostLevel))
 	local classification = TrendMatch.classify(genre, topic, trend1, trend2)
 
 	if classification == "copy" then

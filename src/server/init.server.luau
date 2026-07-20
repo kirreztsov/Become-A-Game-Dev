@@ -11,11 +11,17 @@ UpgradeService.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 
-Players.PlayerAdded:Connect(function(player)
+local function onPlayerJoined(player)
 	local data = PlayerData.load(player)
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 	TrendsService.sendCurrentTo(player)
-end)
+end
+
+Players.PlayerAdded:Connect(onPlayerJoined)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerJoined, player)
+end
 
 Players.PlayerRemoving:Connect(function(player)
 	PlayerData.save(player)

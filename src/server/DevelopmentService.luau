@@ -22,6 +22,10 @@ function DevelopmentService.start()
 			return
 		end
 
+		if type(genre) ~= "string" or type(topic) ~= "string" then
+			return
+		end
+
 		if not isValidGenre(genre) or not isValidTopic(topic) then
 			return
 		end

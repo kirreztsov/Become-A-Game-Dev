@@ -138,6 +138,14 @@ function UI.init()
 		local devTime = GameData.getDevTime(playerState.devSpeedLevel)
 		local startClock = os.clock()
 
+		task.delay(devTime + 5, function()
+			if developing then
+				developing = false
+				progressBar.Size = UDim2.fromScale(0, 1)
+				statusLabel.Text = "Something went wrong -- try again."
+			end
+		end)
+
 		local connection
 		connection = game:GetService("RunService").RenderStepped:Connect(function()
 			if not developing then

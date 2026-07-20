@@ -328,7 +328,7 @@ Re-enter Play mode, run the same command bar line:
 require(game.ReplicatedStorage.Shared.Tests.RunTests)
 ```
 
-Expected: all `PASS:` lines (18 total across both modules), then `Tests complete: 18 passed, 0 failed`.
+Expected: all `PASS:` lines (23 total across both modules), then `Tests complete: 23 passed, 0 failed`.
 
 - [ ] **Step 5: Commit**
 

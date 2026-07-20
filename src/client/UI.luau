@@ -9,9 +9,12 @@ local selectedGenre = nil
 local selectedTopic = nil
 local playerState = {
 	cash = 0,
-	devSpeedLevel = 0,
-	qualityBoostLevel = 0,
 	gamesReleased = 0,
+	workers = {
+		Coding = { hired = false, level = 0 },
+		MapBuilding = { hired = false, level = 0 },
+		Testing = { hired = false, level = 0 },
+	},
 }
 
 local Theme = {
@@ -27,6 +30,8 @@ local Theme = {
 	Text = Color3.fromRGB(240, 238, 250),
 	TextMuted = Color3.fromRGB(178, 168, 205),
 }
+
+UI.Theme = Theme
 
 local function addCorner(instance, radius)
 	instance.BorderSizePixel = 0
@@ -80,14 +85,24 @@ local function makeButton(parent, layoutOrder, text, size, textSize)
 	return button
 end
 
+UI.addCorner = addCorner
+UI.addStroke = addStroke
+UI.addGradient = addGradient
+UI.addHoverFeedback = addHoverFeedback
+UI.makeButton = makeButton
+
 function UI.init()
 	local player = Players.LocalPlayer
+	local CodingGame = require(script.Parent.CodingGame)
+	local MapBuildingGame = require(script.Parent.MapBuildingGame)
+	local TestingGame = require(script.Parent.TestingGame)
+	local WorkersPanel = require(script.Parent.WorkersPanel)
+
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "GameDevTycoonUI"
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 
-	-- Floating Cash HUD pill
 	local cashPill = Instance.new("Frame")
 	cashPill.Name = "CashPill"
 	cashPill.Size = UDim2.fromOffset(170, 44)
@@ -108,10 +123,9 @@ function UI.init()
 	cashLabel.TextSize = 22
 	cashLabel.Parent = cashPill
 
-	-- Main panel
 	local mainFrame = Instance.new("Frame")
 	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.fromOffset(460, 500)
+	mainFrame.Size = UDim2.fromOffset(460, 560)
 	mainFrame.Position = UDim2.fromOffset(20, 80)
 	mainFrame.BackgroundColor3 = Theme.Panel
 	mainFrame.Parent = screenGui
@@ -143,7 +157,6 @@ function UI.init()
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 	titleLabel.Parent = mainFrame
 
-	-- Trends card (the signature element -- the whole game revolves around this)
 	local trendsCard = Instance.new("Frame")
 	trendsCard.Size = UDim2.new(1, 0, 0, 56)
 	trendsCard.LayoutOrder = 2
@@ -177,7 +190,6 @@ function UI.init()
 	trendsLabel.TextWrapped = true
 	trendsLabel.Parent = trendsCard
 
-	-- Genre picker
 	local genreLabel = Instance.new("TextLabel")
 	genreLabel.Text = "GENRE"
 	genreLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -213,7 +225,6 @@ function UI.init()
 		end)
 	end
 
-	-- Topic picker
 	local topicLabel = Instance.new("TextLabel")
 	topicLabel.Text = "TOPIC"
 	topicLabel.Size = UDim2.new(1, 0, 0, 18)
@@ -249,37 +260,103 @@ function UI.init()
 		end)
 	end
 
-	-- Start Developing button
 	local startButton = makeButton(mainFrame, 7, "\240\159\154\128 Start Developing", UDim2.new(1, 0, 0, 48), 20)
 	startButton.BackgroundColor3 = Theme.Accent
 	addGradient(startButton, Color3.fromRGB(163, 110, 255), Color3.fromRGB(120, 74, 220), 90)
 	addHoverFeedback(startButton, Theme.Accent, Theme.AccentDeep)
 
-	-- Progress bar
-	local progressBackground = Instance.new("Frame")
-	progressBackground.Size = UDim2.new(1, 0, 0, 20)
-	progressBackground.LayoutOrder = 8
-	progressBackground.BackgroundColor3 = Theme.Neutral
-	progressBackground.Parent = mainFrame
-	addCorner(progressBackground, 10)
+	local phaseLabel = Instance.new("TextLabel")
+	phaseLabel.Text = ""
+	phaseLabel.Size = UDim2.new(1, 0, 0, 20)
+	phaseLabel.LayoutOrder = 8
+	phaseLabel.BackgroundTransparency = 1
+	phaseLabel.TextColor3 = Theme.TextMuted
+	phaseLabel.Font = Enum.Font.GothamBold
+	phaseLabel.TextSize = 13
+	phaseLabel.TextXAlignment = Enum.TextXAlignment.Left
+	phaseLabel.Parent = mainFrame
 
-	local progressBar = Instance.new("Frame")
-	progressBar.Size = UDim2.fromScale(0, 1)
-	progressBar.BackgroundColor3 = Theme.Success
-	progressBar.Parent = progressBackground
-	addCorner(progressBar, 10)
-	addGradient(progressBar, Color3.fromRGB(120, 255, 200), Theme.Success, 0)
+	local phaseArea = Instance.new("Frame")
+	phaseArea.Name = "PhaseArea"
+	phaseArea.Size = UDim2.new(1, 0, 0, 160)
+	phaseArea.LayoutOrder = 9
+	phaseArea.BackgroundColor3 = Theme.Neutral
+	phaseArea.Parent = mainFrame
+	addCorner(phaseArea, 12)
 
 	local statusLabel = Instance.new("TextLabel")
 	statusLabel.Text = ""
 	statusLabel.Size = UDim2.new(1, 0, 0, 24)
-	statusLabel.LayoutOrder = 9
+	statusLabel.LayoutOrder = 10
 	statusLabel.BackgroundTransparency = 1
 	statusLabel.TextColor3 = Theme.TextMuted
 	statusLabel.Font = Enum.Font.GothamMedium
 	statusLabel.TextSize = 15
 	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 	statusLabel.Parent = mainFrame
+
+	local workerMessageLabel = Instance.new("TextLabel")
+	workerMessageLabel.Name = "WorkerMessage"
+	workerMessageLabel.Text = ""
+	workerMessageLabel.Size = UDim2.fromScale(1, 1)
+	workerMessageLabel.BackgroundTransparency = 1
+	workerMessageLabel.TextColor3 = Theme.Text
+	workerMessageLabel.Font = Enum.Font.GothamMedium
+	workerMessageLabel.TextSize = 16
+	workerMessageLabel.TextWrapped = true
+	workerMessageLabel.Visible = false
+	workerMessageLabel.Parent = phaseArea
+
+	CodingGame.init(phaseArea, Theme)
+	MapBuildingGame.init(phaseArea, Theme)
+	TestingGame.init(phaseArea, Theme)
+
+	local function hideAllPhaseUI()
+		workerMessageLabel.Visible = false
+		CodingGame.hide()
+		MapBuildingGame.hide()
+		TestingGame.hide()
+	end
+
+	hideAllPhaseUI()
+
+	local PHASE_DISPLAY_NAMES = {
+		Coding = "Coding",
+		MapBuilding = "Map Building",
+		Testing = "Testing",
+	}
+
+	Remotes.PhaseStarted.OnClientEvent:Connect(function(phase, isAutomated)
+		hideAllPhaseUI()
+		if isAutomated then
+			phaseLabel.Text = ("%s \226\128\148 your worker is on it"):format(PHASE_DISPLAY_NAMES[phase])
+			workerMessageLabel.Text = ("\240\159\164\150 Your %s worker is working..."):format(PHASE_DISPLAY_NAMES[phase])
+			workerMessageLabel.Visible = true
+		else
+			phaseLabel.Text = PHASE_DISPLAY_NAMES[phase]
+		end
+	end)
+
+	Remotes.RoundStarted.OnClientEvent:Connect(function(phase, roundIndex, roundData)
+		phaseLabel.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[phase], roundIndex, GameData.RoundsPerPhase)
+		if phase == "Coding" then
+			CodingGame.startRound()
+		elseif phase == "MapBuilding" then
+			MapBuildingGame.startRound(roundData.startTime, roundData.periodSeconds)
+		elseif phase == "Testing" then
+			TestingGame.startRound(roundData.prompt, roundData.options)
+		end
+	end)
+
+	Remotes.RoundComplete.OnClientEvent:Connect(function(phase, roundIndex, score)
+		statusLabel.Text = ("Round %d: %d%%"):format(roundIndex, math.floor(score * 100 + 0.5))
+		statusLabel.TextColor3 = Theme.TextMuted
+	end)
+
+	Remotes.PhaseComplete.OnClientEvent:Connect(function(phase, score)
+		hideAllPhaseUI()
+		phaseLabel.Text = ("%s complete: %d%%"):format(PHASE_DISPLAY_NAMES[phase], math.floor(score * 100 + 0.5))
+	end)
 
 	local developing = false
 	local developSequence = 0
@@ -298,38 +375,25 @@ function UI.init()
 		developing = true
 		developSequence += 1
 		local mySequence = developSequence
-		statusLabel.Text = "Developing..."
-		statusLabel.TextColor3 = Theme.TextMuted
+		statusLabel.Text = ""
+		phaseLabel.Text = "Starting..."
 		Remotes.RequestStartDevelopment:FireServer(selectedGenre, selectedTopic)
 
-		local devTime = GameData.getDevTime(playerState.devSpeedLevel)
-		local startClock = os.clock()
-
-		task.delay(devTime + 5, function()
+		task.delay(90, function()
 			if developing and mySequence == developSequence then
 				developing = false
-				progressBar.Size = UDim2.fromScale(0, 1)
+				hideAllPhaseUI()
+				phaseLabel.Text = ""
 				statusLabel.Text = "Something went wrong -- try again."
 				statusLabel.TextColor3 = Theme.Danger
 			end
-		end)
-
-		local connection
-		connection = game:GetService("RunService").RenderStepped:Connect(function()
-			if not developing then
-				connection:Disconnect()
-				return
-			end
-
-			local elapsed = os.clock() - startClock
-			local fraction = math.clamp(elapsed / devTime, 0, 1)
-			progressBar.Size = UDim2.fromScale(fraction, 1)
 		end)
 	end)
 
 	Remotes.DevelopmentComplete.OnClientEvent:Connect(function(cash, wasCopy, hitBonus)
 		developing = false
-		progressBar.Size = UDim2.fromScale(0, 1)
+		hideAllPhaseUI()
+		phaseLabel.Text = ""
 
 		if wasCopy then
 			statusLabel.Text = "That was a copy! Earned $0."
@@ -343,60 +407,11 @@ function UI.init()
 		end
 	end)
 
-	-- Upgrades
-	local upgradesRow = Instance.new("Frame")
-	upgradesRow.Size = UDim2.new(1, 0, 0, 64)
-	upgradesRow.LayoutOrder = 10
-	upgradesRow.BackgroundTransparency = 1
-	upgradesRow.Parent = mainFrame
-
-	local upgradesRowLayout = Instance.new("UIListLayout")
-	upgradesRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	upgradesRowLayout.Padding = UDim.new(0, 12)
-	upgradesRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	upgradesRowLayout.Parent = upgradesRow
-
-	local devSpeedButton = makeButton(upgradesRow, 1, "\226\154\161 Dev Speed", UDim2.new(0.5, -6, 1, 0), 16)
-	addHoverFeedback(devSpeedButton, Theme.Neutral, Theme.NeutralHover)
-
-	local qualityBoostButton = makeButton(upgradesRow, 2, "\226\156\168 Quality", UDim2.new(0.5, -6, 1, 0), 16)
-	addHoverFeedback(qualityBoostButton, Theme.Neutral, Theme.NeutralHover)
-
-	local function refreshUpgradeButtons()
-		devSpeedButton.Text = ("\226\154\161 Dev Speed\nLv%d \194\183 $%d"):format(
-			playerState.devSpeedLevel,
-			GameData.getDevSpeedCost(playerState.devSpeedLevel)
-		)
-		qualityBoostButton.Text = ("\226\156\168 Quality\nLv%d \194\183 $%d"):format(
-			playerState.qualityBoostLevel,
-			GameData.getQualityBoostCost(playerState.qualityBoostLevel)
-		)
-	end
-
-	refreshUpgradeButtons()
-
-	devSpeedButton.MouseButton1Click:Connect(function()
-		Remotes.RequestBuyUpgrade:FireServer("DevSpeed")
-	end)
-
-	qualityBoostButton.MouseButton1Click:Connect(function()
-		Remotes.RequestBuyUpgrade:FireServer("QualityBoost")
-	end)
-
-	Remotes.UpgradeResult.OnClientEvent:Connect(function(upgradeType, success)
-		if not success then
-			statusLabel.Text = ("Not enough cash to upgrade %s!"):format(upgradeType)
-			statusLabel.TextColor3 = Theme.Danger
-		end
-	end)
-
 	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
 		playerState.cash = data.cash
-		playerState.devSpeedLevel = data.devSpeedLevel
-		playerState.qualityBoostLevel = data.qualityBoostLevel
 		playerState.gamesReleased = data.gamesReleased
+		playerState.workers = data.workers
 		cashLabel.Text = ("\240\159\146\176 $%d"):format(playerState.cash)
-		refreshUpgradeButtons()
 	end)
 
 	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2)
@@ -404,6 +419,8 @@ function UI.init()
 			trend1.genre, trend1.topic, trend2.genre, trend2.topic
 		)
 	end)
+
+	WorkersPanel.init(player, Theme, playerState)
 end
 
 return UI

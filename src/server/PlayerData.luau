@@ -10,9 +10,12 @@ local failedLoads = {}
 local function defaultData()
 	return {
 		cash = GameData.StartingCash,
-		devSpeedLevel = 0,
-		qualityBoostLevel = 0,
 		gamesReleased = 0,
+		workers = {
+			Coding = { hired = false, level = 0 },
+			MapBuilding = { hired = false, level = 0 },
+			Testing = { hired = false, level = 0 },
+		},
 	}
 end
 

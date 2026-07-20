@@ -1,9 +1,9 @@
 local LobbyBuilder = {}
 
-local ROOM_SIZE = 40
+local ROOM_SIZE = 70
 local WALL_HEIGHT = 16
 local WALL_THICKNESS = 1
-local DOOR_WIDTH = 10
+local DOOR_WIDTH = 16
 local FLOOR_TOP = 1
 
 local PANEL_COLOR = Color3.fromRGB(36, 27, 54)

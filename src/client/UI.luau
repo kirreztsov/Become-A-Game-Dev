@@ -6,7 +6,12 @@ local UI = {}
 
 local selectedGenre = nil
 local selectedTopic = nil
-local currentDevSpeedLevel = 0
+local playerState = {
+	cash = 0,
+	devSpeedLevel = 0,
+	qualityBoostLevel = 0,
+	gamesReleased = 0,
+}
 
 local function makeButton(parent, layoutOrder, text, position, size)
 	local button = Instance.new("TextButton")
@@ -30,10 +35,28 @@ function UI.init()
 
 	local mainFrame = Instance.new("Frame")
 	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.fromOffset(420, 360)
+	mainFrame.Size = UDim2.fromOffset(420, 400)
 	mainFrame.Position = UDim2.fromScale(0.02, 0.1)
 	mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 	mainFrame.Parent = screenGui
+
+	local cashLabel = Instance.new("TextLabel")
+	cashLabel.Name = "CashLabel"
+	cashLabel.Text = "Cash: $0"
+	cashLabel.Size = UDim2.fromOffset(200, 24)
+	cashLabel.Position = UDim2.fromOffset(210, 10)
+	cashLabel.BackgroundTransparency = 1
+	cashLabel.TextColor3 = Color3.fromRGB(255, 220, 120)
+	cashLabel.Parent = screenGui
+
+	local trendsLabel = Instance.new("TextLabel")
+	trendsLabel.Name = "TrendsLabel"
+	trendsLabel.Text = "Trends: loading..."
+	trendsLabel.Size = UDim2.fromOffset(400, 40)
+	trendsLabel.Position = UDim2.fromOffset(10, 320)
+	trendsLabel.BackgroundTransparency = 1
+	trendsLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+	trendsLabel.Parent = mainFrame
 
 	local genreLabel = Instance.new("TextLabel")
 	genreLabel.Text = "Genre:"
@@ -112,7 +135,7 @@ function UI.init()
 		statusLabel.Text = "Developing..."
 		Remotes.RequestStartDevelopment:FireServer(selectedGenre, selectedTopic)
 
-		local devTime = GameData.getDevTime(currentDevSpeedLevel)
+		local devTime = GameData.getDevTime(playerState.devSpeedLevel)
 		local startClock = os.clock()
 
 		local connection
@@ -139,6 +162,20 @@ function UI.init()
 		else
 			statusLabel.Text = ("Released! Earned $%d."):format(cash)
 		end
+	end)
+
+	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
+		playerState.cash = data.cash
+		playerState.devSpeedLevel = data.devSpeedLevel
+		playerState.qualityBoostLevel = data.qualityBoostLevel
+		playerState.gamesReleased = data.gamesReleased
+		cashLabel.Text = ("Cash: $%d"):format(playerState.cash)
+	end)
+
+	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2)
+		trendsLabel.Text = ("Trends: %s+%s and %s+%s"):format(
+			trend1.genre, trend1.topic, trend2.genre, trend2.topic
+		)
 	end)
 end
 

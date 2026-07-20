@@ -5,6 +5,7 @@ local playerStore = DataStoreService:GetDataStore("PlayerData_v1")
 
 local PlayerData = {}
 local cache = {}
+local failedLoads = {}
 
 local function defaultData()
 	return {
@@ -20,10 +21,21 @@ function PlayerData.load(player)
 		return playerStore:GetAsync("Player_" .. player.UserId)
 	end)
 
-	if success and data then
-		cache[player.UserId] = data
+	if success then
+		if data then
+			-- Existing save found in DataStore
+			cache[player.UserId] = data
+			failedLoads[player.UserId] = nil
+		else
+			-- No prior save: truly a new player
+			cache[player.UserId] = defaultData()
+			failedLoads[player.UserId] = nil
+		end
 	else
+		-- GetAsync errored: cache defaults for this session, but mark load as failed
 		cache[player.UserId] = defaultData()
+		failedLoads[player.UserId] = true
+		warn(("Failed to load data for %s; saves will be skipped until load succeeds: %s"):format(player.Name, tostring(data)))
 	end
 
 	return cache[player.UserId]
@@ -34,6 +46,12 @@ function PlayerData.get(player)
 end
 
 function PlayerData.save(player)
+	-- Refuse to save if the most recent load failed; prevents overwriting real data with defaults
+	if failedLoads[player.UserId] then
+		warn(("Refusing to save data for %s: the most recent load failed; will not overwrite DataStore until a successful load clears this flag"):format(player.Name))
+		return
+	end
+
 	local data = cache[player.UserId]
 	if not data then
 		return
@@ -50,6 +68,7 @@ end
 
 function PlayerData.remove(player)
 	cache[player.UserId] = nil
+	failedLoads[player.UserId] = nil
 end
 
 return PlayerData

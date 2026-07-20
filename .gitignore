@@ -1,0 +1,17 @@
+# Project place file
+/roblox game.rbxlx
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
+
+sourcemap.json
+
+# Downloaded Rojo CLI binary (not project source)
+/rojo-bin/
+
+# Local Claude Code session config
+/.claude/
+
+# macOS
+.DS_Store

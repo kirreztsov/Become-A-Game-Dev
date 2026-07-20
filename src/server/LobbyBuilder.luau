@@ -99,6 +99,14 @@ local function buildDesk(lobbyFolder)
 	local screen = makePart("MonitorScreen", Vector3.new(2, monitorHeight - 0.2, 0.05), Vector3.new(-12, monitorCenterY, 12.7), GOLD_COLOR, Enum.Material.Neon, lobbyFolder)
 	screen.CanCollide = false
 
+	local workersPrompt = Instance.new("ProximityPrompt")
+	workersPrompt.Name = "WorkersPrompt"
+	workersPrompt.ActionText = "Manage Workers"
+	workersPrompt.ObjectText = "Computer"
+	workersPrompt.HoldDuration = 0.5
+	workersPrompt.MaxActivationDistance = 10
+	workersPrompt.Parent = screen
+
 	-- Chair sits in front of the desk (south side, facing the monitor across the desk)
 	local chairHeight = 2.4
 	makePart("Chair", Vector3.new(2, chairHeight, 2), Vector3.new(-12, FLOOR_TOP + chairHeight / 2, 9), CHAIR_COLOR, nil, lobbyFolder)

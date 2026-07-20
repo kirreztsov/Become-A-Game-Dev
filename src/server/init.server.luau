@@ -3,13 +3,13 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.PlayerData)
 local TrendsService = require(script.TrendsService)
 local DevelopmentService = require(script.DevelopmentService)
-local UpgradeService = require(script.UpgradeService)
+local WorkerService = require(script.WorkerService)
 local LobbyBuilder = require(script.LobbyBuilder)
 
 LobbyBuilder.build()
 TrendsService.start()
 DevelopmentService.start()
-UpgradeService.start()
+WorkerService.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 
@@ -26,6 +26,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
+	DevelopmentService.cleanupPlayer(player)
 	PlayerData.save(player)
 	PlayerData.remove(player)
 end)

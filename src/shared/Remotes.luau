@@ -3,11 +3,19 @@ local RunService = game:GetService("RunService")
 
 local REMOTE_NAMES = {
 	"RequestStartDevelopment",
+	"PhaseStarted",
+	"RoundStarted",
+	"ReportTap",
+	"ReportPlacement",
+	"ReportChoice",
+	"RoundComplete",
+	"PhaseComplete",
 	"DevelopmentComplete",
-	"RequestBuyUpgrade",
-	"UpgradeResult",
-	"TrendsUpdated",
+	"RequestHireWorker",
+	"RequestUpgradeWorker",
+	"WorkerActionResult",
 	"PlayerStateUpdated",
+	"TrendsUpdated",
 }
 
 local Remotes = {}

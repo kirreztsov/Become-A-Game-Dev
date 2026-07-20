@@ -24,9 +24,9 @@ function TrendMatch.classify(genre, topic, trend1, trend2)
 	return "none"
 end
 
-function TrendMatch.computeCash(genre, topic, trend1, trend2, qualityBoostLevel, randomFn)
+function TrendMatch.computeCash(genre, topic, trend1, trend2, devQuality, randomFn)
 	randomFn = randomFn or math.random
-	local baseCash = math.floor(GameData.getBaseCash(qualityBoostLevel))
+	local baseCash = math.floor(GameData.getBaseCash(devQuality))
 	local classification = TrendMatch.classify(genre, topic, trend1, trend2)
 
 	if classification == "copy" then

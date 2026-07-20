@@ -164,12 +164,37 @@ function UI.init()
 		end
 	end)
 
+	local devSpeedButton = makeButton(mainFrame, 200, "Upgrade Dev Speed", UDim2.fromOffset(210, 150), UDim2.fromOffset(190, 36))
+	local qualityBoostButton = makeButton(mainFrame, 201, "Upgrade Quality", UDim2.fromOffset(210, 192), UDim2.fromOffset(190, 36))
+
+	local function refreshUpgradeButtons()
+		devSpeedButton.Text = ("Upgrade Dev Speed ($%d)"):format(GameData.getDevSpeedCost(playerState.devSpeedLevel))
+		qualityBoostButton.Text = ("Upgrade Quality ($%d)"):format(GameData.getQualityBoostCost(playerState.qualityBoostLevel))
+	end
+
+	refreshUpgradeButtons()
+
+	devSpeedButton.MouseButton1Click:Connect(function()
+		Remotes.RequestBuyUpgrade:FireServer("DevSpeed")
+	end)
+
+	qualityBoostButton.MouseButton1Click:Connect(function()
+		Remotes.RequestBuyUpgrade:FireServer("QualityBoost")
+	end)
+
+	Remotes.UpgradeResult.OnClientEvent:Connect(function(upgradeType, success)
+		if not success then
+			statusLabel.Text = ("Not enough cash to upgrade %s!"):format(upgradeType)
+		end
+	end)
+
 	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
 		playerState.cash = data.cash
 		playerState.devSpeedLevel = data.devSpeedLevel
 		playerState.qualityBoostLevel = data.qualityBoostLevel
 		playerState.gamesReleased = data.gamesReleased
 		cashLabel.Text = ("Cash: $%d"):format(playerState.cash)
+		refreshUpgradeButtons()
 	end)
 
 	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2)

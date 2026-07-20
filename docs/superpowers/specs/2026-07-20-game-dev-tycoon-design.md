@@ -16,28 +16,49 @@ studios — out of scope for v1).
 1. Player picks a **Genre** + a **Topic** from a menu.
 2. Player presses **"Start Developing"**. A progress bar fills over a fixed
    duration (shortened by the player's Dev Speed upgrade level).
-3. When the bar completes, the game "releases":
-   - **Quality Score** is derived from the Genre+Topic match rating and the
-     player's Quality Boost upgrade level.
-   - **Cash** earned is derived from the Quality Score.
+3. When the bar completes, the game "releases": Cash earned is derived from
+   the player's Quality Boost upgrade level and how the release compares to
+   the current Trends Board (see below).
 4. Player spends Cash on upgrades (Dev Speed, Quality Boost).
 5. Repeat indefinitely — there is no end state or final goal.
 
-## Genres, Topics & Quality
+## Genres & Topics
 
 Small, fixed starting lists (expandable later):
 
 - **Genres**: Racing, Horror, Adventure, Simulator
 - **Topics**: Space, Zombies, Sports, Fantasy
 
-Every Genre+Topic pair has a **match rating**: `Perfect`, `Good`, `Okay`, or
-`Bad` (e.g. Horror+Zombies = Perfect, Racing+Zombies = Bad). This is a fixed
-lookup table, not computed — defined once as data so it's easy to extend when
-more genres/topics are added later.
+There is no fixed "good combo" table — any Genre+Topic pair is valid and
+equally normal to make. What matters is the Trends Board, below.
 
-**Quality Score** = match rating value × Quality Boost multiplier
+## Trends Board & Quality
 
-**Cash earned** = Quality Score × payout multiplier (constant for v1)
+The studio has a **Trends Board**, shared by everyone in the server:
+
+- It shows **2 trending games**, each just a randomly rolled Genre+Topic pair
+  (rolled independently — it's fine if it doesn't make sense, e.g.
+  "Simulator + Zombies").
+- It **refreshes every 5 minutes**: both trending pairs are re-rolled at once
+  for the whole server.
+
+When a player releases a game, its Genre+Topic is compared against both
+currently trending pairs:
+
+- **Exact copy** — both Genre and Topic match one trending pair exactly →
+  **Cash earned = 0**. It's a copy, not a hit.
+- **Partial match** — only the Genre matches a trending pair's Genre, OR only
+  the Topic matches a trending pair's Topic (not both) → roll a **10%
+  chance**:
+  - Hit (10%) → **Cash = base Cash × 5**
+  - Miss (90%) → Cash = base Cash (no bonus)
+- **No match** — Genre and Topic match neither trending pair at all → Cash =
+  base Cash (normal, no bonus, no penalty)
+
+**Base Cash** = Quality Boost multiplier × payout multiplier (constant for
+v1). The old idea of a fixed per-combo quality rating is gone — Quality Boost
+is now the only thing raising your baseline, and the Trends Board is the only
+source of bonus (or zeroed-out) Cash.
 
 ## Upgrades
 
@@ -47,9 +68,9 @@ in this spec — a simple exponential or linear-step cost table is fine).
 
 - **Dev Speed**: reduces the development timer duration per level (e.g.
   Lv1: 30s → Lv5: 10s).
-- **Quality Boost**: increases the multiplier applied to Quality Score per
-  level, so lower-match combos still earn meaningful Cash as the player
-  progresses.
+- **Quality Boost**: increases the multiplier applied to Base Cash per level,
+  so releases keep earning more as the player progresses, independent of
+  trends.
 
 ## Architecture
 
@@ -62,23 +83,29 @@ editing their own client to cheat Cash/upgrades.
   RemoteEvents to request actions; listens for state updates to refresh the
   UI.
 - **Server** (`src/server`): source of truth. Owns the per-player state
-  (Cash, upgrade levels, games-released count), runs the development timer,
-  computes Quality Score/Cash on release, validates and applies upgrade
-  purchases, and pushes state updates back to the owning client.
+  (Cash, upgrade levels, games-released count), runs each player's
+  development timer, owns the single server-wide Trends Board state and its
+  5-minute refresh timer, computes Cash on release (including the copy/trend
+  check and the 10% roll), validates and applies upgrade purchases, and
+  pushes state updates back to clients.
 - **Shared** (`src/shared`): static data both sides can read — the list of
-  Genres/Topics, the match-rating lookup table, upgrade cost/effect tables.
+  Genres/Topics, upgrade cost/effect tables.
 
 ### Data flow
 
 1. Client fires `RequestStartDevelopment(genre, topic)` → Server validates
    the player isn't already developing, starts a server-side timer, tells the
    client to show the progress bar.
-2. On timer completion, Server computes Quality/Cash, updates the player's
-   saved state, and fires a `DevelopmentComplete(quality, cashEarned)` event
-   back to the client.
+2. On timer completion, Server checks the release against the current Trends
+   Board, computes Cash, updates the player's saved state, and fires a
+   `DevelopmentComplete(cashEarned, wasCopy, hitTrendBonus)` event back to the
+   client (so the UI can show "Copy!" / "Trendy hit!" / normal feedback).
 3. Client fires `RequestBuyUpgrade(upgradeType)` → Server checks the player
    has enough Cash, applies the upgrade level, deducts Cash, and confirms back
    to the client.
+4. Every 5 minutes, Server re-rolls the 2 trending Genre+Topic pairs and
+   fires a `TrendsUpdated(trend1, trend2)` event to all clients in the
+   server, so every player's Trends Board UI updates at the same time.
 
 ### Persistence
 

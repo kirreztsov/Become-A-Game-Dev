@@ -72,11 +72,19 @@ end
 
 local function runTestingRound(player, roundIndex)
 	local question = GameData.TestingQuestions[math.random(1, #GameData.TestingQuestions)]
-	activeRounds[player.UserId] = { kind = "choice", chosen = false, correctIndex = question.correctIndex }
+	local options = question.options
+	local correctIndex = question.correctIndex
+
+	if math.random() < 0.5 then
+		options = { options[2], options[1] }
+		correctIndex = (correctIndex == 1) and 2 or 1
+	end
+
+	activeRounds[player.UserId] = { kind = "choice", chosen = false, correctIndex = correctIndex }
 
 	Remotes.RoundStarted:FireClient(player, "Testing", roundIndex, {
 		prompt = question.prompt,
-		options = question.options,
+		options = options,
 	})
 
 	local waited = 0

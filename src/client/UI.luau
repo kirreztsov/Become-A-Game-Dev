@@ -120,6 +120,7 @@ function UI.init()
 	statusLabel.Parent = mainFrame
 
 	local developing = false
+	local developSequence = 0
 
 	startButton.MouseButton1Click:Connect(function()
 		if developing then
@@ -132,6 +133,8 @@ function UI.init()
 		end
 
 		developing = true
+		developSequence += 1
+		local mySequence = developSequence
 		statusLabel.Text = "Developing..."
 		Remotes.RequestStartDevelopment:FireServer(selectedGenre, selectedTopic)
 
@@ -139,7 +142,7 @@ function UI.init()
 		local startClock = os.clock()
 
 		task.delay(devTime + 5, function()
-			if developing then
+			if developing and mySequence == developSequence then
 				developing = false
 				progressBar.Size = UDim2.fromScale(0, 1)
 				statusLabel.Text = "Something went wrong -- try again."

@@ -165,7 +165,7 @@ function UI.init()
 	end)
 
 	local devSpeedButton = makeButton(mainFrame, 200, "Upgrade Dev Speed", UDim2.fromOffset(210, 150), UDim2.fromOffset(190, 36))
-	local qualityBoostButton = makeButton(mainFrame, 201, "Upgrade Quality", UDim2.fromOffset(210, 192), UDim2.fromOffset(190, 36))
+	local qualityBoostButton = makeButton(mainFrame, 201, "Upgrade Quality", UDim2.fromOffset(210, 252), UDim2.fromOffset(190, 36))
 
 	local function refreshUpgradeButtons()
 		devSpeedButton.Text = ("Upgrade Dev Speed ($%d)"):format(GameData.getDevSpeedCost(playerState.devSpeedLevel))

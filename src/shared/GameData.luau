@@ -81,7 +81,7 @@ function GameData.getMarkerPosition(elapsedSeconds, periodSeconds)
 end
 
 -- House tiers: index 0 is the starting empty lot, up to HouseTierCount - 1 is the max tier
-GameData.HouseTierCount = 3
+GameData.HouseTierCount = 5
 GameData.HouseUpgradeCostBase = 300
 GameData.HouseUpgradeCostGrowth = 1.8
 

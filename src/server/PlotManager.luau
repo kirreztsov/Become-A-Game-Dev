@@ -234,9 +234,18 @@ local function buildTrendsSign(plotFolder, origin)
 	text.Parent = surfaceGui
 end
 
--- Fence height per tier (index 1 = tier 1, index 2 = tier 2); tier 0 has no fence.
+-- Fence height per tier; tier 0 has no fence.
 -- Low, waist-to-chest height -- a decorative border, not a wall blocking the view.
-local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 4 }
+local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 3.5, 4, 4.5 }
+
+-- House size/detail per tier -- a longer progression like RoTube Life 2's
+-- many home tiers (starter house up to a mansion), not just two steps.
+local HOUSE_TIER_CONFIG = {
+	[1] = { width = 14, depth = 12, wallHeight = 7, roofHeight = 5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
+	[2] = { width = 18, depth = 15, wallHeight = 8, roofHeight = 5.5, secondStory = false, porch = true, chimney = true, hedges = false, driveway = false },
+	[3] = { width = 20, depth = 17, wallHeight = 7, upperWallHeight = 6, roofHeight = 6, secondStory = true, porch = true, chimney = true, hedges = true, driveway = false },
+	[4] = { width = 26, depth = 20, wallHeight = 8, upperWallHeight = 7, roofHeight = 6.5, secondStory = true, porch = true, chimney = true, hedges = true, driveway = true },
+}
 
 -- A real house building on the open lot at the far end of the plot (away
 -- from the office stations), sized up and detailed further per tier.
@@ -246,9 +255,10 @@ local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 4 }
 -- and the thin edge at the left eave; rotating -90 and centering at
 -- +run/2 mirrors that for the right half -- together they form a peak.
 local function buildHouseStructure(houseFolder, base, tier)
-	local width = (tier >= 2) and 22 or 16
-	local depth = (tier >= 2) and 18 or 14
-	local wallHeight = (tier >= 2) and 9 or 7
+	local config = HOUSE_TIER_CONFIG[tier]
+	local width = config.width
+	local depth = config.depth
+	local wallHeight = config.wallHeight
 	local halfW = width / 2
 	local halfD = depth / 2
 	local wallThickness = 0.6
@@ -278,12 +288,45 @@ local function buildHouseStructure(houseFolder, base, tier)
 	makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
 	makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
 
+	local function makeWindow(name, x, y)
+		local frame = makePart(name .. "Frame", Vector3.new(2.4, 2.4, 0.25), base + Vector3.new(x, y, -halfD - 0.2), trimColor, Enum.Material.SmoothPlastic, houseFolder)
+		frame.CanCollide = false
+		local pane = makePart(name .. "Pane", Vector3.new(2, 2, 0.1), base + Vector3.new(x, y, -halfD - 0.3), Color3.fromRGB(160, 210, 230), Enum.Material.Glass, houseFolder)
+		pane.CanCollide = false
+		pane.Transparency = 0.3
+	end
+
+	makeWindow("WindowLeft", -halfW + 3, wallCenterY + 1)
+	makeWindow("WindowRight", halfW - 3, wallCenterY + 1)
+
+	-- Second story: a shorter upper wall stack sitting directly on the
+	-- ground floor, with its own windows and a trim band at the seam. The
+	-- roof then sits on top of this instead of the ground floor.
+	local totalWallHeight = wallHeight
+	if config.secondStory then
+		local upperWallHeight = config.upperWallHeight
+		local upperCenterY = FLOOR_TOP + wallHeight + upperWallHeight / 2
+
+		makePart("UpperWallFront", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+		makePart("UpperWallBack", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+		makePart("UpperWallLeft", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(-halfW, upperCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+		makePart("UpperWallRight", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(halfW, upperCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+
+		local trim = makePart("StoryTrim", Vector3.new(width + 0.3, 0.3, depth + 0.3), base + Vector3.new(0, FLOOR_TOP + wallHeight, 0), trimColor, Enum.Material.SmoothPlastic, houseFolder)
+		trim.CanCollide = false
+
+		makeWindow("UpperWindowLeft", -halfW + 3, upperCenterY)
+		makeWindow("UpperWindowRight", halfW - 3, upperCenterY)
+
+		totalWallHeight = wallHeight + upperWallHeight
+	end
+
 	-- Peaked roof: two wedges meeting at a ridge running front-to-back (Z)
 	local roofOverhang = 1.5
 	local ridgeLength = depth + roofOverhang * 2
 	local roofRun = halfW + roofOverhang
-	local roofHeight = (tier >= 2) and 6 or 5
-	local roofBaseY = FLOOR_TOP + wallHeight + roofHeight / 2
+	local roofHeight = config.roofHeight
+	local roofBaseY = FLOOR_TOP + totalWallHeight + roofHeight / 2
 
 	local function makeRoofHalf(name, xOffset, yRotationDeg)
 		local wedge = Instance.new("WedgePart")
@@ -306,17 +349,6 @@ local function buildHouseStructure(houseFolder, base, tier)
 
 	local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.25), GOLD_COLOR, Enum.Material.Metal, houseFolder)
 	doorKnob.CanCollide = false
-
-	local function makeWindow(name, x)
-		local frame = makePart(name .. "Frame", Vector3.new(2.4, 2.4, 0.25), base + Vector3.new(x, wallCenterY + 1, -halfD - 0.2), trimColor, Enum.Material.SmoothPlastic, houseFolder)
-		frame.CanCollide = false
-		local pane = makePart(name .. "Pane", Vector3.new(2, 2, 0.1), base + Vector3.new(x, wallCenterY + 1, -halfD - 0.3), Color3.fromRGB(160, 210, 230), Enum.Material.Glass, houseFolder)
-		pane.CanCollide = false
-		pane.Transparency = 0.3
-	end
-
-	makeWindow("WindowLeft", -halfW + 3)
-	makeWindow("WindowRight", halfW - 3)
 
 	-- Simple furnished interior so the house is somewhere you actually live,
 	-- not just an empty shell -- a bed against the back wall, a rug, and a
@@ -342,14 +374,19 @@ local function buildHouseStructure(houseFolder, base, tier)
 	pointLight.Parent = ceilingLight
 
 	local frontClearance = halfD + 0.2
-	if tier >= 2 then
-		local chimneyHeight = wallHeight + roofHeight + 2
-		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD - 2), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
 
+	if config.chimney then
+		local chimneyHeight = totalWallHeight + roofHeight + 2
+		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD - 2), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
+	end
+
+	if config.porch then
 		local porchDepth = 4
 		makePart("PorchFloor", Vector3.new(width - 4, 0.5, porchDepth), base + Vector3.new(0, FLOOR_TOP + 0.25, -halfD - porchDepth / 2), Color3.fromRGB(150, 120, 90), Enum.Material.WoodPlanks, houseFolder)
 
-		local pillarHeight = 4.5
+		-- Tall enough to clear above the ground-floor windows instead of
+		-- cutting across them.
+		local pillarHeight = wallHeight - 1
 		local pillarPositions = { -(width / 2 - 4), (width / 2 - 4) }
 		for i, px in ipairs(pillarPositions) do
 			makePart("PorchPillar" .. i, Vector3.new(0.6, pillarHeight, 0.6), base + Vector3.new(px, FLOOR_TOP + pillarHeight / 2, -halfD - porchDepth + 0.5), trimColor, Enum.Material.SmoothPlastic, houseFolder)
@@ -360,8 +397,19 @@ local function buildHouseStructure(houseFolder, base, tier)
 		frontClearance = halfD + porchDepth + 0.2
 	end
 
-	local pathLength = 6
-	local path = makePart("Path", Vector3.new(4, 0.15, pathLength), base + Vector3.new(0, FLOOR_TOP + 0.08, -frontClearance - pathLength / 2), Color3.fromRGB(180, 175, 165), Enum.Material.Cobblestone, houseFolder)
+	if config.hedges then
+		local hedgeOffsets = { Vector3.new(-halfW + 1.5, 0, -frontClearance - 1.5), Vector3.new(halfW - 1.5, 0, -frontClearance - 1.5) }
+		for i, offset in ipairs(hedgeOffsets) do
+			local hedge = makePart("Hedge" .. i, Vector3.new(2, 1.4, 2), base + Vector3.new(offset.X, FLOOR_TOP + 0.7, offset.Z), Color3.fromRGB(58, 122, 74), Enum.Material.Grass, houseFolder)
+			hedge.CanCollide = false
+		end
+	end
+
+	local pathWidth = config.driveway and 8 or 4
+	local pathLength = config.driveway and 10 or 6
+	local pathMaterial = config.driveway and Enum.Material.Concrete or Enum.Material.Cobblestone
+	local pathColor = config.driveway and Color3.fromRGB(120, 120, 120) or Color3.fromRGB(180, 175, 165)
+	local path = makePart("Path", Vector3.new(pathWidth, 0.15, pathLength), base + Vector3.new(0, FLOOR_TOP + 0.08, -frontClearance - pathLength / 2), pathColor, pathMaterial, houseFolder)
 	path.CanCollide = false
 end
 
@@ -401,12 +449,12 @@ local function buildHouse(plotFolder, origin, tier)
 
 	if tier >= 1 then
 		local fenceHeight = PLOT_FENCE_HEIGHT_BY_TIER[tier]
-		-- Tier 1 reads as a basic wood picket fence; tier 2 upgrades it to a
+		-- Tiers 1-2 read as a basic wood picket fence; tiers 3-4 upgrade to a
 		-- gold metal fence -- real Roblox materials instead of flat plastic,
 		-- and posts + rails (with gaps) instead of a solid slab.
-		local postMaterial = (tier >= 2) and Enum.Material.Metal or Enum.Material.Wood
-		local postColor = (tier >= 2) and GOLD_COLOR or DESK_COLOR
-		local railColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+		local postMaterial = (tier >= 3) and Enum.Material.Metal or Enum.Material.Wood
+		local postColor = (tier >= 3) and GOLD_COLOR or DESK_COLOR
+		local railColor = (tier >= 3) and GOLD_COLOR or ACCENT_COLOR
 		local postThickness = 0.5
 		local railThickness = 0.25
 		local postSpacing = 10

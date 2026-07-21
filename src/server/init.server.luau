@@ -7,28 +7,25 @@ local WorkerService = require(script.WorkerService)
 local HouseService = require(script.HouseService)
 local PCService = require(script.PCService)
 local PlotManager = require(script.PlotManager)
+local Lobby = require(script.Lobby)
 
 PlotManager.build()
+Lobby.build()
 TrendsService.start()
 DevelopmentService.start()
 WorkerService.start()
 HouseService.start()
 PCService.start()
+Lobby.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 
-local function teleportToPlot(player, character)
-	local plotIndex = player:GetAttribute("PlotIndex")
-	if not plotIndex then
-		return
-	end
-
-	local plotFolder = PlotManager.getPlotFolder(plotIndex)
-	if not plotFolder then
-		return
-	end
-
-	local spawnPoint = plotFolder:FindFirstChild("PlotSpawnPoint")
+-- Every spawn (first join and every respawn) lands in the shared Lobby,
+-- not directly at the player's own studio -- matches RoTube Life 2's
+-- actual flow (spawn in the shared Park, then travel to your home from
+-- there via a prompt) instead of teleporting straight to gameplay.
+local function teleportToLobby(character)
+	local spawnPoint = Lobby.getSpawnPoint()
 	if not spawnPoint then
 		return
 	end
@@ -43,8 +40,8 @@ end
 
 local function onPlayerJoined(player)
 	-- Assign a plot synchronously (no yields before this point) so the
-	-- PlotIndex attribute is always already set by the time a character
-	-- could possibly spawn and trigger a teleport below.
+	-- PlotIndex attribute is always already set by the time the player
+	-- uses the "Go to My Studio" kiosk prompt.
 	PlotManager.assignPlot(player)
 
 	local data = PlayerData.load(player)
@@ -55,11 +52,11 @@ local function onPlayerJoined(player)
 	TrendsService.sendCurrentTo(player)
 
 	player.CharacterAdded:Connect(function(character)
-		teleportToPlot(player, character)
+		teleportToLobby(character)
 	end)
 
 	if player.Character then
-		teleportToPlot(player, player.Character)
+		teleportToLobby(player.Character)
 	end
 end
 

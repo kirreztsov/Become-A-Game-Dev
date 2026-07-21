@@ -14,12 +14,14 @@ local PLOT_ORIGINS = {
 	Vector3.new(160, 0, 160),
 }
 
-local PANEL_COLOR = Color3.fromRGB(36, 27, 54)
+local PANEL_COLOR = Color3.fromRGB(196, 172, 138)
 local ACCENT_COLOR = Color3.fromRGB(140, 92, 255)
 local GOLD_COLOR = Color3.fromRGB(255, 209, 102)
 local DARK_TRIM_COLOR = Color3.fromRGB(30, 22, 44)
-local DESK_COLOR = Color3.fromRGB(58, 45, 78)
-local CHAIR_COLOR = Color3.fromRGB(46, 36, 66)
+-- Light desk + a vibrant chair -- matches the real RoTube Life 2 studio
+-- look (clean desk, colorful gaming chair) instead of a dark office box.
+local DESK_COLOR = Color3.fromRGB(230, 222, 208)
+local CHAIR_COLOR = Color3.fromRGB(200, 55, 50)
 
 local claimedBy = {}
 local plotOfPlayer = {}
@@ -273,20 +275,18 @@ local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 3.5, 4, 4.5 }
 -- All tiers, including 0, are sized at least as big as STUDIO_LAYOUT needs
 -- (26 wide x 24 deep) so the fixed station layout always fits inside.
 local HOUSE_TIER_CONFIG = {
-	[0] = { width = 26, depth = 24, wallHeight = 6, roofHeight = 4.5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
-	[1] = { width = 28, depth = 25, wallHeight = 7, roofHeight = 5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
-	[2] = { width = 32, depth = 26, wallHeight = 8, roofHeight = 5.5, secondStory = false, porch = true, chimney = true, hedges = false, driveway = false },
-	[3] = { width = 34, depth = 27, wallHeight = 7, upperWallHeight = 6, roofHeight = 6, secondStory = true, porch = true, chimney = true, hedges = true, driveway = false },
-	[4] = { width = 38, depth = 28, wallHeight = 8, upperWallHeight = 7, roofHeight = 6.5, secondStory = true, porch = true, chimney = true, hedges = true, driveway = true },
+	[0] = { width = 26, depth = 24, wallHeight = 6, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
+	[1] = { width = 28, depth = 25, wallHeight = 7, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
+	[2] = { width = 32, depth = 26, wallHeight = 8, secondStory = false, porch = true, chimney = true, hedges = false, driveway = false },
+	[3] = { width = 34, depth = 27, wallHeight = 7, upperWallHeight = 6, secondStory = true, porch = true, chimney = true, hedges = true, driveway = false },
+	[4] = { width = 38, depth = 28, wallHeight = 8, upperWallHeight = 7, secondStory = true, porch = true, chimney = true, hedges = true, driveway = true },
 }
 
 -- A real house building on the open lot at the far end of the plot (away
 -- from the office stations), sized up and detailed further per tier.
--- Wedge roof math verified live in Studio: a wedge's tall face sits at its
--- local -Z edge and tapers to 0 height at local +Z. Rotating +90 degrees
--- around Y and centering at -run/2 puts the tall edge at the ridge (x=0)
--- and the thin edge at the left eave; rotating -90 and centering at
--- +run/2 mirrors that for the right half -- together they form a peak.
+-- Modern flat-roof, big-glass style -- matches the actual RoTube Life 2
+-- house look (confirmed from its real Roblox store page), not a
+-- pitched-roof cottage.
 local function buildHouseStructure(houseFolder, base, tier)
 	local config = HOUSE_TIER_CONFIG[tier]
 	local width = config.width
@@ -297,11 +297,12 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local wallThickness = 0.6
 	local wallCenterY = FLOOR_TOP + wallHeight / 2
 
-	local wallColor = Color3.fromRGB(214, 178, 122)
+	local wallColor = Color3.fromRGB(235, 232, 225)
+	local glassColor = Color3.fromRGB(180, 215, 230)
 	local trimColor = Color3.fromRGB(255, 255, 255)
-	local roofColor = (tier >= 2) and Color3.fromRGB(120, 45, 40) or Color3.fromRGB(96, 74, 68)
+	local roofColor = Color3.fromRGB(240, 240, 238)
 
-	makePart("HouseFloor", Vector3.new(width, 0.5, depth), base + Vector3.new(0, FLOOR_TOP + 0.25, 0), Color3.fromRGB(150, 120, 90), Enum.Material.WoodPlanks, houseFolder)
+	makePart("HouseFloor", Vector3.new(width, 0.5, depth), base + Vector3.new(0, FLOOR_TOP + 0.25, 0), Color3.fromRGB(200, 190, 175), Enum.Material.Concrete, houseFolder)
 
 	-- Front wall has an actual doorway gap (not just a non-collide decal in
 	-- front of a solid wall) so the house is really walkable-into.
@@ -311,69 +312,60 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local sideWallCenterX = (halfW + doorWidth / 2) / 2
 	local lintelHeight = wallHeight - doorHeight
 
-	makePart("WallFrontLeft", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(-sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
-	makePart("WallFrontRight", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallFrontLeft", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(-sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
+	makePart("WallFrontRight", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
 	if lintelHeight > 0 then
-		makePart("WallFrontLintel", Vector3.new(doorWidth, lintelHeight, wallThickness), base + Vector3.new(0, FLOOR_TOP + doorHeight + lintelHeight / 2, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+		makePart("WallFrontLintel", Vector3.new(doorWidth, lintelHeight, wallThickness), base + Vector3.new(0, FLOOR_TOP + doorHeight + lintelHeight / 2, -halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
 	end
 
-	makePart("WallBack", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
-	makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
-	makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallBack", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
 
-	local function makeWindow(name, x, y)
-		local frame = makePart(name .. "Frame", Vector3.new(2.4, 2.4, 0.25), base + Vector3.new(x, y, -halfD - 0.2), trimColor, Enum.Material.SmoothPlastic, houseFolder)
+	-- Side walls are floor-to-ceiling glass (the reference house's defining
+	-- feature) rather than solid -- still CanCollide, just see-through.
+	makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), glassColor, Enum.Material.Glass, houseFolder)
+	makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), glassColor, Enum.Material.Glass, houseFolder)
+
+	-- Big, near-floor-to-ceiling front windows flanking the door (instead of
+	-- small square windows) to match the reference's glass-wall look.
+	local function makeWindow(name, x, y, windowHeight)
+		local frame = makePart(name .. "Frame", Vector3.new(3.7, windowHeight + 0.3, 0.25), base + Vector3.new(x, y, -halfD - 0.2), trimColor, Enum.Material.SmoothPlastic, houseFolder)
 		frame.CanCollide = false
-		local pane = makePart(name .. "Pane", Vector3.new(2, 2, 0.1), base + Vector3.new(x, y, -halfD - 0.3), Color3.fromRGB(160, 210, 230), Enum.Material.Glass, houseFolder)
+		local pane = makePart(name .. "Pane", Vector3.new(3.4, windowHeight, 0.1), base + Vector3.new(x, y, -halfD - 0.3), glassColor, Enum.Material.Glass, houseFolder)
 		pane.CanCollide = false
-		pane.Transparency = 0.3
+		pane.Transparency = 0.35
 	end
 
-	makeWindow("WindowLeft", -halfW + 3, wallCenterY + 1)
-	makeWindow("WindowRight", halfW - 3, wallCenterY + 1)
+	local frontWindowHeight = wallHeight - 1.5
+	makeWindow("WindowLeft", -halfW + 3, wallCenterY, frontWindowHeight)
+	makeWindow("WindowRight", halfW - 3, wallCenterY, frontWindowHeight)
 
 	-- Second story: a shorter upper wall stack sitting directly on the
-	-- ground floor, with its own windows and a trim band at the seam. The
+	-- ground floor, with its own window and a trim band at the seam. The
 	-- roof then sits on top of this instead of the ground floor.
 	local totalWallHeight = wallHeight
 	if config.secondStory then
 		local upperWallHeight = config.upperWallHeight
 		local upperCenterY = FLOOR_TOP + wallHeight + upperWallHeight / 2
 
-		makePart("UpperWallFront", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
-		makePart("UpperWallBack", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
-		makePart("UpperWallLeft", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(-halfW, upperCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
-		makePart("UpperWallRight", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(halfW, upperCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+		makePart("UpperWallFront", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, -halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
+		makePart("UpperWallBack", Vector3.new(width, upperWallHeight, wallThickness), base + Vector3.new(0, upperCenterY, halfD), wallColor, Enum.Material.SmoothPlastic, houseFolder)
+		makePart("UpperWallLeft", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(-halfW, upperCenterY, 0), glassColor, Enum.Material.Glass, houseFolder)
+		makePart("UpperWallRight", Vector3.new(wallThickness, upperWallHeight, depth), base + Vector3.new(halfW, upperCenterY, 0), glassColor, Enum.Material.Glass, houseFolder)
 
 		local trim = makePart("StoryTrim", Vector3.new(width + 0.3, 0.3, depth + 0.3), base + Vector3.new(0, FLOOR_TOP + wallHeight, 0), trimColor, Enum.Material.SmoothPlastic, houseFolder)
 		trim.CanCollide = false
 
-		makeWindow("UpperWindowLeft", -halfW + 3, upperCenterY)
-		makeWindow("UpperWindowRight", halfW - 3, upperCenterY)
+		makeWindow("UpperWindowLeft", -halfW + 3, upperCenterY, upperWallHeight - 1.5)
+		makeWindow("UpperWindowRight", halfW - 3, upperCenterY, upperWallHeight - 1.5)
 
 		totalWallHeight = wallHeight + upperWallHeight
 	end
 
-	-- Peaked roof: two wedges meeting at a ridge running front-to-back (Z)
+	-- Flat overhanging roof slab -- modern, not a pitched cottage roof.
 	local roofOverhang = 1.5
-	local ridgeLength = depth + roofOverhang * 2
-	local roofRun = halfW + roofOverhang
-	local roofHeight = config.roofHeight
-	local roofBaseY = FLOOR_TOP + totalWallHeight + roofHeight / 2
-
-	local function makeRoofHalf(name, xOffset, yRotationDeg)
-		local wedge = Instance.new("WedgePart")
-		wedge.Name = name
-		wedge.Size = Vector3.new(ridgeLength, roofHeight, roofRun)
-		wedge.CFrame = CFrame.new(base + Vector3.new(xOffset, roofBaseY, 0)) * CFrame.Angles(0, math.rad(yRotationDeg), 0)
-		wedge.Color = roofColor
-		wedge.Material = Enum.Material.Slate
-		wedge.Anchored = true
-		wedge.Parent = houseFolder
-	end
-
-	makeRoofHalf("RoofLeft", -roofRun / 2, 90)
-	makeRoofHalf("RoofRight", roofRun / 2, -90)
+	local roofThickness = 1
+	local roofY = FLOOR_TOP + totalWallHeight + roofThickness / 2
+	makePart("Roof", Vector3.new(width + roofOverhang * 2, roofThickness, depth + roofOverhang * 2), base + Vector3.new(0, roofY, 0), roofColor, Enum.Material.Concrete, houseFolder)
 
 	-- Sits flush in the doorway gap (not offset in front of a solid wall)
 	-- and stays non-collide so walking through the gap actually works.
@@ -412,10 +404,10 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local frontClearance = halfD + 0.2
 
 	if config.chimney then
-		-- Against the back exterior wall, not poking up through the middle
-		-- of the (now functional, station-filled) interior floor.
-		local chimneyHeight = totalWallHeight + roofHeight + 2
-		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD + 1), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
+		-- A slim modern vent stack (not a brick cottage chimney) against the
+		-- back exterior wall, not poking up through the interior floor.
+		local chimneyHeight = totalWallHeight + roofThickness + 2
+		makePart("Chimney", Vector3.new(1.2, chimneyHeight, 1.2), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD + 1), Color3.fromRGB(90, 90, 90), Enum.Material.Concrete, houseFolder)
 	end
 
 	if config.porch then

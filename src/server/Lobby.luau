@@ -42,7 +42,10 @@ local function makePart(name, size, position, color, material, parent)
 end
 
 local function buildWelcomeSign(lobbyFolder)
-	local signPost = makePart("WelcomeSignPost", Vector3.new(0.6, 8, 0.6), LOBBY_ORIGIN + Vector3.new(0, FLOOR_TOP + 4, -22), DARK_TRIM_COLOR, Enum.Material.Metal, lobbyFolder)
+	-- Post stops exactly where the backing's bottom edge is (backing is
+	-- 6 tall centered at FLOOR_TOP + 9, so its bottom is FLOOR_TOP + 6) so
+	-- it doesn't rise up over the painted text.
+	local signPost = makePart("WelcomeSignPost", Vector3.new(0.6, 6, 0.6), LOBBY_ORIGIN + Vector3.new(0, FLOOR_TOP + 3, -22), DARK_TRIM_COLOR, Enum.Material.Metal, lobbyFolder)
 
 	local backing = makePart("WelcomeSignBacking", Vector3.new(20, 6, 0.5), LOBBY_ORIGIN + Vector3.new(0, FLOOR_TOP + 9, -22), ACCENT_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
 	backing.CanCollide = false

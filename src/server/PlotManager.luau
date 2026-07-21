@@ -263,8 +263,12 @@ end
 local function buildTrendsSign(plotFolder, origin)
 	local signCenterY = FLOOR_TOP + 8
 
-	makePart("TrendsSignPostLeft", Vector3.new(0.6, 8, 0.6), origin + Vector3.new(-7, FLOOR_TOP + 4, -28), DARK_TRIM_COLOR, nil, plotFolder)
-	makePart("TrendsSignPostRight", Vector3.new(0.6, 8, 0.6), origin + Vector3.new(7, FLOOR_TOP + 4, -28), DARK_TRIM_COLOR, nil, plotFolder)
+	-- Posts stop exactly where the backing's bottom edge is (backing is
+	-- 6 tall centered at signCenterY, so its bottom is signCenterY - 3)
+	-- instead of rising up over the painted text.
+	local postHeight = signCenterY - 3 - FLOOR_TOP
+	makePart("TrendsSignPostLeft", Vector3.new(0.6, postHeight, 0.6), origin + Vector3.new(-7, FLOOR_TOP + postHeight / 2, -28), DARK_TRIM_COLOR, nil, plotFolder)
+	makePart("TrendsSignPostRight", Vector3.new(0.6, postHeight, 0.6), origin + Vector3.new(7, FLOOR_TOP + postHeight / 2, -28), DARK_TRIM_COLOR, nil, plotFolder)
 
 	-- A long physical board (not a floating BillboardGui) -- the text is
 	-- painted onto its surface with a SurfaceGui, so it reads as a real
@@ -583,13 +587,17 @@ local function buildHouse(plotFolder, origin, tier)
 	houseFolder.Parent = upgradeFolder
 	buildHouseStructure(houseFolder, origin + HOUSE_LOT_OFFSET, tier)
 
-	-- Central signpost near spawn -- reachable immediately, not tucked in a corner
-	local signPost = makePart("PlotUpgradeSignPost", Vector3.new(0.4, 5, 0.4), origin + Vector3.new(0, FLOOR_TOP + 2.5, 8), DARK_TRIM_COLOR, nil, upgradeFolder)
-
 	-- A real sign board (not a floating BillboardGui), readable from either
 	-- direction since players can approach it walking either way.
-	local signBoard = makePart("PlotUpgradeSignBoard", Vector3.new(6, 1.6, 0.2), origin + Vector3.new(0, FLOOR_TOP + 5, 8), ACCENT_COLOR, Enum.Material.SmoothPlastic, upgradeFolder)
+	local signBoardCenterY = FLOOR_TOP + 5
+	local signBoardHeight = 1.6
+	local signBoard = makePart("PlotUpgradeSignBoard", Vector3.new(6, signBoardHeight, 0.2), origin + Vector3.new(0, signBoardCenterY, 8), ACCENT_COLOR, Enum.Material.SmoothPlastic, upgradeFolder)
 	signBoard.CanCollide = false
+
+	-- Post stops exactly where the board's bottom edge is instead of
+	-- rising up over the painted text.
+	local postHeight = signBoardCenterY - signBoardHeight / 2 - FLOOR_TOP
+	local signPost = makePart("PlotUpgradeSignPost", Vector3.new(0.4, postHeight, 0.4), origin + Vector3.new(0, FLOOR_TOP + postHeight / 2, 8), DARK_TRIM_COLOR, nil, upgradeFolder)
 
 	local isMaxTier = tier >= GameData.HouseTierCount - 1
 	local signText = isMaxTier and "\240\159\143\151\239\184\143 Plot fully upgraded!" or "\240\159\143\151\239\184\143 Upgrade your plot!"

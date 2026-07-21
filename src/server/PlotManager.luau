@@ -39,6 +39,45 @@ local function makePart(name, size, position, color, material, parent)
 	return part
 end
 
+-- Adds a backrest, armrests, and a pedestal around a plain seat-cushion
+-- part so it reads as an actual gaming chair instead of a colored cube.
+-- seatCenter is the world position of the existing seat cushion (its
+-- own geometry is left untouched -- for the real Seat instances that
+-- matters for player-sitting behavior, this only adds decoration around it).
+local function buildChairVisual(parent, namePrefix, seatCenter, color)
+	local backrest = Instance.new("Part")
+	backrest.Name = namePrefix .. "ChairBackrest"
+	backrest.Size = Vector3.new(1.8, 2, 0.3)
+	backrest.CFrame = CFrame.new(seatCenter + Vector3.new(0, 1.3, -0.9)) * CFrame.Angles(math.rad(-8), 0, 0)
+	backrest.Color = color
+	backrest.Material = Enum.Material.SmoothPlastic
+	backrest.Anchored = true
+	backrest.CanCollide = false
+	backrest.Parent = parent
+
+	for i, side in ipairs({ -1, 1 }) do
+		local armrest = Instance.new("Part")
+		armrest.Name = namePrefix .. "ChairArmrest" .. i
+		armrest.Size = Vector3.new(0.2, 0.25, 1.4)
+		armrest.Position = seatCenter + Vector3.new(side * 0.95, 0.7, -0.2)
+		armrest.Color = color
+		armrest.Material = Enum.Material.SmoothPlastic
+		armrest.Anchored = true
+		armrest.CanCollide = false
+		armrest.Parent = parent
+	end
+
+	local pedestal = Instance.new("Part")
+	pedestal.Name = namePrefix .. "ChairPedestal"
+	pedestal.Size = Vector3.new(0.5, 1.1, 0.5)
+	pedestal.Position = seatCenter - Vector3.new(0, 0.9, 0)
+	pedestal.Color = DARK_TRIM_COLOR
+	pedestal.Material = Enum.Material.Metal
+	pedestal.Anchored = true
+	pedestal.CanCollide = false
+	pedestal.Parent = parent
+end
+
 local function buildPlotFloor(plotFolder, origin)
 	makePart("PlotFloor", Vector3.new(PLOT_SIZE_X, 1, PLOT_SIZE_Z), origin + Vector3.new(0, 0.5, 15), PANEL_COLOR, nil, plotFolder)
 end
@@ -83,8 +122,10 @@ local function buildWorkersDesk(plotFolder, origin, x, z)
 	workersPrompt.MaxActivationDistance = 10
 	workersPrompt.Parent = screen
 
-	local chairHeight = 2.4
-	makePart("WorkersChair", Vector3.new(2, chairHeight, 2), origin + Vector3.new(x, FLOOR_TOP + chairHeight / 2, z - 3), CHAIR_COLOR, nil, plotFolder)
+	local chairHeight = 0.6
+	local chairCenter = origin + Vector3.new(x, FLOOR_TOP + 1.3, z - 3)
+	makePart("WorkersChair", Vector3.new(2, chairHeight, 2), chairCenter, CHAIR_COLOR, nil, plotFolder)
+	buildChairVisual(plotFolder, "Workers", chairCenter, CHAIR_COLOR)
 end
 
 -- Desk positions are computed (see computeStudioLayout), not stored here --
@@ -150,6 +191,8 @@ local function buildStation(plotFolder, origin, config, x, z)
 	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
 	buildStationMonitorRig(plotFolder, origin, config, 0, x, z)
 
+	local seatCenter = origin + Vector3.new(x, FLOOR_TOP + 1.2, z - 3)
+
 	local seat = Instance.new("Seat")
 	seat.Name = config.name .. "Seat"
 	seat.Size = Vector3.new(2, 2.4, 2)
@@ -158,8 +201,12 @@ local function buildStation(plotFolder, origin, config, x, z)
 	seat.Color = CHAIR_COLOR
 	-- A seat's default facing is -Z; the monitor sits north (+Z) of this seat,
 	-- so rotate 180 degrees to face the player toward it when they sit down.
-	seat.CFrame = CFrame.new(origin + Vector3.new(x, FLOOR_TOP + 1.2, z - 3)) * CFrame.Angles(0, math.rad(180), 0)
+	seat.CFrame = CFrame.new(seatCenter) * CFrame.Angles(0, math.rad(180), 0)
 	seat.Parent = plotFolder
+
+	-- Decoration only -- the seat's own geometry/CFrame (what actually
+	-- matters for player-sitting behavior) is left untouched above.
+	buildChairVisual(plotFolder, config.name, seatCenter, CHAIR_COLOR)
 
 	local labelAnchor = Instance.new("Part")
 	labelAnchor.Name = config.name .. "LabelAnchor"

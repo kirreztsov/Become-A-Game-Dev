@@ -1,5 +1,5 @@
 local GameData = require(script.Parent.Parent.GameData)
-local TestHarness = require(script.TestHarness)
+local TestHarness = require(script.Parent.TestHarness)
 
 local t = TestHarness.new()
 

@@ -1,7 +1,7 @@
 local DataStoreService = game:GetService("DataStoreService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 
-local playerStore = DataStoreService:GetDataStore("PlayerData_v1")
+local playerStore = DataStoreService:GetDataStore("PlayerData_v2")
 
 local PlayerData = {}
 local cache = {}

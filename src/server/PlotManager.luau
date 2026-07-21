@@ -340,16 +340,18 @@ local function buildHouse(plotFolder, origin, tier)
 	billboard.MaxDistance = 100
 	billboard.Parent = signPost
 
+	local isMaxTier = tier >= GameData.HouseTierCount - 1
+
 	local text = Instance.new("TextLabel")
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
-	text.Text = "\240\159\143\151\239\184\143 Upgrade your plot!"
+	text.Text = isMaxTier and "\240\159\143\151\239\184\143 Plot fully upgraded!" or "\240\159\143\151\239\184\143 Upgrade your plot!"
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.TextColor3 = Color3.fromRGB(255, 255, 255)
 	text.Parent = billboard
 
-	if tier < GameData.HouseTierCount - 1 then
+	if not isMaxTier then
 		local upgradePrompt = Instance.new("ProximityPrompt")
 		upgradePrompt.Name = "HouseUpgradePrompt"
 		upgradePrompt.ActionText = "Upgrade Plot"

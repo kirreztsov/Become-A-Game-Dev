@@ -4,19 +4,60 @@ local PlayerData = require(script.PlayerData)
 local TrendsService = require(script.TrendsService)
 local DevelopmentService = require(script.DevelopmentService)
 local WorkerService = require(script.WorkerService)
-local LobbyBuilder = require(script.LobbyBuilder)
+local HouseService = require(script.HouseService)
+local PlotManager = require(script.PlotManager)
 
-LobbyBuilder.build()
+PlotManager.build()
 TrendsService.start()
 DevelopmentService.start()
 WorkerService.start()
+HouseService.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 
+local function teleportToPlot(player, character)
+	local plotIndex = player:GetAttribute("PlotIndex")
+	if not plotIndex then
+		return
+	end
+
+	local plotFolder = PlotManager.getPlotFolder(plotIndex)
+	if not plotFolder then
+		return
+	end
+
+	local spawnPoint = plotFolder:FindFirstChild("PlotSpawnPoint")
+	if not spawnPoint then
+		return
+	end
+
+	local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 5)
+	if not humanoidRootPart then
+		return
+	end
+
+	character:PivotTo(CFrame.new(spawnPoint.Position))
+end
+
 local function onPlayerJoined(player)
+	-- Assign a plot synchronously (no yields before this point) so the
+	-- PlotIndex attribute is always already set by the time a character
+	-- could possibly spawn and trigger a teleport below.
+	PlotManager.assignPlot(player)
+
 	local data = PlayerData.load(player)
+	PlotManager.rebuildHouseForPlayer(player, data.houseTier)
+
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 	TrendsService.sendCurrentTo(player)
+
+	player.CharacterAdded:Connect(function(character)
+		teleportToPlot(player, character)
+	end)
+
+	if player.Character then
+		teleportToPlot(player, player.Character)
+	end
 end
 
 Players.PlayerAdded:Connect(onPlayerJoined)
@@ -29,6 +70,7 @@ Players.PlayerRemoving:Connect(function(player)
 	DevelopmentService.cleanupPlayer(player)
 	PlayerData.save(player)
 	PlayerData.remove(player)
+	PlotManager.releasePlot(player)
 end)
 
 task.spawn(function()

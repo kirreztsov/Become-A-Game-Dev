@@ -14,6 +14,8 @@ local REMOTE_NAMES = {
 	"RequestHireWorker",
 	"RequestUpgradeWorker",
 	"WorkerActionResult",
+	"RequestUpgradeHouse",
+	"HouseActionResult",
 	"PlayerStateUpdated",
 	"TrendsUpdated",
 }

@@ -11,6 +11,7 @@ local function defaultData()
 	return {
 		cash = GameData.StartingCash,
 		gamesReleased = 0,
+		houseTier = 0,
 		workers = {
 			Coding = { hired = false, level = 0 },
 			MapBuilding = { hired = false, level = 0 },
@@ -26,7 +27,8 @@ function PlayerData.load(player)
 
 	if success then
 		if data then
-			-- Existing save found in DataStore
+			-- Existing save found in DataStore -- backfill any fields added since this save was written
+			data.houseTier = data.houseTier or 0
 			cache[player.UserId] = data
 			failedLoads[player.UserId] = nil
 		else

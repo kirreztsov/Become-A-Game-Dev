@@ -10,6 +10,7 @@ local selectedTopic = nil
 local playerState = {
 	cash = 0,
 	gamesReleased = 0,
+	houseTier = 0,
 	workers = {
 		Coding = { hired = false, level = 0 },
 		MapBuilding = { hired = false, level = 0 },
@@ -112,6 +113,7 @@ function UI.init()
 	local MapBuildingGame = require(script.Parent.MapBuildingGame)
 	local TestingGame = require(script.Parent.TestingGame)
 	local WorkersPanel = require(script.Parent.WorkersPanel)
+	local HousePanel = require(script.Parent.HousePanel)
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "GameDevTycoonUI"
@@ -296,9 +298,35 @@ function UI.init()
 		refreshStationVisibility()
 	end
 
-	local lobbyFolder = workspace:WaitForChild("Lobby")
+	-- Find this player's own plot (assigned server-side on join) rather than
+	-- a single shared lobby -- everything below is relative to that plot.
+	local plotIndex = player:GetAttribute("PlotIndex")
+	if not plotIndex then
+		local gotAttribute = false
+		local connection
+		connection = player:GetAttributeChangedSignal("PlotIndex"):Connect(function()
+			gotAttribute = true
+		end)
+
+		local waited = 0
+		while not gotAttribute and waited < 10 do
+			task.wait(0.2)
+			waited += 0.2
+		end
+
+		connection:Disconnect()
+		plotIndex = player:GetAttribute("PlotIndex")
+	end
+
+	if not plotIndex then
+		warn("No plot was assigned -- the server may be full (max 4 players).")
+		return
+	end
+
+	local plotFolder = workspace:WaitForChild("Plots"):WaitForChild("Plot" .. plotIndex)
+
 	for _, name in ipairs(STATION_NAMES) do
-		local seat = lobbyFolder:WaitForChild(name .. "Seat")
+		local seat = plotFolder:WaitForChild(name .. "Seat")
 		seats[name] = seat
 		seat:GetPropertyChangedSignal("Occupant"):Connect(updateSeatedStation)
 	end
@@ -311,7 +339,7 @@ function UI.init()
 	updateSeatedStation()
 
 	-- Physical wall sign showing the Trends Board
-	local trendsText = lobbyFolder:WaitForChild("TrendsSignBacking"):WaitForChild("TrendsDisplay"):WaitForChild("TrendsText")
+	local trendsText = plotFolder:WaitForChild("TrendsSignBacking"):WaitForChild("TrendsDisplay"):WaitForChild("TrendsText")
 
 	local PHASE_DISPLAY_NAMES = {
 		Coding = "Coding",
@@ -414,6 +442,7 @@ function UI.init()
 	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
 		playerState.cash = data.cash
 		playerState.gamesReleased = data.gamesReleased
+		playerState.houseTier = data.houseTier
 		playerState.workers = data.workers
 		cashLabel.Text = ("\240\159\146\176 $%d"):format(playerState.cash)
 	end)
@@ -425,6 +454,7 @@ function UI.init()
 	end)
 
 	WorkersPanel.init(player, Theme, playerState)
+	HousePanel.init(player, Theme, playerState)
 end
 
 return UI

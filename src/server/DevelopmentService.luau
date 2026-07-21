@@ -4,6 +4,7 @@ local TrendMatch = require(game.ReplicatedStorage.Shared.TrendMatch)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
 local TrendsService = require(script.Parent.TrendsService)
+local PlotManager = require(script.Parent.PlotManager)
 
 local DevelopmentService = {}
 
@@ -126,12 +127,13 @@ local STATION_SEAT_NAMES = {
 local SEAT_WAIT_TIMEOUT_SECONDS = 30
 
 local function isPlayerSeatedAt(player, seatName)
-	local lobby = workspace:FindFirstChild("Lobby")
-	if not lobby then
+	local plotIndex = PlotManager.getPlayerPlotIndex(player)
+	local plotFolder = PlotManager.getPlotFolder(plotIndex)
+	if not plotFolder then
 		return false
 	end
 
-	local seat = lobby:FindFirstChild(seatName)
+	local seat = plotFolder:FindFirstChild(seatName)
 	if not seat then
 		return false
 	end

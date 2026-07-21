@@ -24,6 +24,12 @@ local ROAD_Z = -45 -- offset from LOBBY_ORIGIN.Z; south of the plaza
 local ROAD_WIDTH = 16
 local ROAD_HALF_LENGTH = 110
 
+-- A second road crossing Main Street, running north (toward the plot
+-- neighborhoods, which start around world Z = -30) so the city reaches
+-- toward the rest of the map instead of stopping at the plaza's edge.
+local CROSS_ROAD_X = 0 -- offset from LOBBY_ORIGIN.X
+local CROSS_ROAD_HALF_LENGTH = 150
+
 local activeCars = {}
 
 local lobbySpawnPoint
@@ -156,31 +162,82 @@ local function buildRoad(lobbyFolder)
 	end
 end
 
--- A background skyline -- decorative, non-enterable towers south of the
--- road giving the plaza a "downtown" backdrop.
+-- Cross Street: perpendicular to Main Street, running north toward the
+-- plot neighborhoods (which start around world Z = -30) so the city
+-- reaches further across the map instead of stopping at one road.
+local function buildCrossRoad(lobbyFolder)
+	local roadLength = CROSS_ROAD_HALF_LENGTH * 2
+	makePart("CrossStreetRoad", Vector3.new(ROAD_WIDTH, 0.4, roadLength), LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X, FLOOR_TOP + 0.2, 0), Color3.fromRGB(58, 58, 62), Enum.Material.Asphalt, lobbyFolder)
+
+	local sidewalkWidth = 5
+	makePart("CrossSidewalkEast", Vector3.new(sidewalkWidth, 0.5, roadLength), LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X + ROAD_WIDTH / 2 + sidewalkWidth / 2, FLOOR_TOP + 0.25, 0), Color3.fromRGB(190, 190, 185), Enum.Material.Concrete, lobbyFolder)
+	makePart("CrossSidewalkWest", Vector3.new(sidewalkWidth, 0.5, roadLength), LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X - ROAD_WIDTH / 2 - sidewalkWidth / 2, FLOOR_TOP + 0.25, 0), Color3.fromRGB(190, 190, 185), Enum.Material.Concrete, lobbyFolder)
+
+	local dashCount = math.floor(roadLength / 8)
+	for i = 0, dashCount do
+		local dashZ = -CROSS_ROAD_HALF_LENGTH + i * 8
+		local dash = makePart("CrossRoadDash" .. i, Vector3.new(0.6, 0.45, 3), LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X, FLOOR_TOP + 0.21, dashZ), Color3.fromRGB(255, 224, 110), Enum.Material.SmoothPlastic, lobbyFolder)
+		dash.CanCollide = false
+	end
+end
+
+-- The project's default 512x512 Baseplate was never restyled -- it still
+-- looks like plain grey placeholder plastic everywhere outside the
+-- plaza/road area. Recolor it to a neutral pavement tone so the rest of
+-- the map reads as city ground instead of an obvious grey void.
+local function restyleBaseplate()
+	local baseplate = workspace:FindFirstChild("Baseplate")
+	if not baseplate then
+		return
+	end
+
+	baseplate.Material = Enum.Material.Concrete
+	baseplate.Color = Color3.fromRGB(130, 130, 128)
+end
+
+local function buildTower(lobbyFolder, name, position, width, depth, height, color)
+	makePart(name, Vector3.new(width, height, depth), position + Vector3.new(0, height / 2, 0), color, Enum.Material.Concrete, lobbyFolder)
+
+	local bandCount = math.floor(height / 9)
+	for band = 1, bandCount do
+		local bandY = band * 9 - 3
+		local windowBand = makePart(name .. "Window" .. band, Vector3.new(width - 1.5, 1, depth + 0.15), position + Vector3.new(0, bandY, 0), GOLD_COLOR, Enum.Material.Neon, lobbyFolder)
+		windowBand.CanCollide = false
+	end
+end
+
+-- A background skyline -- decorative, non-enterable towers giving the
+-- plaza a "downtown" backdrop. Towers line both Main Street (south of
+-- the plaza) and the cross street (which runs toward the plots), so the
+-- skyline surrounds the plaza instead of sitting behind just one edge.
 local function buildSkyline(lobbyFolder)
 	local skylineZ = ROAD_Z - ROAD_WIDTH / 2 - 5 - 22
 	local towerConfigs = {
-		{ x = -90, width = 16, depth = 16, height = 50, color = Color3.fromRGB(225, 225, 228) },
-		{ x = -65, width = 12, depth = 12, height = 34, color = Color3.fromRGB(200, 60, 55) },
-		{ x = -40, width = 14, depth = 14, height = 64, color = Color3.fromRGB(210, 210, 214) },
-		{ x = -12, width = 12, depth = 12, height = 42, color = ACCENT_COLOR },
-		{ x = 16, width = 16, depth = 16, height = 78, color = Color3.fromRGB(230, 230, 232) },
-		{ x = 46, width = 12, depth = 12, height = 38, color = Color3.fromRGB(200, 60, 55) },
-		{ x = 72, width = 14, depth = 14, height = 56, color = Color3.fromRGB(215, 215, 218) },
-		{ x = 98, width = 12, depth = 12, height = 30, color = ACCENT_COLOR },
+		{ x = -90, z = skylineZ, width = 16, depth = 16, height = 50, color = Color3.fromRGB(225, 225, 228) },
+		{ x = -65, z = skylineZ, width = 12, depth = 12, height = 34, color = Color3.fromRGB(200, 60, 55) },
+		{ x = -40, z = skylineZ, width = 14, depth = 14, height = 64, color = Color3.fromRGB(210, 210, 214) },
+		{ x = -12, z = skylineZ, width = 12, depth = 12, height = 42, color = ACCENT_COLOR },
+		{ x = 16, z = skylineZ, width = 16, depth = 16, height = 78, color = Color3.fromRGB(230, 230, 232) },
+		{ x = 46, z = skylineZ, width = 12, depth = 12, height = 38, color = Color3.fromRGB(200, 60, 55) },
+		{ x = 72, z = skylineZ, width = 14, depth = 14, height = 56, color = Color3.fromRGB(215, 215, 218) },
+		{ x = 98, z = skylineZ, width = 12, depth = 12, height = 30, color = ACCENT_COLOR },
 	}
 
 	for i, config in ipairs(towerConfigs) do
-		local position = LOBBY_ORIGIN + Vector3.new(config.x, 0, skylineZ)
-		makePart("Skyscraper" .. i, Vector3.new(config.width, config.height, config.depth), position + Vector3.new(0, config.height / 2, 0), config.color, Enum.Material.Concrete, lobbyFolder)
+		buildTower(lobbyFolder, "Skyscraper" .. i, LOBBY_ORIGIN + Vector3.new(config.x, 0, config.z), config.width, config.depth, config.height, config.color)
+	end
 
-		local bandCount = math.floor(config.height / 9)
-		for band = 1, bandCount do
-			local bandY = band * 9 - 3
-			local windowBand = makePart("Skyscraper" .. i .. "Window" .. band, Vector3.new(config.width - 1.5, 1, config.depth + 0.15), position + Vector3.new(0, bandY, 0), GOLD_COLOR, Enum.Material.Neon, lobbyFolder)
-			windowBand.CanCollide = false
-		end
+	-- Cross-street towers, north of the plaza, toward the plot area.
+	local crossOffset = ROAD_WIDTH / 2 + 5 + 22
+	local crossTowerConfigs = {
+		{ x = CROSS_ROAD_X - crossOffset, z = 40, width = 14, depth = 14, height = 46, color = Color3.fromRGB(215, 215, 218) },
+		{ x = CROSS_ROAD_X + crossOffset, z = 40, width = 12, depth = 12, height = 36, color = ACCENT_COLOR },
+		{ x = CROSS_ROAD_X - crossOffset, z = 75, width = 12, depth = 12, height = 58, color = Color3.fromRGB(200, 60, 55) },
+		{ x = CROSS_ROAD_X + crossOffset, z = 75, width = 16, depth = 16, height = 68, color = Color3.fromRGB(230, 230, 232) },
+	}
+
+	for i, config in ipairs(crossTowerConfigs) do
+		buildTower(lobbyFolder, "CrossSkyscraper" .. i, LOBBY_ORIGIN + Vector3.new(config.x, 0, config.z), config.width, config.depth, config.height, config.color)
 	end
 end
 
@@ -200,10 +257,14 @@ local function buildNeighborhoodHouses(lobbyFolder)
 	end
 end
 
+-- axis "x" = drives along Main Street (varies X, fixed lane Z);
+-- axis "z" = drives along Cross Street (varies Z, fixed lane X).
 local CAR_CONFIGS = {
-	{ color = Color3.fromRGB(200, 55, 50), startT = -70, laneZ = ROAD_Z + 3.5 },
-	{ color = Color3.fromRGB(60, 110, 200), startT = 10, laneZ = ROAD_Z - 3.5 },
-	{ color = Color3.fromRGB(235, 232, 225), startT = 55, laneZ = ROAD_Z + 3.5 },
+	{ color = Color3.fromRGB(200, 55, 50), axis = "x", startT = -70, lane = ROAD_Z + 3.5, half = ROAD_HALF_LENGTH },
+	{ color = Color3.fromRGB(60, 110, 200), axis = "x", startT = 10, lane = ROAD_Z - 3.5, half = ROAD_HALF_LENGTH },
+	{ color = Color3.fromRGB(235, 232, 225), axis = "x", startT = 55, lane = ROAD_Z + 3.5, half = ROAD_HALF_LENGTH },
+	{ color = Color3.fromRGB(90, 180, 90), axis = "z", startT = -60, lane = CROSS_ROAD_X + 3.5, half = CROSS_ROAD_HALF_LENGTH },
+	{ color = Color3.fromRGB(235, 209, 102), axis = "z", startT = 40, lane = CROSS_ROAD_X - 3.5, half = CROSS_ROAD_HALF_LENGTH },
 }
 
 local function buildCar(lobbyFolder, name, color)
@@ -236,7 +297,9 @@ local function buildCars(lobbyFolder)
 		table.insert(activeCars, {
 			model = carModel,
 			t = config.startT,
-			laneZ = config.laneZ,
+			lane = config.lane,
+			axis = config.axis,
+			half = config.half,
 			direction = 1,
 			speed = 18 + i * 2,
 		})
@@ -253,25 +316,37 @@ local function startCarAnimation()
 	carAnimationConnection = RunService.Heartbeat:Connect(function(dt)
 		for _, car in ipairs(activeCars) do
 			car.t += dt * car.speed * car.direction
-			if car.t > ROAD_HALF_LENGTH then
-				car.t = ROAD_HALF_LENGTH
+			if car.t > car.half then
+				car.t = car.half
 				car.direction = -1
-			elseif car.t < -ROAD_HALF_LENGTH then
-				car.t = -ROAD_HALF_LENGTH
+			elseif car.t < -car.half then
+				car.t = -car.half
 				car.direction = 1
 			end
 
-			-- The car body's long side (X=4) already runs along the road's
-			-- X axis, so only a 180-degree flip is needed when it reverses
-			-- (not a 90-degree turn, which would point it off the road).
-			local facingDeg = (car.direction > 0) and 0 or 180
-			local position = LOBBY_ORIGIN + Vector3.new(car.t, FLOOR_TOP, car.laneZ)
+			local position, facingDeg
+			if car.axis == "x" then
+				-- The car body's long side (X=4) already runs along Main
+				-- Street's X axis, so only a 180-degree flip is needed on
+				-- reverse (not a 90-degree turn, which would point it off
+				-- the road).
+				position = LOBBY_ORIGIN + Vector3.new(car.t, FLOOR_TOP, car.lane)
+				facingDeg = (car.direction > 0) and 0 or 180
+			else
+				-- Cross Street runs along Z, so the body needs a 90-degree
+				-- base turn to align with it; verified live in Studio.
+				position = LOBBY_ORIGIN + Vector3.new(car.lane, FLOOR_TOP, car.t)
+				facingDeg = (car.direction > 0) and -90 or 90
+			end
+
 			car.model:PivotTo(CFrame.new(position) * CFrame.Angles(0, math.rad(facingDeg), 0))
 		end
 	end)
 end
 
 function Lobby.build()
+	restyleBaseplate()
+
 	local existing = workspace:FindFirstChild("Lobby")
 	if existing then
 		existing:Destroy()
@@ -287,6 +362,7 @@ function Lobby.build()
 	buildStudioKiosk(lobbyFolder)
 	buildLandscaping(lobbyFolder)
 	buildRoad(lobbyFolder)
+	buildCrossRoad(lobbyFolder)
 	buildSkyline(lobbyFolder)
 	buildNeighborhoodHouses(lobbyFolder)
 

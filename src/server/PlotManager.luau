@@ -114,10 +114,12 @@ local function buildStation(plotFolder, origin, config)
 	local seat = Instance.new("Seat")
 	seat.Name = config.name .. "Seat"
 	seat.Size = Vector3.new(2, 2.4, 2)
-	seat.Position = origin + Vector3.new(x, FLOOR_TOP + 1.2, z - 3)
 	seat.Anchored = true
 	seat.Material = Enum.Material.SmoothPlastic
 	seat.Color = CHAIR_COLOR
+	-- A seat's default facing is -Z; the monitor sits north (+Z) of this seat,
+	-- so rotate 180 degrees to face the player toward it when they sit down.
+	seat.CFrame = CFrame.new(origin + Vector3.new(x, FLOOR_TOP + 1.2, z - 3)) * CFrame.Angles(0, math.rad(180), 0)
 	seat.Parent = plotFolder
 
 	local labelAnchor = Instance.new("Part")
@@ -133,6 +135,7 @@ local function buildStation(plotFolder, origin, config)
 	billboard.Name = "Label"
 	billboard.Size = UDim2.fromOffset(220, 40)
 	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 100
 	billboard.Parent = labelAnchor
 
 	local text = Instance.new("TextLabel")
@@ -163,6 +166,7 @@ local function buildTrendsSign(plotFolder, origin)
 	billboard.Name = "TrendsDisplay"
 	billboard.Size = UDim2.fromOffset(300, 140)
 	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 100
 	billboard.Parent = backing
 
 	local eyebrow = Instance.new("TextLabel")
@@ -211,6 +215,7 @@ local function buildHouse(plotFolder, origin, tier)
 		billboard.Name = "Label"
 		billboard.Size = UDim2.fromOffset(220, 40)
 		billboard.AlwaysOnTop = true
+		billboard.MaxDistance = 100
 		billboard.Parent = signPost
 
 		local text = Instance.new("TextLabel")
@@ -238,11 +243,35 @@ local function buildHouse(plotFolder, origin, tier)
 		makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), PANEL_COLOR, nil, houseFolder)
 		makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), PANEL_COLOR, nil, houseFolder)
 
+		local function buildPeakedRoof(name, roofWidth, roofDepth, baseY)
+			local roofFolder = Instance.new("Folder")
+			roofFolder.Name = name
+			roofFolder.Parent = houseFolder
+
+			local baseHeight = 1.4
+			local midHeight = 1.2
+			local peakHeight = 1.2
+
+			local baseY0 = baseY + baseHeight / 2
+			makePart("Base", Vector3.new(roofWidth + 2, baseHeight, roofDepth + 2), base + Vector3.new(0, baseY0, 0), ACCENT_COLOR, Enum.Material.Neon, roofFolder)
+
+			local midY = baseY + baseHeight + midHeight / 2
+			makePart("Mid", Vector3.new(roofWidth * 0.66, midHeight, roofDepth * 0.66), base + Vector3.new(0, midY, 0), ACCENT_COLOR, Enum.Material.Neon, roofFolder)
+
+			local peakY = baseY + baseHeight + midHeight + peakHeight / 2
+			makePart("Peak", Vector3.new(roofWidth * 0.3, peakHeight, roofDepth * 0.3), base + Vector3.new(0, peakY, 0), GOLD_COLOR, Enum.Material.Neon, roofFolder)
+
+			return baseY + baseHeight + midHeight + peakHeight
+		end
+
 		local roofY = FLOOR_TOP + wallHeight + 0.5
-		makePart("Roof", Vector3.new(width + 2, 1, depth + 2), base + Vector3.new(0, roofY, 0), ACCENT_COLOR, Enum.Material.Neon, houseFolder)
+		buildPeakedRoof("Roof", width, depth, roofY)
 
 		local door = makePart("Door", Vector3.new(3, 5, 0.3), base + Vector3.new(0, FLOOR_TOP + 2.5, -halfD - 0.2), DARK_TRIM_COLOR, nil, houseFolder)
 		door.CanCollide = false
+
+		local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.35), GOLD_COLOR, Enum.Material.Neon, houseFolder)
+		doorKnob.CanCollide = false
 
 		local windowLeft = makePart("WindowLeft", Vector3.new(2, 2, 0.3), base + Vector3.new(-halfW + 3, wallCenterY + 1, -halfD - 0.2), GOLD_COLOR, Enum.Material.Neon, houseFolder)
 		windowLeft.CanCollide = false
@@ -250,13 +279,16 @@ local function buildHouse(plotFolder, origin, tier)
 		local windowRight = makePart("WindowRight", Vector3.new(2, 2, 0.3), base + Vector3.new(halfW - 3, wallCenterY + 1, -halfD - 0.2), GOLD_COLOR, Enum.Material.Neon, houseFolder)
 		windowRight.CanCollide = false
 
+		local pathLength = 6
+		local path = makePart("Path", Vector3.new(4, 0.15, pathLength), base + Vector3.new(0, FLOOR_TOP + 0.08, -halfD - 0.2 - pathLength / 2), DARK_TRIM_COLOR, nil, houseFolder)
+		path.CanCollide = false
+
 		if tier >= 2 then
 			local upperHeight = 5
 			local upperCenterY = FLOOR_TOP + wallHeight + 1 + upperHeight / 2
 			makePart("UpperFloor", Vector3.new(width - 4, upperHeight, depth - 4), base + Vector3.new(0, upperCenterY, 0), PANEL_COLOR, nil, houseFolder)
 
-			local upperRoofY = upperCenterY + upperHeight / 2 + 0.5
-			makePart("UpperRoof", Vector3.new(width - 2, 1, depth - 2), base + Vector3.new(0, upperRoofY, 0), ACCENT_COLOR, Enum.Material.Neon, houseFolder)
+			buildPeakedRoof("UpperRoof", width - 2, depth - 2, upperCenterY + upperHeight / 2 + 0.5)
 		end
 
 		promptAnchor = door

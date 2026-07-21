@@ -117,6 +117,46 @@ local ROUND_RUNNERS = {
 	Testing = runTestingRound,
 }
 
+local STATION_SEAT_NAMES = {
+	Coding = "CodingSeat",
+	MapBuilding = "MapBuildingSeat",
+	Testing = "TestingSeat",
+}
+
+local SEAT_WAIT_TIMEOUT_SECONDS = 30
+
+local function isPlayerSeatedAt(player, seatName)
+	local lobby = workspace:FindFirstChild("Lobby")
+	if not lobby then
+		return false
+	end
+
+	local seat = lobby:FindFirstChild(seatName)
+	if not seat then
+		return false
+	end
+
+	return seat.Occupant ~= nil and player.Character ~= nil and seat.Occupant.Parent == player.Character
+end
+
+local function waitForPlayerSeated(player, phase)
+	local seatName = STATION_SEAT_NAMES[phase]
+	local waited = 0
+
+	while waited < SEAT_WAIT_TIMEOUT_SECONDS do
+		if not player.Parent then
+			return
+		end
+
+		if isPlayerSeatedAt(player, seatName) then
+			return
+		end
+
+		task.wait(0.25)
+		waited += 0.25
+	end
+end
+
 local function runPhase(player, data, phase)
 	local worker = data.workers[phase]
 
@@ -129,6 +169,11 @@ local function runPhase(player, data, phase)
 	end
 
 	Remotes.PhaseStarted:FireClient(player, phase, false)
+	waitForPlayerSeated(player, phase)
+
+	if not player.Parent then
+		return 0
+	end
 
 	local total = 0
 	for roundIndex = 1, GameData.RoundsPerPhase do

@@ -112,6 +112,110 @@ local function buildDesk(lobbyFolder)
 	makePart("Chair", Vector3.new(2, chairHeight, 2), Vector3.new(-12, FLOOR_TOP + chairHeight / 2, 9), CHAIR_COLOR, nil, lobbyFolder)
 end
 
+local STATION_CONFIGS = {
+	{ name = "NewProject", label = "\240\159\134\149 NEW PROJECT", deskX = 12, deskZ = 12, monitorColor = GOLD_COLOR },
+	{ name = "Coding", label = "\226\154\161 CODING", deskX = -25, deskZ = -15, monitorColor = ACCENT_COLOR },
+	{ name = "MapBuilding", label = "\240\159\151\186\239\184\143 MAP BUILDING", deskX = 0, deskZ = -20, monitorColor = ACCENT_COLOR },
+	{ name = "Testing", label = "\226\156\168 TESTING", deskX = 25, deskZ = -15, monitorColor = ACCENT_COLOR },
+}
+
+local function buildStation(lobbyFolder, config)
+	local deskTopSurfaceY = FLOOR_TOP + 2
+	local legHeight = 2
+	local legCenterY = FLOOR_TOP + legHeight / 2
+	local deskCenterY = deskTopSurfaceY + 0.25
+	local x, z = config.deskX, config.deskZ
+
+	makePart(config.name .. "DeskTop", Vector3.new(6, 0.5, 3), Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, lobbyFolder)
+	makePart(config.name .. "DeskLegA", Vector3.new(0.4, legHeight, 0.4), Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, lobbyFolder)
+	makePart(config.name .. "DeskLegB", Vector3.new(0.4, legHeight, 0.4), Vector3.new(x + 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, lobbyFolder)
+	makePart(config.name .. "DeskLegC", Vector3.new(0.4, legHeight, 0.4), Vector3.new(x - 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, lobbyFolder)
+	makePart(config.name .. "DeskLegD", Vector3.new(0.4, legHeight, 0.4), Vector3.new(x + 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, lobbyFolder)
+
+	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
+	local monitorHeight = 1.6
+	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
+	makePart(config.name .. "Monitor", Vector3.new(2.2, monitorHeight, 0.2), Vector3.new(x, monitorCenterY, z + 0.8), DARK_TRIM_COLOR, nil, lobbyFolder)
+	local screen = makePart(config.name .. "MonitorScreen", Vector3.new(2, monitorHeight - 0.2, 0.05), Vector3.new(x, monitorCenterY, z + 0.7), config.monitorColor, Enum.Material.Neon, lobbyFolder)
+	screen.CanCollide = false
+
+	local seat = Instance.new("Seat")
+	seat.Name = config.name .. "Seat"
+	seat.Size = Vector3.new(2, 2.4, 2)
+	seat.Position = Vector3.new(x, FLOOR_TOP + 1.2, z - 3)
+	seat.Anchored = true
+	seat.Material = Enum.Material.SmoothPlastic
+	seat.Color = CHAIR_COLOR
+	seat.Parent = lobbyFolder
+
+	local labelAnchor = Instance.new("Part")
+	labelAnchor.Name = config.name .. "LabelAnchor"
+	labelAnchor.Size = Vector3.new(0.1, 0.1, 0.1)
+	labelAnchor.Position = Vector3.new(x, monitorCenterY + 1.5, z + 0.7)
+	labelAnchor.Transparency = 1
+	labelAnchor.Anchored = true
+	labelAnchor.CanCollide = false
+	labelAnchor.Parent = lobbyFolder
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Label"
+	billboard.Size = UDim2.fromOffset(220, 40)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = labelAnchor
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = config.label
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.TextColor3 = Color3.fromRGB(255, 255, 255)
+	text.Parent = billboard
+end
+
+local function buildStations(lobbyFolder)
+	for _, config in ipairs(STATION_CONFIGS) do
+		buildStation(lobbyFolder, config)
+	end
+end
+
+local function buildTrendsWallSign(lobbyFolder)
+	local half = ROOM_SIZE / 2
+	local signCenterY = FLOOR_TOP + WALL_HEIGHT - 4
+
+	local backing = makePart("TrendsSignBacking", Vector3.new(0.5, 6, 14), Vector3.new(half - 0.3, signCenterY, 0), ACCENT_COLOR, Enum.Material.Neon, lobbyFolder)
+	backing.CanCollide = false
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "TrendsDisplay"
+	billboard.Size = UDim2.fromOffset(360, 160)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = backing
+
+	local eyebrow = Instance.new("TextLabel")
+	eyebrow.Name = "Eyebrow"
+	eyebrow.Size = UDim2.new(1, 0, 0, 30)
+	eyebrow.Position = UDim2.fromOffset(0, 0)
+	eyebrow.BackgroundTransparency = 1
+	eyebrow.Text = "\240\159\148\165 TRENDING NOW"
+	eyebrow.Font = Enum.Font.GothamBold
+	eyebrow.TextScaled = true
+	eyebrow.TextColor3 = Color3.fromRGB(255, 158, 66)
+	eyebrow.Parent = billboard
+
+	local text = Instance.new("TextLabel")
+	text.Name = "TrendsText"
+	text.Size = UDim2.new(1, 0, 1, -30)
+	text.Position = UDim2.fromOffset(0, 30)
+	text.BackgroundTransparency = 1
+	text.Text = "Loading..."
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.TextWrapped = true
+	text.TextColor3 = Color3.fromRGB(255, 255, 255)
+	text.Parent = billboard
+end
+
 local function buildSpawn(lobbyFolder)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "LobbySpawn"
@@ -147,6 +251,8 @@ function LobbyBuilder.build()
 	buildSign(lobbyFolder)
 	buildDesk(lobbyFolder)
 	buildSpawn(lobbyFolder)
+	buildStations(lobbyFolder)
+	buildTrendsWallSign(lobbyFolder)
 end
 
 return LobbyBuilder

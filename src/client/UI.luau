@@ -91,6 +91,21 @@ UI.addGradient = addGradient
 UI.addHoverFeedback = addHoverFeedback
 UI.makeButton = makeButton
 
+local function makeStationPanel(screenGui, name)
+	local panel = Instance.new("Frame")
+	panel.Name = name .. "Panel"
+	panel.Size = UDim2.fromOffset(380, 190)
+	panel.Position = UDim2.fromScale(0.5, 0.82)
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.BackgroundColor3 = Theme.Panel
+	panel.Visible = false
+	panel.Parent = screenGui
+	addCorner(panel, 16)
+	addStroke(panel, Theme.Accent, 2, 0.4)
+	addGradient(panel, Theme.PanelLight, Theme.Panel, 90)
+	return panel
+end
+
 function UI.init()
 	local player = Players.LocalPlayer
 	local CodingGame = require(script.Parent.CodingGame)
@@ -103,6 +118,7 @@ function UI.init()
 	screenGui.ResetOnSpawn = false
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 
+	-- Floating Cash HUD pill
 	local cashPill = Instance.new("Frame")
 	cashPill.Name = "CashPill"
 	cashPill.Size = UDim2.fromOffset(170, 44)
@@ -123,99 +139,61 @@ function UI.init()
 	cashLabel.TextSize = 22
 	cashLabel.Parent = cashPill
 
-	local mainFrame = Instance.new("Frame")
-	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.fromOffset(460, 560)
-	mainFrame.Position = UDim2.fromOffset(20, 80)
-	mainFrame.BackgroundColor3 = Theme.Panel
-	mainFrame.Parent = screenGui
-	addCorner(mainFrame, 18)
-	addStroke(mainFrame, Theme.Accent, 2, 0.4)
-	addGradient(mainFrame, Theme.PanelLight, Theme.Panel, 90)
+	-- Small transient status toast (feedback wherever you are, not gated by seating)
+	local statusToast = Instance.new("TextLabel")
+	statusToast.Name = "StatusToast"
+	statusToast.Size = UDim2.fromOffset(360, 30)
+	statusToast.Position = UDim2.fromOffset(20, 72)
+	statusToast.BackgroundTransparency = 1
+	statusToast.TextColor3 = Theme.TextMuted
+	statusToast.Font = Enum.Font.GothamMedium
+	statusToast.TextSize = 15
+	statusToast.TextXAlignment = Enum.TextXAlignment.Left
+	statusToast.TextWrapped = true
+	statusToast.Text = ""
+	statusToast.Parent = screenGui
 
-	local mainPadding = Instance.new("UIPadding")
-	mainPadding.PaddingTop = UDim.new(0, 16)
-	mainPadding.PaddingBottom = UDim.new(0, 16)
-	mainPadding.PaddingLeft = UDim.new(0, 16)
-	mainPadding.PaddingRight = UDim.new(0, 16)
-	mainPadding.Parent = mainFrame
+	-- New Project panel (seat-gated: only visible while sitting at NewProjectSeat)
+	local newProjectPanel = makeStationPanel(screenGui, "NewProject")
 
-	local mainLayout = Instance.new("UIListLayout")
-	mainLayout.FillDirection = Enum.FillDirection.Vertical
-	mainLayout.Padding = UDim.new(0, 10)
-	mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	mainLayout.Parent = mainFrame
+	local newProjectPadding = Instance.new("UIPadding")
+	newProjectPadding.PaddingTop = UDim.new(0, 12)
+	newProjectPadding.PaddingBottom = UDim.new(0, 12)
+	newProjectPadding.PaddingLeft = UDim.new(0, 12)
+	newProjectPadding.PaddingRight = UDim.new(0, 12)
+	newProjectPadding.Parent = newProjectPanel
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Text = "\240\159\142\174 Game Studio"
-	titleLabel.Size = UDim2.new(1, 0, 0, 32)
-	titleLabel.LayoutOrder = 1
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.TextColor3 = Theme.Text
-	titleLabel.Font = Enum.Font.FredokaOne
-	titleLabel.TextSize = 26
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = mainFrame
-
-	local trendsCard = Instance.new("Frame")
-	trendsCard.Size = UDim2.new(1, 0, 0, 56)
-	trendsCard.LayoutOrder = 2
-	trendsCard.BackgroundColor3 = Color3.fromRGB(58, 32, 20)
-	trendsCard.Parent = mainFrame
-	addCorner(trendsCard, 12)
-	addStroke(trendsCard, Color3.fromRGB(255, 158, 66), 2, 0.2)
-	addGradient(trendsCard, Color3.fromRGB(72, 40, 24), Color3.fromRGB(48, 26, 16), 90)
-
-	local trendsEyebrow = Instance.new("TextLabel")
-	trendsEyebrow.Text = "\240\159\148\165 TRENDING NOW"
-	trendsEyebrow.Size = UDim2.new(1, -16, 0, 16)
-	trendsEyebrow.Position = UDim2.fromOffset(8, 4)
-	trendsEyebrow.BackgroundTransparency = 1
-	trendsEyebrow.TextColor3 = Color3.fromRGB(255, 158, 66)
-	trendsEyebrow.Font = Enum.Font.GothamBold
-	trendsEyebrow.TextSize = 12
-	trendsEyebrow.TextXAlignment = Enum.TextXAlignment.Left
-	trendsEyebrow.Parent = trendsCard
-
-	local trendsLabel = Instance.new("TextLabel")
-	trendsLabel.Name = "TrendsLabel"
-	trendsLabel.Text = "Loading..."
-	trendsLabel.Size = UDim2.new(1, -16, 0, 28)
-	trendsLabel.Position = UDim2.fromOffset(8, 22)
-	trendsLabel.BackgroundTransparency = 1
-	trendsLabel.TextColor3 = Theme.Text
-	trendsLabel.Font = Enum.Font.GothamMedium
-	trendsLabel.TextSize = 15
-	trendsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	trendsLabel.TextWrapped = true
-	trendsLabel.Parent = trendsCard
+	local newProjectLayout = Instance.new("UIListLayout")
+	newProjectLayout.Padding = UDim.new(0, 8)
+	newProjectLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	newProjectLayout.Parent = newProjectPanel
 
 	local genreLabel = Instance.new("TextLabel")
 	genreLabel.Text = "GENRE"
-	genreLabel.Size = UDim2.new(1, 0, 0, 18)
-	genreLabel.LayoutOrder = 3
+	genreLabel.Size = UDim2.new(1, 0, 0, 16)
+	genreLabel.LayoutOrder = 1
 	genreLabel.BackgroundTransparency = 1
 	genreLabel.TextColor3 = Theme.TextMuted
 	genreLabel.Font = Enum.Font.GothamBold
 	genreLabel.TextSize = 12
 	genreLabel.TextXAlignment = Enum.TextXAlignment.Left
-	genreLabel.Parent = mainFrame
+	genreLabel.Parent = newProjectPanel
 
 	local genreRow = Instance.new("Frame")
-	genreRow.Size = UDim2.new(1, 0, 0, 36)
-	genreRow.LayoutOrder = 4
+	genreRow.Size = UDim2.new(1, 0, 0, 34)
+	genreRow.LayoutOrder = 2
 	genreRow.BackgroundTransparency = 1
-	genreRow.Parent = mainFrame
+	genreRow.Parent = newProjectPanel
 
 	local genreRowLayout = Instance.new("UIListLayout")
 	genreRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	genreRowLayout.Padding = UDim.new(0, 8)
+	genreRowLayout.Padding = UDim.new(0, 6)
 	genreRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	genreRowLayout.Parent = genreRow
 
 	local genreButtons = {}
 	for i, genre in ipairs(GameData.Genres) do
-		local button = makeButton(genreRow, i, genre, UDim2.new(0.25, -6, 1, 0), 15)
+		local button = makeButton(genreRow, i, genre, UDim2.new(0.25, -5, 1, 0), 14)
 		genreButtons[genre] = button
 		button.MouseButton1Click:Connect(function()
 			selectedGenre = genre
@@ -227,30 +205,30 @@ function UI.init()
 
 	local topicLabel = Instance.new("TextLabel")
 	topicLabel.Text = "TOPIC"
-	topicLabel.Size = UDim2.new(1, 0, 0, 18)
-	topicLabel.LayoutOrder = 5
+	topicLabel.Size = UDim2.new(1, 0, 0, 16)
+	topicLabel.LayoutOrder = 3
 	topicLabel.BackgroundTransparency = 1
 	topicLabel.TextColor3 = Theme.TextMuted
 	topicLabel.Font = Enum.Font.GothamBold
 	topicLabel.TextSize = 12
 	topicLabel.TextXAlignment = Enum.TextXAlignment.Left
-	topicLabel.Parent = mainFrame
+	topicLabel.Parent = newProjectPanel
 
 	local topicRow = Instance.new("Frame")
-	topicRow.Size = UDim2.new(1, 0, 0, 36)
-	topicRow.LayoutOrder = 6
+	topicRow.Size = UDim2.new(1, 0, 0, 34)
+	topicRow.LayoutOrder = 4
 	topicRow.BackgroundTransparency = 1
-	topicRow.Parent = mainFrame
+	topicRow.Parent = newProjectPanel
 
 	local topicRowLayout = Instance.new("UIListLayout")
 	topicRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	topicRowLayout.Padding = UDim.new(0, 8)
+	topicRowLayout.Padding = UDim.new(0, 6)
 	topicRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	topicRowLayout.Parent = topicRow
 
 	local topicButtons = {}
 	for i, topic in ipairs(GameData.Topics) do
-		local button = makeButton(topicRow, i, topic, UDim2.new(0.25, -6, 1, 0), 15)
+		local button = makeButton(topicRow, i, topic, UDim2.new(0.25, -5, 1, 0), 14)
 		topicButtons[topic] = button
 		button.MouseButton1Click:Connect(function()
 			selectedTopic = topic
@@ -260,65 +238,80 @@ function UI.init()
 		end)
 	end
 
-	local startButton = makeButton(mainFrame, 7, "\240\159\154\128 Start Developing", UDim2.new(1, 0, 0, 48), 20)
+	local startButton = makeButton(newProjectPanel, 5, "\240\159\154\128 Start Developing", UDim2.new(1, 0, 0, 40), 18)
 	startButton.BackgroundColor3 = Theme.Accent
 	addGradient(startButton, Color3.fromRGB(163, 110, 255), Color3.fromRGB(120, 74, 220), 90)
 	addHoverFeedback(startButton, Theme.Accent, Theme.AccentDeep)
 
-	local phaseLabel = Instance.new("TextLabel")
-	phaseLabel.Text = ""
-	phaseLabel.Size = UDim2.new(1, 0, 0, 20)
-	phaseLabel.LayoutOrder = 8
-	phaseLabel.BackgroundTransparency = 1
-	phaseLabel.TextColor3 = Theme.TextMuted
-	phaseLabel.Font = Enum.Font.GothamBold
-	phaseLabel.TextSize = 13
-	phaseLabel.TextXAlignment = Enum.TextXAlignment.Left
-	phaseLabel.Parent = mainFrame
+	-- Mini-game panels (each seat-gated to its matching computer)
+	local codingPanel = makeStationPanel(screenGui, "Coding")
+	local mapBuildingPanel = makeStationPanel(screenGui, "MapBuilding")
+	local testingPanel = makeStationPanel(screenGui, "Testing")
 
-	local phaseArea = Instance.new("Frame")
-	phaseArea.Name = "PhaseArea"
-	phaseArea.Size = UDim2.new(1, 0, 0, 160)
-	phaseArea.LayoutOrder = 9
-	phaseArea.BackgroundColor3 = Theme.Neutral
-	phaseArea.Parent = mainFrame
-	addCorner(phaseArea, 12)
+	CodingGame.init(codingPanel, Theme)
+	MapBuildingGame.init(mapBuildingPanel, Theme)
+	TestingGame.init(testingPanel, Theme)
 
-	local statusLabel = Instance.new("TextLabel")
-	statusLabel.Text = ""
-	statusLabel.Size = UDim2.new(1, 0, 0, 24)
-	statusLabel.LayoutOrder = 10
-	statusLabel.BackgroundTransparency = 1
-	statusLabel.TextColor3 = Theme.TextMuted
-	statusLabel.Font = Enum.Font.GothamMedium
-	statusLabel.TextSize = 15
-	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-	statusLabel.Parent = mainFrame
-
-	local workerMessageLabel = Instance.new("TextLabel")
-	workerMessageLabel.Name = "WorkerMessage"
-	workerMessageLabel.Text = ""
-	workerMessageLabel.Size = UDim2.fromScale(1, 1)
-	workerMessageLabel.BackgroundTransparency = 1
-	workerMessageLabel.TextColor3 = Theme.Text
-	workerMessageLabel.Font = Enum.Font.GothamMedium
-	workerMessageLabel.TextSize = 16
-	workerMessageLabel.TextWrapped = true
-	workerMessageLabel.Visible = false
-	workerMessageLabel.Parent = phaseArea
-
-	CodingGame.init(phaseArea, Theme)
-	MapBuildingGame.init(phaseArea, Theme)
-	TestingGame.init(phaseArea, Theme)
-
-	local function hideAllPhaseUI()
-		workerMessageLabel.Visible = false
+	local function hideAllMiniGames()
 		CodingGame.hide()
 		MapBuildingGame.hide()
 		TestingGame.hide()
 	end
 
-	hideAllPhaseUI()
+	hideAllMiniGames()
+
+	-- Seat tracking: show the matching panel only while physically seated at that computer
+	local STATION_NAMES = { "NewProject", "Coding", "MapBuilding", "Testing" }
+	local STATION_PANELS = {
+		NewProject = newProjectPanel,
+		Coding = codingPanel,
+		MapBuilding = mapBuildingPanel,
+		Testing = testingPanel,
+	}
+
+	local seats = {}
+	local seatedStation = nil
+
+	local function refreshStationVisibility()
+		for _, name in ipairs(STATION_NAMES) do
+			STATION_PANELS[name].Visible = (seatedStation == name)
+		end
+	end
+
+	local function isPlayerInSeat(seat)
+		local character = player.Character
+		return character ~= nil and seat.Occupant ~= nil and seat.Occupant.Parent == character
+	end
+
+	local function updateSeatedStation()
+		local newStation = nil
+		for _, name in ipairs(STATION_NAMES) do
+			local seat = seats[name]
+			if seat and isPlayerInSeat(seat) then
+				newStation = name
+				break
+			end
+		end
+		seatedStation = newStation
+		refreshStationVisibility()
+	end
+
+	local lobbyFolder = workspace:WaitForChild("Lobby")
+	for _, name in ipairs(STATION_NAMES) do
+		local seat = lobbyFolder:WaitForChild(name .. "Seat")
+		seats[name] = seat
+		seat:GetPropertyChangedSignal("Occupant"):Connect(updateSeatedStation)
+	end
+
+	player.CharacterAdded:Connect(function()
+		task.wait(0.1)
+		updateSeatedStation()
+	end)
+
+	updateSeatedStation()
+
+	-- Physical wall sign showing the Trends Board
+	local trendsText = lobbyFolder:WaitForChild("TrendsSignBacking"):WaitForChild("TrendsDisplay"):WaitForChild("TrendsText")
 
 	local PHASE_DISPLAY_NAMES = {
 		Coding = "Coding",
@@ -326,19 +319,43 @@ function UI.init()
 		Testing = "Testing",
 	}
 
+	-- Watchdog resets on every sign of progress (phase/round events) instead of
+	-- using one fixed deadline for the whole cycle -- a player can now spend up
+	-- to ~30s walking to a station between phases, so a single fixed timeout
+	-- sized for the old always-on-screen UI would misfire on ordinary play.
+	local WATCHDOG_SECONDS = 60
+	local developing = false
+	local developSequence = 0
+
+	local function armWatchdog()
+		developSequence += 1
+		local mySequence = developSequence
+		task.delay(WATCHDOG_SECONDS, function()
+			if developing and mySequence == developSequence then
+				developing = false
+				hideAllMiniGames()
+				statusToast.Text = "Something went wrong -- try again."
+				statusToast.TextColor3 = Theme.Danger
+			end
+		end)
+	end
+
 	Remotes.PhaseStarted.OnClientEvent:Connect(function(phase, isAutomated)
-		hideAllPhaseUI()
+		hideAllMiniGames()
+		armWatchdog()
 		if isAutomated then
-			phaseLabel.Text = ("%s \226\128\148 your worker is on it"):format(PHASE_DISPLAY_NAMES[phase])
-			workerMessageLabel.Text = ("\240\159\164\150 Your %s worker is working..."):format(PHASE_DISPLAY_NAMES[phase])
-			workerMessageLabel.Visible = true
+			statusToast.Text = ("\240\159\164\150 Your %s worker is working..."):format(PHASE_DISPLAY_NAMES[phase])
+			statusToast.TextColor3 = Theme.TextMuted
 		else
-			phaseLabel.Text = PHASE_DISPLAY_NAMES[phase]
+			statusToast.Text = ("Go sit at the %s computer!"):format(PHASE_DISPLAY_NAMES[phase])
+			statusToast.TextColor3 = Theme.Gold
 		end
 	end)
 
 	Remotes.RoundStarted.OnClientEvent:Connect(function(phase, roundIndex, roundData)
-		phaseLabel.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[phase], roundIndex, GameData.RoundsPerPhase)
+		armWatchdog()
+		statusToast.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[phase], roundIndex, GameData.RoundsPerPhase)
+		statusToast.TextColor3 = Theme.TextMuted
 		if phase == "Coding" then
 			CodingGame.startRound()
 		elseif phase == "MapBuilding" then
@@ -349,17 +366,16 @@ function UI.init()
 	end)
 
 	Remotes.RoundComplete.OnClientEvent:Connect(function(phase, roundIndex, score)
-		statusLabel.Text = ("Round %d: %d%%"):format(roundIndex, math.floor(score * 100 + 0.5))
-		statusLabel.TextColor3 = Theme.TextMuted
+		armWatchdog()
+		statusToast.Text = ("Round %d: %d%%"):format(roundIndex, math.floor(score * 100 + 0.5))
+		statusToast.TextColor3 = Theme.TextMuted
 	end)
 
 	Remotes.PhaseComplete.OnClientEvent:Connect(function(phase, score)
-		hideAllPhaseUI()
-		phaseLabel.Text = ("%s complete: %d%%"):format(PHASE_DISPLAY_NAMES[phase], math.floor(score * 100 + 0.5))
+		hideAllMiniGames()
+		armWatchdog()
+		statusToast.Text = ("%s complete: %d%%"):format(PHASE_DISPLAY_NAMES[phase], math.floor(score * 100 + 0.5))
 	end)
-
-	local developing = false
-	local developSequence = 0
 
 	startButton.MouseButton1Click:Connect(function()
 		if developing then
@@ -367,43 +383,31 @@ function UI.init()
 		end
 
 		if not selectedGenre or not selectedTopic then
-			statusLabel.Text = "Pick a Genre and a Topic first!"
-			statusLabel.TextColor3 = Theme.Danger
+			statusToast.Text = "Pick a Genre and a Topic first!"
+			statusToast.TextColor3 = Theme.Danger
 			return
 		end
 
 		developing = true
-		developSequence += 1
-		local mySequence = developSequence
-		statusLabel.Text = ""
-		phaseLabel.Text = "Starting..."
+		statusToast.Text = "Starting..."
+		statusToast.TextColor3 = Theme.TextMuted
 		Remotes.RequestStartDevelopment:FireServer(selectedGenre, selectedTopic)
-
-		task.delay(90, function()
-			if developing and mySequence == developSequence then
-				developing = false
-				hideAllPhaseUI()
-				phaseLabel.Text = ""
-				statusLabel.Text = "Something went wrong -- try again."
-				statusLabel.TextColor3 = Theme.Danger
-			end
-		end)
+		armWatchdog()
 	end)
 
 	Remotes.DevelopmentComplete.OnClientEvent:Connect(function(cash, wasCopy, hitBonus)
 		developing = false
-		hideAllPhaseUI()
-		phaseLabel.Text = ""
+		hideAllMiniGames()
 
 		if wasCopy then
-			statusLabel.Text = "That was a copy! Earned $0."
-			statusLabel.TextColor3 = Theme.Danger
+			statusToast.Text = "That was a copy! Earned $0."
+			statusToast.TextColor3 = Theme.Danger
 		elseif hitBonus then
-			statusLabel.Text = ("\240\159\148\165 TRENDY HIT! Earned $%d!"):format(cash)
-			statusLabel.TextColor3 = Theme.Success
+			statusToast.Text = ("\240\159\148\165 TRENDY HIT! Earned $%d!"):format(cash)
+			statusToast.TextColor3 = Theme.Success
 		else
-			statusLabel.Text = ("Released! Earned $%d."):format(cash)
-			statusLabel.TextColor3 = Theme.Gold
+			statusToast.Text = ("Released! Earned $%d."):format(cash)
+			statusToast.TextColor3 = Theme.Gold
 		end
 	end)
 
@@ -415,7 +419,7 @@ function UI.init()
 	end)
 
 	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2)
-		trendsLabel.Text = ("%s + %s    %s + %s"):format(
+		trendsText.Text = ("%s + %s\n%s + %s"):format(
 			trend1.genre, trend1.topic, trend2.genre, trend2.topic
 		)
 	end)

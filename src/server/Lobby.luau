@@ -27,7 +27,10 @@ local ROAD_HALF_LENGTH = 110
 -- A second road crossing Main Street, running north (toward the plot
 -- neighborhoods, which start around world Z = -30) so the city reaches
 -- toward the rest of the map instead of stopping at the plaza's edge.
-local CROSS_ROAD_X = 0 -- offset from LOBBY_ORIGIN.X
+-- Offset well east of the plaza (which has half-size 35) so the road
+-- doesn't cut through the plaza itself -- it originally did, at X = 0,
+-- before this was caught and fixed.
+local CROSS_ROAD_X = 70 -- offset from LOBBY_ORIGIN.X
 local CROSS_ROAD_HALF_LENGTH = 150
 
 local activeCars = {}
@@ -179,6 +182,131 @@ local function buildCrossRoad(lobbyFolder)
 		local dash = makePart("CrossRoadDash" .. i, Vector3.new(0.6, 0.45, 3), LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X, FLOOR_TOP + 0.21, dashZ), Color3.fromRGB(255, 224, 110), Enum.Material.SmoothPlastic, lobbyFolder)
 		dash.CanCollide = false
 	end
+end
+
+-- A circular roundabout where Main Street meets Cross Street. Built from
+-- two flat cylinder "discs" (a Roblox Part with Shape = Cylinder, rotated
+-- 90 degrees around Z, becomes a flat disc rather than a standing wheel
+-- -- verified live in Studio with an isolated test part before using it
+-- here). The disc is wide enough to cover the underlying "+" of straight
+-- road beneath it, so the junction reads as a real circular intersection.
+local function buildRoundabout(lobbyFolder)
+	local center = LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X, 0, ROAD_Z)
+
+	local ring = Instance.new("Part")
+	ring.Name = "RoundaboutRing"
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Size = Vector3.new(0.5, 38, 38)
+	ring.CFrame = CFrame.new(center + Vector3.new(0, FLOOR_TOP + 0.45, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	ring.Anchored = true
+	ring.CanCollide = true
+	ring.Color = Color3.fromRGB(58, 58, 62)
+	ring.Material = Enum.Material.Asphalt
+	ring.Parent = lobbyFolder
+
+	local island = Instance.new("Part")
+	island.Name = "RoundaboutIsland"
+	island.Shape = Enum.PartType.Cylinder
+	island.Size = Vector3.new(0.7, 16, 16)
+	island.CFrame = CFrame.new(center + Vector3.new(0, FLOOR_TOP + 0.75, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	island.Anchored = true
+	island.CanCollide = true
+	island.Color = Color3.fromRGB(90, 165, 90)
+	island.Material = Enum.Material.Grass
+	island.Parent = lobbyFolder
+
+	local trunk = makePart("RoundaboutTreeTrunk", Vector3.new(1, 5, 1), center + Vector3.new(0, FLOOR_TOP + 2.5, 0), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, lobbyFolder)
+	local leaves = makePart("RoundaboutTreeLeaves", Vector3.new(5, 5, 5), center + Vector3.new(0, FLOOR_TOP + 6, 0), Color3.fromRGB(58, 122, 74), Enum.Material.Grass, lobbyFolder)
+	leaves.CanCollide = false
+end
+
+-- A basketball court and small pool in the corridor between the plaza
+-- and Cross Street, for the recreational-area flavor from the reference.
+local function buildRecreationArea(lobbyFolder)
+	local courtCenter = LOBBY_ORIGIN + Vector3.new(46, 0, -10)
+	makePart("BasketballCourt", Vector3.new(16, 0.3, 9), courtCenter + Vector3.new(0, FLOOR_TOP + 0.15, 0), Color3.fromRGB(180, 110, 70), Enum.Material.SmoothPlastic, lobbyFolder)
+
+	local centerLine = makePart("CourtCenterLine", Vector3.new(0.3, 0.32, 9), courtCenter + Vector3.new(0, FLOOR_TOP + 0.16, 0), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
+	centerLine.CanCollide = false
+
+	local circle = Instance.new("Part")
+	circle.Name = "CourtCenterCircle"
+	circle.Shape = Enum.PartType.Cylinder
+	circle.Size = Vector3.new(0.34, 3, 3)
+	circle.CFrame = CFrame.new(courtCenter + Vector3.new(0, FLOOR_TOP + 0.17, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	circle.Anchored = true
+	circle.CanCollide = false
+	circle.Color = Color3.fromRGB(255, 255, 255)
+	circle.Material = Enum.Material.SmoothPlastic
+	circle.Parent = lobbyFolder
+
+	for _, side in ipairs({ -1, 1 }) do
+		makePart("HoopPole" .. side, Vector3.new(0.4, 8, 0.4), courtCenter + Vector3.new(side * 7.6, FLOOR_TOP + 4, 0), DARK_TRIM_COLOR, Enum.Material.Metal, lobbyFolder)
+		local backboard = makePart("HoopBackboard" .. side, Vector3.new(0.2, 2, 3), courtCenter + Vector3.new(side * 7.6, FLOOR_TOP + 7, 0), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
+		backboard.CanCollide = false
+	end
+
+	local poolCenter = LOBBY_ORIGIN + Vector3.new(46, 0, 15)
+	makePart("PoolDeck", Vector3.new(18, 0.3, 10), poolCenter + Vector3.new(0, FLOOR_TOP + 0.15, 0), Color3.fromRGB(230, 222, 208), Enum.Material.Concrete, lobbyFolder)
+
+	local water = makePart("PoolWater", Vector3.new(14, 0.35, 7), poolCenter + Vector3.new(0, FLOOR_TOP + 0.18, 0), Color3.fromRGB(70, 170, 220), Enum.Material.Glass, lobbyFolder)
+	water.CanCollide = false
+	water.Transparency = 0.25
+end
+
+local function buildPalmTree(lobbyFolder, name, position)
+	makePart(name .. "Trunk", Vector3.new(0.8, 6, 0.8), position + Vector3.new(0, FLOOR_TOP + 3, 0), Color3.fromRGB(120, 90, 60), Enum.Material.Wood, lobbyFolder)
+
+	for i = 1, 5 do
+		local angle = (i - 1) * 72
+		local frond = Instance.new("Part")
+		frond.Name = name .. "Frond" .. i
+		frond.Size = Vector3.new(3.5, 0.2, 1)
+		frond.CFrame = CFrame.new(position + Vector3.new(0, FLOOR_TOP + 6.2, 0)) * CFrame.Angles(0, math.rad(angle), 0) * CFrame.new(1.6, 0, 0) * CFrame.Angles(0, 0, math.rad(15))
+		frond.Anchored = true
+		frond.CanCollide = false
+		frond.Color = Color3.fromRGB(58, 140, 74)
+		frond.Material = Enum.Material.Grass
+		frond.Parent = lobbyFolder
+	end
+end
+
+-- A beach + water edge on the west side of the plaza for the coastal
+-- feel from the reference, since this game doesn't otherwise have one.
+local function buildBeach(lobbyFolder)
+	local halfSize = LOBBY_SIZE / 2
+	local sandWidth = 26
+	local sandCenterX = -halfSize - sandWidth / 2
+	makePart("BeachSand", Vector3.new(sandWidth, 1, LOBBY_SIZE), LOBBY_ORIGIN + Vector3.new(sandCenterX, 0, 0), Color3.fromRGB(230, 205, 150), Enum.Material.Sand, lobbyFolder)
+
+	local waterWidth = 60
+	local waterCenterX = sandCenterX - sandWidth / 2 - waterWidth / 2
+	local water = makePart("OceanWater", Vector3.new(waterWidth, 1, LOBBY_SIZE + 40), LOBBY_ORIGIN + Vector3.new(waterCenterX, -0.3, 0), Color3.fromRGB(60, 140, 200), Enum.Material.Glass, lobbyFolder)
+	water.CanCollide = false
+	water.Transparency = 0.2
+
+	buildPalmTree(lobbyFolder, "Palm1", LOBBY_ORIGIN + Vector3.new(sandCenterX - 5, 0, -10))
+	buildPalmTree(lobbyFolder, "Palm2", LOBBY_ORIGIN + Vector3.new(sandCenterX + 5, 0, 12))
+end
+
+-- A few simple boulder clusters around the outer edges for a
+-- "surrounded by nature" feel instead of the city just stopping abruptly.
+local function buildRockCluster(lobbyFolder, name, position)
+	local rockSpecs = {
+		{ size = Vector3.new(6, 5, 6), offset = Vector3.new(0, 0, 0) },
+		{ size = Vector3.new(4, 3.5, 4), offset = Vector3.new(3, 0, 2) },
+		{ size = Vector3.new(3, 2.5, 3), offset = Vector3.new(-2.5, 0, 3) },
+	}
+
+	for i, spec in ipairs(rockSpecs) do
+		makePart(name .. i, spec.size, position + spec.offset + Vector3.new(0, spec.size.Y / 2, 0), Color3.fromRGB(120, 115, 110), Enum.Material.Rock, lobbyFolder)
+	end
+end
+
+local function buildRockClusters(lobbyFolder)
+	buildRockCluster(lobbyFolder, "RockClusterNorth", LOBBY_ORIGIN + Vector3.new(CROSS_ROAD_X, 0, 115))
+	buildRockCluster(lobbyFolder, "RockClusterEast", LOBBY_ORIGIN + Vector3.new(150, 0, -45))
+	buildRockCluster(lobbyFolder, "RockClusterSouth", LOBBY_ORIGIN + Vector3.new(-40, 0, -95))
 end
 
 -- The project's default 512x512 Baseplate was never restyled -- it still
@@ -363,6 +491,10 @@ function Lobby.build()
 	buildLandscaping(lobbyFolder)
 	buildRoad(lobbyFolder)
 	buildCrossRoad(lobbyFolder)
+	buildRoundabout(lobbyFolder)
+	buildRecreationArea(lobbyFolder)
+	buildBeach(lobbyFolder)
+	buildRockClusters(lobbyFolder)
 	buildSkyline(lobbyFolder)
 	buildNeighborhoodHouses(lobbyFolder)
 

@@ -259,7 +259,21 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local roofColor = (tier >= 2) and Color3.fromRGB(120, 45, 40) or Color3.fromRGB(96, 74, 68)
 
 	makePart("HouseFloor", Vector3.new(width, 0.5, depth), base + Vector3.new(0, FLOOR_TOP + 0.25, 0), Color3.fromRGB(150, 120, 90), Enum.Material.WoodPlanks, houseFolder)
-	makePart("WallFront", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+
+	-- Front wall has an actual doorway gap (not just a non-collide decal in
+	-- front of a solid wall) so the house is really walkable-into.
+	local doorWidth = 3.5
+	local doorHeight = 5
+	local sideWallWidth = halfW - doorWidth / 2
+	local sideWallCenterX = (halfW + doorWidth / 2) / 2
+	local lintelHeight = wallHeight - doorHeight
+
+	makePart("WallFrontLeft", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(-sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallFrontRight", Vector3.new(sideWallWidth, wallHeight, wallThickness), base + Vector3.new(sideWallCenterX, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	if lintelHeight > 0 then
+		makePart("WallFrontLintel", Vector3.new(doorWidth, lintelHeight, wallThickness), base + Vector3.new(0, FLOOR_TOP + doorHeight + lintelHeight / 2, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	end
+
 	makePart("WallBack", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
 	makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
 	makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
@@ -285,10 +299,12 @@ local function buildHouseStructure(houseFolder, base, tier)
 	makeRoofHalf("RoofLeft", -roofRun / 2, 90)
 	makeRoofHalf("RoofRight", roofRun / 2, -90)
 
-	local door = makePart("Door", Vector3.new(3, 5, 0.3), base + Vector3.new(0, FLOOR_TOP + 2.5, -halfD - 0.2), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
+	-- Sits flush in the doorway gap (not offset in front of a solid wall)
+	-- and stays non-collide so walking through the gap actually works.
+	local door = makePart("Door", Vector3.new(doorWidth - 0.3, doorHeight, wallThickness), base + Vector3.new(0, FLOOR_TOP + doorHeight / 2, -halfD), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
 	door.CanCollide = false
 
-	local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.35), GOLD_COLOR, Enum.Material.Metal, houseFolder)
+	local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.25), GOLD_COLOR, Enum.Material.Metal, houseFolder)
 	doorKnob.CanCollide = false
 
 	local function makeWindow(name, x)
@@ -301,6 +317,29 @@ local function buildHouseStructure(houseFolder, base, tier)
 
 	makeWindow("WindowLeft", -halfW + 3)
 	makeWindow("WindowRight", halfW - 3)
+
+	-- Simple furnished interior so the house is somewhere you actually live,
+	-- not just an empty shell -- a bed against the back wall, a rug, and a
+	-- ceiling light so the inside isn't pitch dark.
+	local bedX = -halfW + 3
+	local bedZ = halfD - 3
+	local bedFrameHeight = 1.2
+	makePart("BedFrame", Vector3.new(3, bedFrameHeight, 5), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight / 2, bedZ), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
+	local mattress = makePart("Mattress", Vector3.new(2.8, 0.6, 4.8), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.3, bedZ), Color3.fromRGB(235, 235, 240), Enum.Material.Fabric, houseFolder)
+	mattress.CanCollide = false
+	local pillow = makePart("Pillow", Vector3.new(2.4, 0.4, 1), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.8, bedZ - 1.8), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, houseFolder)
+	pillow.CanCollide = false
+
+	local rug = makePart("Rug", Vector3.new(4, 0.1, 3), base + Vector3.new(halfW - 4.5, FLOOR_TOP + 0.3, 0), GOLD_COLOR, Enum.Material.Fabric, houseFolder)
+	rug.CanCollide = false
+
+	local ceilingLight = makePart("CeilingLight", Vector3.new(1.2, 0.3, 1.2), base + Vector3.new(0, FLOOR_TOP + wallHeight - 0.3, 0), Color3.fromRGB(255, 244, 214), Enum.Material.Neon, houseFolder)
+	ceilingLight.CanCollide = false
+	local pointLight = Instance.new("PointLight")
+	pointLight.Brightness = 2
+	pointLight.Range = 20
+	pointLight.Color = Color3.fromRGB(255, 244, 214)
+	pointLight.Parent = ceilingLight
 
 	local frontClearance = halfD + 0.2
 	if tier >= 2 then

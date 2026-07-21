@@ -273,34 +273,40 @@ local function buildHouse(plotFolder, origin, tier)
 
 	if tier >= 1 then
 		local fenceHeight = PLOT_FENCE_HEIGHT_BY_TIER[tier]
-		local fenceThickness = 0.6
-		local fenceColor = (tier >= 2) and GOLD_COLOR or DESK_COLOR
-		local fenceCenterY = FLOOR_TOP + fenceHeight / 2
+		-- Tier 1 reads as a basic wood picket fence; tier 2 upgrades it to a
+		-- gold metal fence -- real Roblox materials instead of flat plastic,
+		-- and posts + rails (with gaps) instead of a solid slab.
+		local postMaterial = (tier >= 2) and Enum.Material.Metal or Enum.Material.Wood
+		local postColor = (tier >= 2) and GOLD_COLOR or DESK_COLOR
+		local railColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+		local postThickness = 0.5
+		local railThickness = 0.25
+		local postSpacing = 10
 
-		-- A thin glowing cap rail on top is the only "neon" part -- the body
-		-- is a plain, solid-colored low rail so it reads as a fence, not a wall.
-		local capHeight = 0.3
-		local capCenterY = FLOOR_TOP + fenceHeight + capHeight / 2
-		local capColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+		local function buildFenceRun(name, fromOffset, toOffset)
+			local delta = toOffset - fromOffset
+			local length = delta.Magnitude
+			local segments = math.max(1, math.floor(length / postSpacing + 0.5))
+			local isAlongX = math.abs(delta.X) >= math.abs(delta.Z)
 
-		local function buildFenceSegment(name, size, position)
-			makePart(name, size, position, fenceColor, Enum.Material.SmoothPlastic, upgradeFolder)
+			for i = 0, segments do
+				local t = i / segments
+				local postPos = origin + fromOffset:Lerp(toOffset, t) + Vector3.new(0, FLOOR_TOP + fenceHeight / 2, 0)
+				makePart(name .. "Post" .. i, Vector3.new(postThickness, fenceHeight, postThickness), postPos, postColor, postMaterial, upgradeFolder)
+			end
+
+			local midpoint = origin + fromOffset:Lerp(toOffset, 0.5)
+			local railSizeAlong = isAlongX and Vector3.new(length, railThickness, railThickness) or Vector3.new(railThickness, railThickness, length)
+			for railIndex, heightFraction in ipairs({ 0.4, 0.85 }) do
+				local railY = FLOOR_TOP + fenceHeight * heightFraction
+				makePart(name .. "Rail" .. railIndex, railSizeAlong, midpoint + Vector3.new(0, railY, 0), railColor, postMaterial, upgradeFolder)
+			end
 		end
 
-		local function buildCapSegment(name, size, position)
-			local cap = makePart(name, size, position, capColor, Enum.Material.Neon, upgradeFolder)
-			cap.CanCollide = false
-		end
-
-		buildFenceSegment("PlotFenceNear", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, nearZ))
-		buildFenceSegment("PlotFenceFar", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, farZ))
-		buildFenceSegment("PlotFenceLeft", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, fenceCenterY, floorCenterZ))
-		buildFenceSegment("PlotFenceRight", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, fenceCenterY, floorCenterZ))
-
-		buildCapSegment("PlotFenceCapNear", Vector3.new(PLOT_SIZE_X, capHeight, fenceThickness + 0.1), origin + Vector3.new(0, capCenterY, nearZ))
-		buildCapSegment("PlotFenceCapFar", Vector3.new(PLOT_SIZE_X, capHeight, fenceThickness + 0.1), origin + Vector3.new(0, capCenterY, farZ))
-		buildCapSegment("PlotFenceCapLeft", Vector3.new(fenceThickness + 0.1, capHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, capCenterY, floorCenterZ))
-		buildCapSegment("PlotFenceCapRight", Vector3.new(fenceThickness + 0.1, capHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, capCenterY, floorCenterZ))
+		buildFenceRun("PlotFenceNear", Vector3.new(-halfX, 0, nearZ), Vector3.new(halfX, 0, nearZ))
+		buildFenceRun("PlotFenceFar", Vector3.new(-halfX, 0, farZ), Vector3.new(halfX, 0, farZ))
+		buildFenceRun("PlotFenceLeft", Vector3.new(-halfX, 0, nearZ), Vector3.new(-halfX, 0, farZ))
+		buildFenceRun("PlotFenceRight", Vector3.new(halfX, 0, nearZ), Vector3.new(halfX, 0, farZ))
 
 		local lampHeight = 6
 		local lampCorners = {
@@ -314,6 +320,13 @@ local function buildHouse(plotFolder, origin, tier)
 			local bulb = makePart("PlotLampBulb" .. i, Vector3.new(1, 1, 1), origin + Vector3.new(corner.X, FLOOR_TOP + lampHeight + 0.3, corner.Z), GOLD_COLOR, Enum.Material.Neon, upgradeFolder)
 			bulb.Shape = Enum.PartType.Ball
 			bulb.CanCollide = false
+		end
+
+		-- A couple of landscaping bushes by the sign for a lived-in touch
+		local bushOffsets = { Vector3.new(-2.5, 0, 8), Vector3.new(2.5, 0, 8) }
+		for i, offset in ipairs(bushOffsets) do
+			local bush = makePart("PlotBush" .. i, Vector3.new(2, 1.6, 2), origin + Vector3.new(offset.X, FLOOR_TOP + 0.8, offset.Z), Color3.fromRGB(58, 122, 74), Enum.Material.Grass, upgradeFolder)
+			bush.Shape = Enum.PartType.Ball
 		end
 	end
 

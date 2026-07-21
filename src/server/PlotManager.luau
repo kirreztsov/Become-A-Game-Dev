@@ -208,25 +208,17 @@ local function buildStation(plotFolder, origin, config, x, z)
 	-- matters for player-sitting behavior) is left untouched above.
 	buildChairVisual(plotFolder, config.name, seatCenter, CHAIR_COLOR)
 
-	local labelAnchor = Instance.new("Part")
-	labelAnchor.Name = config.name .. "LabelAnchor"
-	labelAnchor.Size = Vector3.new(0.1, 0.1, 0.1)
-	labelAnchor.Position = origin + Vector3.new(x, monitorCenterY + 1.5, z + 0.7)
-	labelAnchor.Transparency = 1
-	labelAnchor.Anchored = true
-	labelAnchor.CanCollide = false
-	labelAnchor.Parent = plotFolder
+	-- A real painted nameplate (not a floating BillboardGui) facing the
+	-- seat, so it reads as a physical placard on the desk.
+	local nameplate = makePart(config.name .. "Nameplate", Vector3.new(2.2, 0.6, 0.1), origin + Vector3.new(x, monitorCenterY + 1.5, z + 0.7), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, plotFolder)
+	nameplate.CanCollide = false
 
-	-- Stations now sit close together inside the studio (not spread across
-	-- an open plot), so a long MaxDistance would cluster all 5 labels into
-	-- one unreadable pile when viewed from outside -- keep it short so a
-	-- label only shows once you're actually near that desk.
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "Label"
-	billboard.Size = UDim2.fromOffset(220, 40)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 18
-	billboard.Parent = labelAnchor
+	local surfaceGui = Instance.new("SurfaceGui")
+	surfaceGui.Name = "NameplateDisplay"
+	surfaceGui.Face = Enum.NormalId.Front
+	surfaceGui.CanvasSize = Vector2.new(300, 80)
+	surfaceGui.LightInfluence = 0
+	surfaceGui.Parent = nameplate
 
 	local text = Instance.new("TextLabel")
 	text.Size = UDim2.fromScale(1, 1)
@@ -235,7 +227,7 @@ local function buildStation(plotFolder, origin, config, x, z)
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-	text.Parent = billboard
+	text.Parent = surfaceGui
 end
 
 -- Fixed layout for the 4 work stations + the Workers desk inside the
@@ -594,23 +586,31 @@ local function buildHouse(plotFolder, origin, tier)
 	-- Central signpost near spawn -- reachable immediately, not tucked in a corner
 	local signPost = makePart("PlotUpgradeSignPost", Vector3.new(0.4, 5, 0.4), origin + Vector3.new(0, FLOOR_TOP + 2.5, 8), DARK_TRIM_COLOR, nil, upgradeFolder)
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "Label"
-	billboard.Size = UDim2.fromOffset(220, 40)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 100
-	billboard.Parent = signPost
+	-- A real sign board (not a floating BillboardGui), readable from either
+	-- direction since players can approach it walking either way.
+	local signBoard = makePart("PlotUpgradeSignBoard", Vector3.new(6, 1.6, 0.2), origin + Vector3.new(0, FLOOR_TOP + 5, 8), ACCENT_COLOR, Enum.Material.SmoothPlastic, upgradeFolder)
+	signBoard.CanCollide = false
 
 	local isMaxTier = tier >= GameData.HouseTierCount - 1
+	local signText = isMaxTier and "\240\159\143\151\239\184\143 Plot fully upgraded!" or "\240\159\143\151\239\184\143 Upgrade your plot!"
 
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.Text = isMaxTier and "\240\159\143\151\239\184\143 Plot fully upgraded!" or "\240\159\143\151\239\184\143 Upgrade your plot!"
-	text.Font = Enum.Font.FredokaOne
-	text.TextScaled = true
-	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-	text.Parent = billboard
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local surfaceGui = Instance.new("SurfaceGui")
+		surfaceGui.Name = "SignDisplay" .. face.Name
+		surfaceGui.Face = face
+		surfaceGui.CanvasSize = Vector2.new(500, 130)
+		surfaceGui.LightInfluence = 0
+		surfaceGui.Parent = signBoard
+
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Text = signText
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.TextColor3 = Color3.fromRGB(255, 255, 255)
+		text.Parent = surfaceGui
+	end
 
 	if not isMaxTier then
 		local upgradePrompt = Instance.new("ProximityPrompt")

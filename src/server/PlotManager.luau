@@ -157,40 +157,46 @@ end
 local function buildTrendsSign(plotFolder, origin)
 	local signCenterY = FLOOR_TOP + 8
 
-	makePart("TrendsSignPost", Vector3.new(0.6, 8, 0.6), origin + Vector3.new(0, FLOOR_TOP + 4, -28), DARK_TRIM_COLOR, nil, plotFolder)
+	makePart("TrendsSignPostLeft", Vector3.new(0.6, 8, 0.6), origin + Vector3.new(-7, FLOOR_TOP + 4, -28), DARK_TRIM_COLOR, nil, plotFolder)
+	makePart("TrendsSignPostRight", Vector3.new(0.6, 8, 0.6), origin + Vector3.new(7, FLOOR_TOP + 4, -28), DARK_TRIM_COLOR, nil, plotFolder)
 
-	local backing = makePart("TrendsSignBacking", Vector3.new(10, 6, 0.5), origin + Vector3.new(0, signCenterY, -28), ACCENT_COLOR, Enum.Material.Neon, plotFolder)
+	-- A long physical board (not a floating BillboardGui) -- the text is
+	-- painted onto its surface with a SurfaceGui, so it reads as a real
+	-- sign standing in the world instead of 2D UI hovering in space.
+	local backing = makePart("TrendsSignBacking", Vector3.new(16, 6, 0.5), origin + Vector3.new(0, signCenterY, -28), ACCENT_COLOR, Enum.Material.SmoothPlastic, plotFolder)
 	backing.CanCollide = false
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "TrendsDisplay"
-	billboard.Size = UDim2.fromOffset(300, 140)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 100
-	billboard.Parent = backing
+	-- Players approach from the stations area (+Z side of the board, which
+	-- is at z = -28), so the visible face is Back (the +Z-facing side).
+	local surfaceGui = Instance.new("SurfaceGui")
+	surfaceGui.Name = "TrendsDisplay"
+	surfaceGui.Face = Enum.NormalId.Back
+	surfaceGui.CanvasSize = Vector2.new(600, 220)
+	surfaceGui.LightInfluence = 0
+	surfaceGui.Parent = backing
 
 	local eyebrow = Instance.new("TextLabel")
 	eyebrow.Name = "Eyebrow"
-	eyebrow.Size = UDim2.new(1, 0, 0, 30)
+	eyebrow.Size = UDim2.new(1, 0, 0, 60)
 	eyebrow.Position = UDim2.fromOffset(0, 0)
 	eyebrow.BackgroundTransparency = 1
 	eyebrow.Text = "\240\159\148\165 TRENDING NOW"
 	eyebrow.Font = Enum.Font.GothamBold
 	eyebrow.TextScaled = true
 	eyebrow.TextColor3 = Color3.fromRGB(255, 158, 66)
-	eyebrow.Parent = billboard
+	eyebrow.Parent = surfaceGui
 
 	local text = Instance.new("TextLabel")
 	text.Name = "TrendsText"
-	text.Size = UDim2.new(1, 0, 1, -30)
-	text.Position = UDim2.fromOffset(0, 30)
+	text.Size = UDim2.new(1, 0, 1, -60)
+	text.Position = UDim2.fromOffset(0, 60)
 	text.BackgroundTransparency = 1
 	text.Text = "Loading..."
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.TextWrapped = true
 	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-	text.Parent = billboard
+	text.Parent = surfaceGui
 end
 
 local function buildHouse(plotFolder, origin, tier)

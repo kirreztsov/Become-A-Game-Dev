@@ -41,23 +41,24 @@ local function buildPlotFloor(plotFolder, origin)
 	makePart("PlotFloor", Vector3.new(PLOT_SIZE_X, 1, PLOT_SIZE_Z), origin + Vector3.new(0, 0.5, 15), PANEL_COLOR, nil, plotFolder)
 end
 
+-- Spawns just outside the studio door -- the studio (house) now contains
+-- the actual work stations, so that's where a player needs to be.
 local function buildPlotSpawn(plotFolder, origin)
 	local spawnPoint = Instance.new("Part")
 	spawnPoint.Name = "PlotSpawnPoint"
 	spawnPoint.Size = Vector3.new(1, 1, 1)
-	spawnPoint.Position = origin + Vector3.new(0, FLOOR_TOP + 3, 0)
+	spawnPoint.Position = origin + HOUSE_LOT_OFFSET + Vector3.new(0, FLOOR_TOP + 3, -30)
 	spawnPoint.Anchored = true
 	spawnPoint.CanCollide = false
 	spawnPoint.Transparency = 1
 	spawnPoint.Parent = plotFolder
 end
 
-local function buildWorkersDesk(plotFolder, origin)
+local function buildWorkersDesk(plotFolder, origin, x, z)
 	local deskTopSurfaceY = FLOOR_TOP + 2
 	local legHeight = 2
 	local legCenterY = FLOOR_TOP + legHeight / 2
 	local deskCenterY = deskTopSurfaceY + 0.25
-	local x, z = -12, 12
 
 	makePart("WorkersDeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, plotFolder)
 	makePart("WorkersDeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, plotFolder)
@@ -81,21 +82,24 @@ local function buildWorkersDesk(plotFolder, origin)
 	workersPrompt.Parent = screen
 
 	local chairHeight = 2.4
-	makePart("WorkersChair", Vector3.new(2, chairHeight, 2), origin + Vector3.new(x, FLOOR_TOP + chairHeight / 2, 9), CHAIR_COLOR, nil, plotFolder)
+	makePart("WorkersChair", Vector3.new(2, chairHeight, 2), origin + Vector3.new(x, FLOOR_TOP + chairHeight / 2, z - 3), CHAIR_COLOR, nil, plotFolder)
 end
 
+-- Desk positions are computed (see computeStudioLayout), not stored here --
+-- the same 4 stations get placed differently depending on the studio's
+-- current interior size.
 local STATION_CONFIGS = {
-	{ name = "NewProject", label = "\240\159\134\149 NEW PROJECT", deskX = 12, deskZ = 12, monitorColor = GOLD_COLOR },
-	{ name = "Coding", label = "\226\154\161 CODING", deskX = -25, deskZ = -15, monitorColor = ACCENT_COLOR },
-	{ name = "MapBuilding", label = "\240\159\151\186\239\184\143 MAP BUILDING", deskX = 0, deskZ = -20, monitorColor = ACCENT_COLOR },
-	{ name = "Testing", label = "\226\156\168 TESTING", deskX = 25, deskZ = -15, monitorColor = ACCENT_COLOR },
+	{ name = "NewProject", label = "\240\159\134\149 NEW PROJECT", monitorColor = GOLD_COLOR },
+	{ name = "Coding", label = "\226\154\161 CODING", monitorColor = ACCENT_COLOR },
+	{ name = "MapBuilding", label = "\240\159\151\186\239\184\143 MAP BUILDING", monitorColor = ACCENT_COLOR },
+	{ name = "Testing", label = "\226\156\168 TESTING", monitorColor = ACCENT_COLOR },
 }
 
 -- The NewProject station's monitor doubles as the player's "PC" -- its size
 -- and screen color scale with pcTier, and it carries the PCUpgradePrompt.
 -- Rebuildable independently of the rest of the station (desk/seat/label
 -- never change), the same way buildHouse rebuilds just the house folder.
-local function buildStationMonitorRig(plotFolder, origin, config, tier)
+local function buildStationMonitorRig(plotFolder, origin, config, tier, x, z)
 	local existingRig = plotFolder:FindFirstChild(config.name .. "MonitorRig")
 	if existingRig then
 		existingRig:Destroy()
@@ -105,7 +109,6 @@ local function buildStationMonitorRig(plotFolder, origin, config, tier)
 	rig.Name = config.name .. "MonitorRig"
 	rig.Parent = plotFolder
 
-	local x, z = config.deskX, config.deskZ
 	local deskTopSurfaceTopY = FLOOR_TOP + 2 + 0.5
 
 	local monitorHeight = 1.6 + (tier * 0.3)
@@ -128,12 +131,11 @@ local function buildStationMonitorRig(plotFolder, origin, config, tier)
 	end
 end
 
-local function buildStation(plotFolder, origin, config)
+local function buildStation(plotFolder, origin, config, x, z)
 	local deskTopSurfaceY = FLOOR_TOP + 2
 	local legHeight = 2
 	local legCenterY = FLOOR_TOP + legHeight / 2
 	local deskCenterY = deskTopSurfaceY + 0.25
-	local x, z = config.deskX, config.deskZ
 
 	makePart(config.name .. "DeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, plotFolder)
 	makePart(config.name .. "DeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, plotFolder)
@@ -144,7 +146,7 @@ local function buildStation(plotFolder, origin, config)
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
 	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
-	buildStationMonitorRig(plotFolder, origin, config, 0)
+	buildStationMonitorRig(plotFolder, origin, config, 0, x, z)
 
 	local seat = Instance.new("Seat")
 	seat.Name = config.name .. "Seat"
@@ -166,11 +168,15 @@ local function buildStation(plotFolder, origin, config)
 	labelAnchor.CanCollide = false
 	labelAnchor.Parent = plotFolder
 
+	-- Stations now sit close together inside the studio (not spread across
+	-- an open plot), so a long MaxDistance would cluster all 5 labels into
+	-- one unreadable pile when viewed from outside -- keep it short so a
+	-- label only shows once you're actually near that desk.
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Label"
 	billboard.Size = UDim2.fromOffset(220, 40)
 	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 100
+	billboard.MaxDistance = 18
 	billboard.Parent = labelAnchor
 
 	local text = Instance.new("TextLabel")
@@ -183,9 +189,33 @@ local function buildStation(plotFolder, origin, config)
 	text.Parent = billboard
 end
 
-local function buildStations(plotFolder, origin)
-	for _, config in ipairs(STATION_CONFIGS) do
-		buildStation(plotFolder, origin, config)
+-- Fixed layout for the 4 work stations + the Workers desk inside the
+-- studio, in local (x, z) offsets from the studio's base position. Chosen
+-- to fit inside the smallest studio tier (26 wide x 24 deep) -- bigger
+-- tiers just have more spare room around the same layout, so stations are
+-- built once and never need to move when the studio is upgraded.
+-- Back row (3 stations) sits near the back wall; front row (Testing +
+-- Workers) sits closer to the door, leaving a walking aisle between them.
+local STUDIO_LAYOUT = {
+	{ name = "NewProject", x = -7, z = 7 },
+	{ name = "Coding", x = 0, z = 7 },
+	{ name = "MapBuilding", x = 7, z = 7 },
+	{ name = "Testing", x = -3.5, z = -2 },
+	{ name = "Workers", x = 3.5, z = -2 },
+}
+
+local function buildStudioStations(plotFolder, base)
+	for _, entry in ipairs(STUDIO_LAYOUT) do
+		if entry.name == "Workers" then
+			buildWorkersDesk(plotFolder, base, entry.x, entry.z)
+		else
+			for _, config in ipairs(STATION_CONFIGS) do
+				if config.name == entry.name then
+					buildStation(plotFolder, base, config, entry.x, entry.z)
+					break
+				end
+			end
+		end
 	end
 end
 
@@ -240,11 +270,14 @@ local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 3.5, 4, 4.5 }
 
 -- House size/detail per tier -- a longer progression like RoTube Life 2's
 -- many home tiers (starter house up to a mansion), not just two steps.
+-- All tiers, including 0, are sized at least as big as STUDIO_LAYOUT needs
+-- (26 wide x 24 deep) so the fixed station layout always fits inside.
 local HOUSE_TIER_CONFIG = {
-	[1] = { width = 14, depth = 12, wallHeight = 7, roofHeight = 5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
-	[2] = { width = 18, depth = 15, wallHeight = 8, roofHeight = 5.5, secondStory = false, porch = true, chimney = true, hedges = false, driveway = false },
-	[3] = { width = 20, depth = 17, wallHeight = 7, upperWallHeight = 6, roofHeight = 6, secondStory = true, porch = true, chimney = true, hedges = true, driveway = false },
-	[4] = { width = 26, depth = 20, wallHeight = 8, upperWallHeight = 7, roofHeight = 6.5, secondStory = true, porch = true, chimney = true, hedges = true, driveway = true },
+	[0] = { width = 26, depth = 24, wallHeight = 6, roofHeight = 4.5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
+	[1] = { width = 28, depth = 25, wallHeight = 7, roofHeight = 5, secondStory = false, porch = false, chimney = false, hedges = false, driveway = false },
+	[2] = { width = 32, depth = 26, wallHeight = 8, roofHeight = 5.5, secondStory = false, porch = true, chimney = true, hedges = false, driveway = false },
+	[3] = { width = 34, depth = 27, wallHeight = 7, upperWallHeight = 6, roofHeight = 6, secondStory = true, porch = true, chimney = true, hedges = true, driveway = false },
+	[4] = { width = 38, depth = 28, wallHeight = 8, upperWallHeight = 7, roofHeight = 6.5, secondStory = true, porch = true, chimney = true, hedges = true, driveway = true },
 }
 
 -- A real house building on the open lot at the far end of the plot (away
@@ -350,20 +383,23 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.25), GOLD_COLOR, Enum.Material.Metal, houseFolder)
 	doorKnob.CanCollide = false
 
-	-- Simple furnished interior so the house is somewhere you actually live,
-	-- not just an empty shell -- a bed against the back wall, a rug, and a
-	-- ceiling light so the inside isn't pitch dark.
-	local bedX = -halfW + 3
-	local bedZ = halfD - 3
-	local bedFrameHeight = 1.2
-	makePart("BedFrame", Vector3.new(3, bedFrameHeight, 5), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight / 2, bedZ), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
-	local mattress = makePart("Mattress", Vector3.new(2.8, 0.6, 4.8), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.3, bedZ), Color3.fromRGB(235, 235, 240), Enum.Material.Fabric, houseFolder)
-	mattress.CanCollide = false
-	local pillow = makePart("Pillow", Vector3.new(2.4, 0.4, 1), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.8, bedZ - 1.8), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, houseFolder)
-	pillow.CanCollide = false
+	-- The studio floor is dominated by the fixed work-station layout (see
+	-- STUDIO_LAYOUT), which always sits within x = -10..10, z = -5..8.5.
+	-- Only tiers with room to spare beyond that (2+) get a bed/rug tucked
+	-- into the side margin, so it never collides with the desks.
+	if halfW >= 16 then
+		local bedX = halfW - 3
+		local bedZ = 0
+		local bedFrameHeight = 1.2
+		makePart("BedFrame", Vector3.new(3, bedFrameHeight, 5), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight / 2, bedZ), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
+		local mattress = makePart("Mattress", Vector3.new(2.8, 0.6, 4.8), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.3, bedZ), Color3.fromRGB(235, 235, 240), Enum.Material.Fabric, houseFolder)
+		mattress.CanCollide = false
+		local pillow = makePart("Pillow", Vector3.new(2.4, 0.4, 1), base + Vector3.new(bedX, FLOOR_TOP + bedFrameHeight + 0.8, bedZ - 1.8), Color3.fromRGB(255, 255, 255), Enum.Material.Fabric, houseFolder)
+		pillow.CanCollide = false
 
-	local rug = makePart("Rug", Vector3.new(4, 0.1, 3), base + Vector3.new(halfW - 4.5, FLOOR_TOP + 0.3, 0), GOLD_COLOR, Enum.Material.Fabric, houseFolder)
-	rug.CanCollide = false
+		local rug = makePart("Rug", Vector3.new(3, 0.1, 4), base + Vector3.new(bedX, FLOOR_TOP + 0.3, bedZ + 3.5), GOLD_COLOR, Enum.Material.Fabric, houseFolder)
+		rug.CanCollide = false
+	end
 
 	local ceilingLight = makePart("CeilingLight", Vector3.new(1.2, 0.3, 1.2), base + Vector3.new(0, FLOOR_TOP + wallHeight - 0.3, 0), Color3.fromRGB(255, 244, 214), Enum.Material.Neon, houseFolder)
 	ceilingLight.CanCollide = false
@@ -376,8 +412,10 @@ local function buildHouseStructure(houseFolder, base, tier)
 	local frontClearance = halfD + 0.2
 
 	if config.chimney then
+		-- Against the back exterior wall, not poking up through the middle
+		-- of the (now functional, station-filled) interior floor.
 		local chimneyHeight = totalWallHeight + roofHeight + 2
-		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD - 2), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
+		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD + 1), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
 	end
 
 	if config.porch then
@@ -504,12 +542,15 @@ local function buildHouse(plotFolder, origin, tier)
 			local bush = makePart("PlotBush" .. i, Vector3.new(2, 1.6, 2), origin + Vector3.new(offset.X, FLOOR_TOP + 0.8, offset.Z), Color3.fromRGB(58, 122, 74), Enum.Material.Grass, upgradeFolder)
 			bush.Shape = Enum.PartType.Ball
 		end
-
-		local houseFolder = Instance.new("Folder")
-		houseFolder.Name = "House"
-		houseFolder.Parent = upgradeFolder
-		buildHouseStructure(houseFolder, origin + HOUSE_LOT_OFFSET, tier)
 	end
+
+	-- The studio building itself exists at every tier, including 0 -- it
+	-- shelters the work stations from the start, not just once you can
+	-- afford the plot-wide fence/floor upgrade above.
+	local houseFolder = Instance.new("Folder")
+	houseFolder.Name = "House"
+	houseFolder.Parent = upgradeFolder
+	buildHouseStructure(houseFolder, origin + HOUSE_LOT_OFFSET, tier)
 
 	-- Central signpost near spawn -- reachable immediately, not tucked in a corner
 	local signPost = makePart("PlotUpgradeSignPost", Vector3.new(0.4, 5, 0.4), origin + Vector3.new(0, FLOOR_TOP + 2.5, 8), DARK_TRIM_COLOR, nil, upgradeFolder)
@@ -552,8 +593,7 @@ local function buildPlot(index)
 
 	buildPlotFloor(plotFolder, origin)
 	buildPlotSpawn(plotFolder, origin)
-	buildWorkersDesk(plotFolder, origin)
-	buildStations(plotFolder, origin)
+	buildStudioStations(plotFolder, origin + HOUSE_LOT_OFFSET)
 	buildTrendsSign(plotFolder, origin)
 	buildHouse(plotFolder, origin, 0)
 end
@@ -631,10 +671,15 @@ function PlotManager.rebuildPCForPlayer(player, tier)
 		return
 	end
 
-	for _, config in ipairs(STATION_CONFIGS) do
-		if config.name == "NewProject" then
-			buildStationMonitorRig(plotFolder, PLOT_ORIGINS[index], config, tier)
-			return
+	local base = PLOT_ORIGINS[index] + HOUSE_LOT_OFFSET
+	for _, layoutEntry in ipairs(STUDIO_LAYOUT) do
+		if layoutEntry.name == "NewProject" then
+			for _, config in ipairs(STATION_CONFIGS) do
+				if config.name == "NewProject" then
+					buildStationMonitorRig(plotFolder, base, config, tier, layoutEntry.x, layoutEntry.z)
+					return
+				end
+			end
 		end
 	end
 end

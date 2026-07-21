@@ -3,7 +3,7 @@ local GameData = {}
 GameData.Genres = { "Racing", "Horror", "Adventure", "Simulator" }
 GameData.Topics = { "Space", "Zombies", "Sports", "Fantasy" }
 
-GameData.StartingCash = 0
+GameData.StartingCash = 5000 -- TEMP: bumped for playtesting the House/PC upgrades, revert to 0 before shipping
 GameData.PayoutMultiplier = 10
 
 GameData.TrendRefreshSeconds = 300

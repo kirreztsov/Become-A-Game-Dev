@@ -42,7 +42,7 @@ function HousePanel.init(player, theme, playerState)
 	layout.Parent = frame
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Text = "\240\159\143\160 House"
+	titleLabel.Text = "\240\159\143\160 Plot Upgrade"
 	titleLabel.Size = UDim2.new(1, 0, 0, 30)
 	titleLabel.LayoutOrder = 1
 	titleLabel.BackgroundTransparency = 1
@@ -124,7 +124,7 @@ function HousePanel.init(player, theme, playerState)
 		else
 			actionButton.Visible = true
 			local cost = GameData.getHouseUpgradeCost(tier)
-			actionButton.Text = (tier == 0) and ("Build House \194\183 $%d"):format(cost) or ("Upgrade House \194\183 $%d"):format(cost)
+			actionButton.Text = ("Upgrade Plot \194\183 $%d"):format(cost)
 		end
 	end
 

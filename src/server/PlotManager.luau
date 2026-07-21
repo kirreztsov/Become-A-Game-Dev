@@ -5,7 +5,6 @@ local PlotManager = {}
 local FLOOR_TOP = 1
 local PLOT_SIZE_X = 70
 local PLOT_SIZE_Z = 90
-local HOUSE_LOT_OFFSET = Vector3.new(0, 0, 45)
 
 local PLOT_ORIGINS = {
 	Vector3.new(0, 0, 0),
@@ -234,115 +233,96 @@ local function buildTrendsSign(plotFolder, origin)
 	text.Parent = surfaceGui
 end
 
+-- Fence height per tier (index 1 = tier 1, index 2 = tier 2); tier 0 has no fence.
+local PLOT_FENCE_HEIGHT_BY_TIER = { 6, 10 }
+
+-- The "house" upgrade improves the whole plot -- floor finish, a perimeter
+-- fence, and corner lamps -- rather than building a separate house
+-- structure off to one side. Everyone still works in the same open area;
+-- upgrading just makes that whole area look nicer.
 local function buildHouse(plotFolder, origin, tier)
-	local existing = plotFolder:FindFirstChild("House")
+	local existing = plotFolder:FindFirstChild("PlotUpgrade")
 	if existing then
 		existing:Destroy()
 	end
 
-	local houseFolder = Instance.new("Folder")
-	houseFolder.Name = "House"
-	houseFolder.Parent = plotFolder
+	local upgradeFolder = Instance.new("Folder")
+	upgradeFolder.Name = "PlotUpgrade"
+	upgradeFolder.Parent = plotFolder
 
-	local base = origin + HOUSE_LOT_OFFSET
-	local promptAnchor
-
-	if tier == 0 then
-		makePart("HouseFoundation", Vector3.new(16, 0.2, 16), base + Vector3.new(0, FLOOR_TOP + 0.1, 0), DARK_TRIM_COLOR, nil, houseFolder)
-
-		local signPost = makePart("HouseSignPost", Vector3.new(0.4, 5, 0.4), base + Vector3.new(0, FLOOR_TOP + 2.5, 0), DARK_TRIM_COLOR, nil, houseFolder)
-
-		local billboard = Instance.new("BillboardGui")
-		billboard.Name = "Label"
-		billboard.Size = UDim2.fromOffset(220, 40)
-		billboard.AlwaysOnTop = true
-		billboard.MaxDistance = 100
-		billboard.Parent = signPost
-
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.fromScale(1, 1)
-		text.BackgroundTransparency = 1
-		text.Text = "\240\159\143\151\239\184\143 Build a house!"
-		text.Font = Enum.Font.FredokaOne
-		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(255, 255, 255)
-		text.Parent = billboard
-
-		promptAnchor = signPost
-	else
-		local width = 14 + (tier - 1) * 8
-		local depth = 14 + (tier - 1) * 8
-		local wallHeight = 8 + (tier - 1) * 4
-		local halfW = width / 2
-		local halfD = depth / 2
-		local wallThickness = 0.6
-		local wallCenterY = FLOOR_TOP + wallHeight / 2
-
-		makePart("HouseFloor", Vector3.new(width, 0.5, depth), base + Vector3.new(0, FLOOR_TOP + 0.25, 0), DESK_COLOR, nil, houseFolder)
-		makePart("WallFront", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, -halfD), PANEL_COLOR, nil, houseFolder)
-		makePart("WallBack", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, halfD), PANEL_COLOR, nil, houseFolder)
-		makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), PANEL_COLOR, nil, houseFolder)
-		makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), PANEL_COLOR, nil, houseFolder)
-
-		local function buildPeakedRoof(name, roofWidth, roofDepth, baseY)
-			local roofFolder = Instance.new("Folder")
-			roofFolder.Name = name
-			roofFolder.Parent = houseFolder
-
-			local baseHeight = 1.4
-			local midHeight = 1.2
-			local peakHeight = 1.2
-
-			local baseY0 = baseY + baseHeight / 2
-			makePart("Base", Vector3.new(roofWidth + 2, baseHeight, roofDepth + 2), base + Vector3.new(0, baseY0, 0), ACCENT_COLOR, Enum.Material.Neon, roofFolder)
-
-			local midY = baseY + baseHeight + midHeight / 2
-			makePart("Mid", Vector3.new(roofWidth * 0.66, midHeight, roofDepth * 0.66), base + Vector3.new(0, midY, 0), ACCENT_COLOR, Enum.Material.Neon, roofFolder)
-
-			local peakY = baseY + baseHeight + midHeight + peakHeight / 2
-			makePart("Peak", Vector3.new(roofWidth * 0.3, peakHeight, roofDepth * 0.3), base + Vector3.new(0, peakY, 0), GOLD_COLOR, Enum.Material.Neon, roofFolder)
-
-			return baseY + baseHeight + midHeight + peakHeight
+	local floor = plotFolder:FindFirstChild("PlotFloor")
+	if floor then
+		if tier == 0 then
+			floor.Color = PANEL_COLOR
+			floor.Material = Enum.Material.SmoothPlastic
+		elseif tier == 1 then
+			floor.Color = DESK_COLOR
+			floor.Material = Enum.Material.Marble
+		else
+			floor.Color = ACCENT_COLOR
+			floor.Material = Enum.Material.Marble
 		end
-
-		local roofY = FLOOR_TOP + wallHeight + 0.5
-		buildPeakedRoof("Roof", width, depth, roofY)
-
-		local door = makePart("Door", Vector3.new(3, 5, 0.3), base + Vector3.new(0, FLOOR_TOP + 2.5, -halfD - 0.2), DARK_TRIM_COLOR, nil, houseFolder)
-		door.CanCollide = false
-
-		local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.35), GOLD_COLOR, Enum.Material.Neon, houseFolder)
-		doorKnob.CanCollide = false
-
-		local windowLeft = makePart("WindowLeft", Vector3.new(2, 2, 0.3), base + Vector3.new(-halfW + 3, wallCenterY + 1, -halfD - 0.2), GOLD_COLOR, Enum.Material.Neon, houseFolder)
-		windowLeft.CanCollide = false
-
-		local windowRight = makePart("WindowRight", Vector3.new(2, 2, 0.3), base + Vector3.new(halfW - 3, wallCenterY + 1, -halfD - 0.2), GOLD_COLOR, Enum.Material.Neon, houseFolder)
-		windowRight.CanCollide = false
-
-		local pathLength = 6
-		local path = makePart("Path", Vector3.new(4, 0.15, pathLength), base + Vector3.new(0, FLOOR_TOP + 0.08, -halfD - 0.2 - pathLength / 2), DARK_TRIM_COLOR, nil, houseFolder)
-		path.CanCollide = false
-
-		if tier >= 2 then
-			local upperHeight = 5
-			local upperCenterY = FLOOR_TOP + wallHeight + 1 + upperHeight / 2
-			makePart("UpperFloor", Vector3.new(width - 4, upperHeight, depth - 4), base + Vector3.new(0, upperCenterY, 0), PANEL_COLOR, nil, houseFolder)
-
-			buildPeakedRoof("UpperRoof", width - 2, depth - 2, upperCenterY + upperHeight / 2 + 0.5)
-		end
-
-		promptAnchor = door
 	end
+
+	local floorCenterZ = 15
+	local halfX = PLOT_SIZE_X / 2
+	local halfZ = PLOT_SIZE_Z / 2
+	local nearZ = floorCenterZ - halfZ
+	local farZ = floorCenterZ + halfZ
+
+	if tier >= 1 then
+		local fenceHeight = PLOT_FENCE_HEIGHT_BY_TIER[tier]
+		local fenceThickness = 0.6
+		local fenceColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+		local fenceCenterY = FLOOR_TOP + fenceHeight / 2
+
+		makePart("PlotFenceNear", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, nearZ), fenceColor, Enum.Material.Neon, upgradeFolder)
+		makePart("PlotFenceFar", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, farZ), fenceColor, Enum.Material.Neon, upgradeFolder)
+		makePart("PlotFenceLeft", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, fenceCenterY, floorCenterZ), fenceColor, Enum.Material.Neon, upgradeFolder)
+		makePart("PlotFenceRight", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, fenceCenterY, floorCenterZ), fenceColor, Enum.Material.Neon, upgradeFolder)
+
+		local lampHeight = 6
+		local lampCorners = {
+			Vector3.new(-halfX + 3, 0, nearZ + 3),
+			Vector3.new(halfX - 3, 0, nearZ + 3),
+			Vector3.new(-halfX + 3, 0, farZ - 3),
+			Vector3.new(halfX - 3, 0, farZ - 3),
+		}
+		for i, corner in ipairs(lampCorners) do
+			makePart("PlotLampPost" .. i, Vector3.new(0.4, lampHeight, 0.4), origin + Vector3.new(corner.X, FLOOR_TOP + lampHeight / 2, corner.Z), DARK_TRIM_COLOR, nil, upgradeFolder)
+			local bulb = makePart("PlotLampBulb" .. i, Vector3.new(1, 1, 1), origin + Vector3.new(corner.X, FLOOR_TOP + lampHeight + 0.3, corner.Z), GOLD_COLOR, Enum.Material.Neon, upgradeFolder)
+			bulb.Shape = Enum.PartType.Ball
+			bulb.CanCollide = false
+		end
+	end
+
+	-- Central signpost near spawn -- reachable immediately, not tucked in a corner
+	local signPost = makePart("PlotUpgradeSignPost", Vector3.new(0.4, 5, 0.4), origin + Vector3.new(0, FLOOR_TOP + 2.5, 8), DARK_TRIM_COLOR, nil, upgradeFolder)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "Label"
+	billboard.Size = UDim2.fromOffset(220, 40)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 100
+	billboard.Parent = signPost
+
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = "\240\159\143\151\239\184\143 Upgrade your plot!"
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.TextColor3 = Color3.fromRGB(255, 255, 255)
+	text.Parent = billboard
 
 	if tier < GameData.HouseTierCount - 1 then
 		local upgradePrompt = Instance.new("ProximityPrompt")
 		upgradePrompt.Name = "HouseUpgradePrompt"
-		upgradePrompt.ActionText = (tier == 0) and "Build House" or "Upgrade House"
-		upgradePrompt.ObjectText = "Home"
+		upgradePrompt.ActionText = "Upgrade Plot"
+		upgradePrompt.ObjectText = "Plot"
 		upgradePrompt.HoldDuration = 0.5
 		upgradePrompt.MaxActivationDistance = 12
-		upgradePrompt.Parent = promptAnchor
+		upgradePrompt.Parent = signPost
 	end
 end
 

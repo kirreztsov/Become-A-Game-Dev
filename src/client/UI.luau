@@ -11,6 +11,7 @@ local playerState = {
 	cash = 0,
 	gamesReleased = 0,
 	houseTier = 0,
+	pcTier = 0,
 	workers = {
 		Coding = { hired = false, level = 0 },
 		MapBuilding = { hired = false, level = 0 },
@@ -114,6 +115,7 @@ function UI.init()
 	local TestingGame = require(script.Parent.TestingGame)
 	local WorkersPanel = require(script.Parent.WorkersPanel)
 	local HousePanel = require(script.Parent.HousePanel)
+	local PCPanel = require(script.Parent.PCPanel)
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "GameDevTycoonUI"
@@ -443,6 +445,7 @@ function UI.init()
 		playerState.cash = data.cash
 		playerState.gamesReleased = data.gamesReleased
 		playerState.houseTier = data.houseTier
+		playerState.pcTier = data.pcTier
 		playerState.workers = data.workers
 		cashLabel.Text = ("\240\159\146\176 $%d"):format(playerState.cash)
 	end)
@@ -455,6 +458,7 @@ function UI.init()
 
 	WorkersPanel.init(player, Theme, playerState)
 	HousePanel.init(player, Theme, playerState)
+	PCPanel.init(player, Theme, playerState)
 end
 
 return UI

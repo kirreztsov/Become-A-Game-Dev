@@ -254,6 +254,7 @@ function DevelopmentService.start()
 			local devQuality = totalQuality / #GameData.Phases
 			local trend1, trend2 = TrendsService.getCurrent()
 			local cash, classification, hitBonus = TrendMatch.computeCash(genre, topic, trend1, trend2, devQuality)
+			cash = math.floor(cash * GameData.getPCCashMultiplier(data.pcTier))
 
 			data.cash += cash
 			data.gamesReleased += 1

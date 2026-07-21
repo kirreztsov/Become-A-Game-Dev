@@ -89,4 +89,19 @@ function GameData.getHouseUpgradeCost(currentTier)
 	return math.floor(GameData.HouseUpgradeCostBase * (GameData.HouseUpgradeCostGrowth ^ currentTier))
 end
 
+-- PC tiers: index 0 is the starting computer, up to PCTierCount - 1 is the max tier.
+-- Each tier permanently boosts cash earned per game release.
+GameData.PCTierCount = 5
+GameData.PCUpgradeCostBase = 200
+GameData.PCUpgradeCostGrowth = 1.6
+GameData.PCCashBonusPerTier = 0.25
+
+function GameData.getPCUpgradeCost(currentTier)
+	return math.floor(GameData.PCUpgradeCostBase * (GameData.PCUpgradeCostGrowth ^ currentTier))
+end
+
+function GameData.getPCCashMultiplier(tier)
+	return 1 + (tier * GameData.PCCashBonusPerTier)
+end
+
 return GameData

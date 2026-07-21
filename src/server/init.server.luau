@@ -5,6 +5,7 @@ local TrendsService = require(script.TrendsService)
 local DevelopmentService = require(script.DevelopmentService)
 local WorkerService = require(script.WorkerService)
 local HouseService = require(script.HouseService)
+local PCService = require(script.PCService)
 local PlotManager = require(script.PlotManager)
 
 PlotManager.build()
@@ -12,6 +13,7 @@ TrendsService.start()
 DevelopmentService.start()
 WorkerService.start()
 HouseService.start()
+PCService.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 
@@ -47,6 +49,7 @@ local function onPlayerJoined(player)
 
 	local data = PlayerData.load(player)
 	PlotManager.rebuildHouseForPlayer(player, data.houseTier)
+	PlotManager.rebuildPCForPlayer(player, data.pcTier)
 
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 	TrendsService.sendCurrentTo(player)

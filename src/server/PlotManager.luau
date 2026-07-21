@@ -91,6 +91,43 @@ local STATION_CONFIGS = {
 	{ name = "Testing", label = "\226\156\168 TESTING", deskX = 25, deskZ = -15, monitorColor = ACCENT_COLOR },
 }
 
+-- The NewProject station's monitor doubles as the player's "PC" -- its size
+-- and screen color scale with pcTier, and it carries the PCUpgradePrompt.
+-- Rebuildable independently of the rest of the station (desk/seat/label
+-- never change), the same way buildHouse rebuilds just the house folder.
+local function buildStationMonitorRig(plotFolder, origin, config, tier)
+	local existingRig = plotFolder:FindFirstChild(config.name .. "MonitorRig")
+	if existingRig then
+		existingRig:Destroy()
+	end
+
+	local rig = Instance.new("Folder")
+	rig.Name = config.name .. "MonitorRig"
+	rig.Parent = plotFolder
+
+	local x, z = config.deskX, config.deskZ
+	local deskTopSurfaceTopY = FLOOR_TOP + 2 + 0.5
+
+	local monitorHeight = 1.6 + (tier * 0.3)
+	local monitorWidth = 2.2 + (tier * 0.4)
+	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
+
+	makePart(config.name .. "Monitor", Vector3.new(monitorWidth, monitorHeight, 0.2), origin + Vector3.new(x, monitorCenterY, z + 0.8), DARK_TRIM_COLOR, nil, rig)
+	local screenColor = (tier > 0) and GOLD_COLOR or config.monitorColor
+	local screen = makePart(config.name .. "MonitorScreen", Vector3.new(monitorWidth - 0.2, monitorHeight - 0.2, 0.05), origin + Vector3.new(x, monitorCenterY, z + 0.7), screenColor, Enum.Material.Neon, rig)
+	screen.CanCollide = false
+
+	if config.name == "NewProject" and tier < GameData.PCTierCount - 1 then
+		local upgradePrompt = Instance.new("ProximityPrompt")
+		upgradePrompt.Name = "PCUpgradePrompt"
+		upgradePrompt.ActionText = "Upgrade PC"
+		upgradePrompt.ObjectText = "Computer"
+		upgradePrompt.HoldDuration = 0.5
+		upgradePrompt.MaxActivationDistance = 10
+		upgradePrompt.Parent = screen
+	end
+end
+
 local function buildStation(plotFolder, origin, config)
 	local deskTopSurfaceY = FLOOR_TOP + 2
 	local legHeight = 2
@@ -107,9 +144,7 @@ local function buildStation(plotFolder, origin, config)
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
 	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
-	makePart(config.name .. "Monitor", Vector3.new(2.2, monitorHeight, 0.2), origin + Vector3.new(x, monitorCenterY, z + 0.8), DARK_TRIM_COLOR, nil, plotFolder)
-	local screen = makePart(config.name .. "MonitorScreen", Vector3.new(2, monitorHeight - 0.2, 0.05), origin + Vector3.new(x, monitorCenterY, z + 0.7), config.monitorColor, Enum.Material.Neon, plotFolder)
-	screen.CanCollide = false
+	buildStationMonitorRig(plotFolder, origin, config, 0)
 
 	local seat = Instance.new("Seat")
 	seat.Name = config.name .. "Seat"
@@ -386,6 +421,25 @@ function PlotManager.rebuildHouseForPlayer(player, tier)
 	end
 
 	buildHouse(plotFolder, PLOT_ORIGINS[index], tier)
+end
+
+function PlotManager.rebuildPCForPlayer(player, tier)
+	local index = plotOfPlayer[player.UserId]
+	if not index then
+		return
+	end
+
+	local plotFolder = PlotManager.getPlotFolder(index)
+	if not plotFolder then
+		return
+	end
+
+	for _, config in ipairs(STATION_CONFIGS) do
+		if config.name == "NewProject" then
+			buildStationMonitorRig(plotFolder, PLOT_ORIGINS[index], config, tier)
+			return
+		end
+	end
 end
 
 return PlotManager

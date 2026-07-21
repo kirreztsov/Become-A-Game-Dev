@@ -234,7 +234,8 @@ local function buildTrendsSign(plotFolder, origin)
 end
 
 -- Fence height per tier (index 1 = tier 1, index 2 = tier 2); tier 0 has no fence.
-local PLOT_FENCE_HEIGHT_BY_TIER = { 6, 10 }
+-- Low, waist-to-chest height -- a decorative border, not a wall blocking the view.
+local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 4 }
 
 -- The "house" upgrade improves the whole plot -- floor finish, a perimeter
 -- fence, and corner lamps -- rather than building a separate house
@@ -273,13 +274,33 @@ local function buildHouse(plotFolder, origin, tier)
 	if tier >= 1 then
 		local fenceHeight = PLOT_FENCE_HEIGHT_BY_TIER[tier]
 		local fenceThickness = 0.6
-		local fenceColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+		local fenceColor = (tier >= 2) and GOLD_COLOR or DESK_COLOR
 		local fenceCenterY = FLOOR_TOP + fenceHeight / 2
 
-		makePart("PlotFenceNear", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, nearZ), fenceColor, Enum.Material.Neon, upgradeFolder)
-		makePart("PlotFenceFar", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, farZ), fenceColor, Enum.Material.Neon, upgradeFolder)
-		makePart("PlotFenceLeft", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, fenceCenterY, floorCenterZ), fenceColor, Enum.Material.Neon, upgradeFolder)
-		makePart("PlotFenceRight", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, fenceCenterY, floorCenterZ), fenceColor, Enum.Material.Neon, upgradeFolder)
+		-- A thin glowing cap rail on top is the only "neon" part -- the body
+		-- is a plain, solid-colored low rail so it reads as a fence, not a wall.
+		local capHeight = 0.3
+		local capCenterY = FLOOR_TOP + fenceHeight + capHeight / 2
+		local capColor = (tier >= 2) and GOLD_COLOR or ACCENT_COLOR
+
+		local function buildFenceSegment(name, size, position)
+			makePart(name, size, position, fenceColor, Enum.Material.SmoothPlastic, upgradeFolder)
+		end
+
+		local function buildCapSegment(name, size, position)
+			local cap = makePart(name, size, position, capColor, Enum.Material.Neon, upgradeFolder)
+			cap.CanCollide = false
+		end
+
+		buildFenceSegment("PlotFenceNear", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, nearZ))
+		buildFenceSegment("PlotFenceFar", Vector3.new(PLOT_SIZE_X, fenceHeight, fenceThickness), origin + Vector3.new(0, fenceCenterY, farZ))
+		buildFenceSegment("PlotFenceLeft", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, fenceCenterY, floorCenterZ))
+		buildFenceSegment("PlotFenceRight", Vector3.new(fenceThickness, fenceHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, fenceCenterY, floorCenterZ))
+
+		buildCapSegment("PlotFenceCapNear", Vector3.new(PLOT_SIZE_X, capHeight, fenceThickness + 0.1), origin + Vector3.new(0, capCenterY, nearZ))
+		buildCapSegment("PlotFenceCapFar", Vector3.new(PLOT_SIZE_X, capHeight, fenceThickness + 0.1), origin + Vector3.new(0, capCenterY, farZ))
+		buildCapSegment("PlotFenceCapLeft", Vector3.new(fenceThickness + 0.1, capHeight, PLOT_SIZE_Z), origin + Vector3.new(-halfX, capCenterY, floorCenterZ))
+		buildCapSegment("PlotFenceCapRight", Vector3.new(fenceThickness + 0.1, capHeight, PLOT_SIZE_Z), origin + Vector3.new(halfX, capCenterY, floorCenterZ))
 
 		local lampHeight = 6
 		local lampCorners = {

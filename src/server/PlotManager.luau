@@ -5,6 +5,7 @@ local PlotManager = {}
 local FLOOR_TOP = 1
 local PLOT_SIZE_X = 70
 local PLOT_SIZE_Z = 90
+local HOUSE_LOT_OFFSET = Vector3.new(0, 0, 45)
 
 local PLOT_ORIGINS = {
 	Vector3.new(0, 0, 0),
@@ -237,6 +238,94 @@ end
 -- Low, waist-to-chest height -- a decorative border, not a wall blocking the view.
 local PLOT_FENCE_HEIGHT_BY_TIER = { 3, 4 }
 
+-- A real house building on the open lot at the far end of the plot (away
+-- from the office stations), sized up and detailed further per tier.
+-- Wedge roof math verified live in Studio: a wedge's tall face sits at its
+-- local -Z edge and tapers to 0 height at local +Z. Rotating +90 degrees
+-- around Y and centering at -run/2 puts the tall edge at the ridge (x=0)
+-- and the thin edge at the left eave; rotating -90 and centering at
+-- +run/2 mirrors that for the right half -- together they form a peak.
+local function buildHouseStructure(houseFolder, base, tier)
+	local width = (tier >= 2) and 22 or 16
+	local depth = (tier >= 2) and 18 or 14
+	local wallHeight = (tier >= 2) and 9 or 7
+	local halfW = width / 2
+	local halfD = depth / 2
+	local wallThickness = 0.6
+	local wallCenterY = FLOOR_TOP + wallHeight / 2
+
+	local wallColor = Color3.fromRGB(214, 178, 122)
+	local trimColor = Color3.fromRGB(255, 255, 255)
+	local roofColor = (tier >= 2) and Color3.fromRGB(120, 45, 40) or Color3.fromRGB(96, 74, 68)
+
+	makePart("HouseFloor", Vector3.new(width, 0.5, depth), base + Vector3.new(0, FLOOR_TOP + 0.25, 0), Color3.fromRGB(150, 120, 90), Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallFront", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, -halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallBack", Vector3.new(width, wallHeight, wallThickness), base + Vector3.new(0, wallCenterY, halfD), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallLeft", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(-halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+	makePart("WallRight", Vector3.new(wallThickness, wallHeight, depth), base + Vector3.new(halfW, wallCenterY, 0), wallColor, Enum.Material.WoodPlanks, houseFolder)
+
+	-- Peaked roof: two wedges meeting at a ridge running front-to-back (Z)
+	local roofOverhang = 1.5
+	local ridgeLength = depth + roofOverhang * 2
+	local roofRun = halfW + roofOverhang
+	local roofHeight = (tier >= 2) and 6 or 5
+	local roofBaseY = FLOOR_TOP + wallHeight + roofHeight / 2
+
+	local function makeRoofHalf(name, xOffset, yRotationDeg)
+		local wedge = Instance.new("WedgePart")
+		wedge.Name = name
+		wedge.Size = Vector3.new(ridgeLength, roofHeight, roofRun)
+		wedge.CFrame = CFrame.new(base + Vector3.new(xOffset, roofBaseY, 0)) * CFrame.Angles(0, math.rad(yRotationDeg), 0)
+		wedge.Color = roofColor
+		wedge.Material = Enum.Material.Slate
+		wedge.Anchored = true
+		wedge.Parent = houseFolder
+	end
+
+	makeRoofHalf("RoofLeft", -roofRun / 2, 90)
+	makeRoofHalf("RoofRight", roofRun / 2, -90)
+
+	local door = makePart("Door", Vector3.new(3, 5, 0.3), base + Vector3.new(0, FLOOR_TOP + 2.5, -halfD - 0.2), Color3.fromRGB(90, 60, 40), Enum.Material.Wood, houseFolder)
+	door.CanCollide = false
+
+	local doorKnob = makePart("DoorKnob", Vector3.new(0.3, 0.3, 0.3), base + Vector3.new(1, FLOOR_TOP + 2.2, -halfD - 0.35), GOLD_COLOR, Enum.Material.Metal, houseFolder)
+	doorKnob.CanCollide = false
+
+	local function makeWindow(name, x)
+		local frame = makePart(name .. "Frame", Vector3.new(2.4, 2.4, 0.25), base + Vector3.new(x, wallCenterY + 1, -halfD - 0.2), trimColor, Enum.Material.SmoothPlastic, houseFolder)
+		frame.CanCollide = false
+		local pane = makePart(name .. "Pane", Vector3.new(2, 2, 0.1), base + Vector3.new(x, wallCenterY + 1, -halfD - 0.3), Color3.fromRGB(160, 210, 230), Enum.Material.Glass, houseFolder)
+		pane.CanCollide = false
+		pane.Transparency = 0.3
+	end
+
+	makeWindow("WindowLeft", -halfW + 3)
+	makeWindow("WindowRight", halfW - 3)
+
+	local frontClearance = halfD + 0.2
+	if tier >= 2 then
+		local chimneyHeight = wallHeight + roofHeight + 2
+		makePart("Chimney", Vector3.new(1.5, chimneyHeight, 1.5), base + Vector3.new(halfW - 3, FLOOR_TOP + chimneyHeight / 2, halfD - 2), Color3.fromRGB(120, 60, 50), Enum.Material.Brick, houseFolder)
+
+		local porchDepth = 4
+		makePart("PorchFloor", Vector3.new(width - 4, 0.5, porchDepth), base + Vector3.new(0, FLOOR_TOP + 0.25, -halfD - porchDepth / 2), Color3.fromRGB(150, 120, 90), Enum.Material.WoodPlanks, houseFolder)
+
+		local pillarHeight = 4.5
+		local pillarPositions = { -(width / 2 - 4), (width / 2 - 4) }
+		for i, px in ipairs(pillarPositions) do
+			makePart("PorchPillar" .. i, Vector3.new(0.6, pillarHeight, 0.6), base + Vector3.new(px, FLOOR_TOP + pillarHeight / 2, -halfD - porchDepth + 0.5), trimColor, Enum.Material.SmoothPlastic, houseFolder)
+		end
+
+		makePart("PorchRoof", Vector3.new(width - 3, 0.4, porchDepth + 1), base + Vector3.new(0, FLOOR_TOP + pillarHeight + 0.2, -halfD - porchDepth / 2), roofColor, Enum.Material.Slate, houseFolder)
+
+		frontClearance = halfD + porchDepth + 0.2
+	end
+
+	local pathLength = 6
+	local path = makePart("Path", Vector3.new(4, 0.15, pathLength), base + Vector3.new(0, FLOOR_TOP + 0.08, -frontClearance - pathLength / 2), Color3.fromRGB(180, 175, 165), Enum.Material.Cobblestone, houseFolder)
+	path.CanCollide = false
+end
+
 -- The "house" upgrade improves the whole plot -- floor finish, a perimeter
 -- fence, and corner lamps -- rather than building a separate house
 -- structure off to one side. Everyone still works in the same open area;
@@ -328,6 +417,11 @@ local function buildHouse(plotFolder, origin, tier)
 			local bush = makePart("PlotBush" .. i, Vector3.new(2, 1.6, 2), origin + Vector3.new(offset.X, FLOOR_TOP + 0.8, offset.Z), Color3.fromRGB(58, 122, 74), Enum.Material.Grass, upgradeFolder)
 			bush.Shape = Enum.PartType.Ball
 		end
+
+		local houseFolder = Instance.new("Folder")
+		houseFolder.Name = "House"
+		houseFolder.Parent = upgradeFolder
+		buildHouseStructure(houseFolder, origin + HOUSE_LOT_OFFSET, tier)
 	end
 
 	-- Central signpost near spawn -- reachable immediately, not tucked in a corner

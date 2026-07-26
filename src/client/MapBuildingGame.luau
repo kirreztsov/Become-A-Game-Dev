@@ -56,7 +56,7 @@ function MapBuildingGame.init(parent, theme)
 	placeButton.Text = "\240\159\147\141 Place It!"
 	placeButton.Font = Enum.Font.FredokaOne
 	placeButton.TextSize = 18
-	placeButton.TextColor3 = theme.Text
+	placeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	placeButton.AutoButtonColor = false
 	placeButton.BorderSizePixel = 0
 	placeButton.Parent = container

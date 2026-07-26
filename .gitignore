@@ -13,5 +13,9 @@ sourcemap.json
 # Local Claude Code session config
 /.claude/
 
+# Blender intermediate exports (regenerable from blender/*.py; the .rbxm in
+# assets/studio are the committed game assets)
+/blender/out/
+
 # macOS
 .DS_Store

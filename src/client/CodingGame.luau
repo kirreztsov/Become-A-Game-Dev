@@ -32,7 +32,7 @@ function CodingGame.init(parent, theme)
 	tapButton.Text = "\240\159\146\187 TAP!"
 	tapButton.Font = Enum.Font.FredokaOne
 	tapButton.TextSize = 22
-	tapButton.TextColor3 = theme.Text
+	tapButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	tapButton.AutoButtonColor = false
 	tapButton.BorderSizePixel = 0
 	tapButton.Parent = container

@@ -35,6 +35,22 @@ function WorkersPanel.init(player, theme, playerState)
 	stroke.Transparency = 0.4
 	stroke.Parent = frame
 
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(theme.PanelLight, theme.Panel)
+	gradient.Rotation = 90
+	gradient.Parent = frame
+
+	local headerBar = Instance.new("Frame")
+	headerBar.Name = "HeaderBar"
+	headerBar.Size = UDim2.new(1, 0, 0, 6)
+	headerBar.BackgroundColor3 = theme.Accent
+	headerBar.BorderSizePixel = 0
+	headerBar.ZIndex = 2
+	headerBar.Parent = frame
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 6)
+	headerCorner.Parent = headerBar
+
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 16)
 	padding.PaddingBottom = UDim.new(0, 16)
@@ -59,6 +75,7 @@ function WorkersPanel.init(player, theme, playerState)
 	titleLabel.Parent = frame
 
 	local roleRows = {}
+	local rarityBadges = {}
 
 	for i, role in ipairs(GameData.Phases) do
 		local row = Instance.new("Frame")
@@ -74,8 +91,8 @@ function WorkersPanel.init(player, theme, playerState)
 
 		local nameLabel = Instance.new("TextLabel")
 		nameLabel.Text = ROLE_DISPLAY_NAMES[role]
-		nameLabel.Size = UDim2.new(0.5, 0, 1, 0)
-		nameLabel.Position = UDim2.fromOffset(10, 0)
+		nameLabel.Size = UDim2.new(0.5, 0, 0, 26)
+		nameLabel.Position = UDim2.fromOffset(10, 7)
 		nameLabel.BackgroundTransparency = 1
 		nameLabel.TextColor3 = theme.Text
 		nameLabel.Font = Enum.Font.FredokaOne
@@ -83,11 +100,31 @@ function WorkersPanel.init(player, theme, playerState)
 		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 		nameLabel.Parent = row
 
+		-- Colored rarity badge under the name (from the worker's rolled rarity).
+		local badge = Instance.new("Frame")
+		badge.Size = UDim2.fromOffset(104, 20)
+		badge.Position = UDim2.fromOffset(10, 33)
+		badge.BackgroundColor3 = theme.Neutral
+		badge.BorderSizePixel = 0
+		badge.Parent = row
+		local badgeCorner = Instance.new("UICorner")
+		badgeCorner.CornerRadius = UDim.new(0, 6)
+		badgeCorner.Parent = badge
+		local badgeLabel = Instance.new("TextLabel")
+		badgeLabel.Size = UDim2.fromScale(1, 1)
+		badgeLabel.BackgroundTransparency = 1
+		badgeLabel.Text = "—"
+		badgeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		badgeLabel.Font = Enum.Font.FredokaOne
+		badgeLabel.TextSize = 13
+		badgeLabel.Parent = badge
+		rarityBadges[role] = { frame = badge, label = badgeLabel }
+
 		local actionButton = Instance.new("TextButton")
 		actionButton.Size = UDim2.new(0.42, 0, 0, 40)
 		actionButton.Position = UDim2.new(0.56, 0, 0.5, -20)
 		actionButton.BackgroundColor3 = theme.Accent
-		actionButton.TextColor3 = theme.Text
+		actionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		actionButton.Font = Enum.Font.FredokaOne
 		actionButton.TextSize = 14
 		actionButton.TextWrapped = true
@@ -98,6 +135,18 @@ function WorkersPanel.init(player, theme, playerState)
 		local actionCorner = Instance.new("UICorner")
 		actionCorner.CornerRadius = UDim.new(0, 8)
 		actionCorner.Parent = actionButton
+
+		local actionGradient = Instance.new("UIGradient")
+		actionGradient.Color = ColorSequence.new(theme.Accent, theme.AccentDeep)
+		actionGradient.Rotation = 90
+		actionGradient.Parent = actionButton
+
+		actionButton.MouseEnter:Connect(function()
+			actionButton.BackgroundColor3 = theme.AccentDeep
+		end)
+		actionButton.MouseLeave:Connect(function()
+			actionButton.BackgroundColor3 = theme.Accent
+		end)
 
 		actionButton.MouseButton1Click:Connect(function()
 			local worker = playerState.workers[role]
@@ -146,9 +195,27 @@ function WorkersPanel.init(player, theme, playerState)
 		for role, actionButton in pairs(roleRows) do
 			local worker = playerState.workers[role]
 			if worker.hired then
-				actionButton.Text = ("Upgrade\nLv%d \194\183 $%d"):format(worker.level, GameData.getWorkerUpgradeCost(worker.level))
+				actionButton.Text = ("Upgrade\nLv%d \194\183 $%d"):format(worker.level, GameData.getWorkerUpgradeCost(worker.level, playerState.houseTier))
 			else
-				actionButton.Text = ("Hire\n$%d"):format(GameData.WorkerHireCost)
+				actionButton.Text = ("Hire\n$%d"):format(GameData.getWorkerHireCost(playerState.houseTier))
+			end
+			-- rarity badge
+			local badge = rarityBadges[role]
+			if badge then
+				if worker.hired and worker.rarity then
+					local info = GameData.getRarityInfo(worker.rarity)
+					badge.frame.BackgroundColor3 = info.color
+					badge.label.Text = worker.rarity
+					badge.label.TextColor3 = Color3.fromRGB(30, 25, 35)
+				elseif worker.hired then
+					badge.frame.BackgroundColor3 = theme.Neutral
+					badge.label.Text = "No rarity"
+					badge.label.TextColor3 = theme.TextMuted
+				else
+					badge.frame.BackgroundColor3 = theme.Neutral
+					badge.label.Text = "\226\128\148" -- em dash
+					badge.label.TextColor3 = theme.TextMuted
+				end
 			end
 		end
 	end
@@ -166,13 +233,13 @@ function WorkersPanel.init(player, theme, playerState)
 		end
 	end)
 
-	ProximityPromptService.PromptTriggered:Connect(function(prompt, triggeringPlayer)
-		if triggeringPlayer == player and prompt.Name == "WorkersPrompt" then
-			screenGui.Enabled = true
-			statusLabel.Text = ""
-			refresh()
-		end
-	end)
+	-- Opened by the Worker Hub's "Upgrade Workers" app (no longer auto-opens on
+	-- the WorkersPrompt -- the hub owns that prompt now).
+	function WorkersPanel.open()
+		screenGui.Enabled = true
+		statusLabel.Text = ""
+		refresh()
+	end
 end
 
 return WorkersPanel

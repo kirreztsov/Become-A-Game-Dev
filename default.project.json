@@ -6,6 +6,9 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "Assets": {
+        "$path": "assets"
       }
     },
 
@@ -13,6 +16,10 @@
       "Server": {
         "$path": "src/server"
       }
+    },
+
+    "ReplicatedFirst": {
+      "$path": "src/replicatedfirst"
     },
 
     "StarterPlayer": {

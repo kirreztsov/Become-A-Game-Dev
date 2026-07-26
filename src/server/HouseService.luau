@@ -26,7 +26,7 @@ function HouseService.start()
 		data.cash -= cost
 		data.houseTier += 1
 
-		PlotManager.rebuildHouseForPlayer(player, data.houseTier)
+		PlotManager.rebuildHouseForPlayer(player, data.houseTier, data.pcTier)
 
 		Remotes.HouseActionResult:FireClient(player, true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)

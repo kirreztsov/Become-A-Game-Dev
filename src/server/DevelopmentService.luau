@@ -126,6 +126,11 @@ local STATION_SEAT_NAMES = {
 
 local SEAT_WAIT_TIMEOUT_SECONDS = 30
 
+-- A player is "seated at" a station if they occupy ANY seat of that type in
+-- their plot -- ground floor or any upper floor. Upper-floor seats are named
+-- with a floor prefix (e.g. "F2_CodingSeat") and live inside the building
+-- folder, so we scan all descendants and match by the seat-name suffix. This
+-- is what lets you develop games on any floor, not just the ground floor.
 local function isPlayerSeatedAt(player, seatName)
 	local plotIndex = PlotManager.getPlayerPlotIndex(player)
 	local plotFolder = PlotManager.getPlotFolder(plotIndex)
@@ -133,12 +138,19 @@ local function isPlayerSeatedAt(player, seatName)
 		return false
 	end
 
-	local seat = plotFolder:FindFirstChild(seatName)
-	if not seat then
+	if not player.Character then
 		return false
 	end
 
-	return seat.Occupant ~= nil and player.Character ~= nil and seat.Occupant.Parent == player.Character
+	for _, inst in ipairs(plotFolder:GetDescendants()) do
+		if inst:IsA("Seat") and (inst.Name == seatName or inst.Name:sub(-#seatName) == seatName) then
+			if inst.Occupant ~= nil and inst.Occupant.Parent == player.Character then
+				return true
+			end
+		end
+	end
+
+	return false
 end
 
 local function waitForPlayerSeated(player, phase)
@@ -164,8 +176,14 @@ local function runPhase(player, data, phase)
 
 	if worker.hired then
 		Remotes.PhaseStarted:FireClient(player, phase, true)
-		task.wait(GameData.WorkerAutoCompleteSeconds)
-		local score = GameData.getWorkerScore(worker.level)
+		-- Rarer workers finish faster and produce higher quality; the Faster
+		-- Workers game pass speeds them up further.
+		local speed = GameData.getRaritySpeed(worker.rarity) * GameData.getPassWorkerSpeedMultiplier(data)
+		local mult = GameData.getRarityMultiplier(worker.rarity)
+		local dur = GameData.WorkerAutoCompleteSeconds / speed
+		PlotManager.playWorkerTyping(player, phase, dur) -- typing animation while they work
+		task.wait(dur)
+		local score = GameData.getWorkerScore(worker.level) * mult
 		Remotes.PhaseComplete:FireClient(player, phase, score)
 		return score
 	end
@@ -251,16 +269,33 @@ function DevelopmentService.start()
 				return
 			end
 
-			local devQuality = totalQuality / #GameData.Phases
+			-- Quality is a percentage capped at MaxDevQuality (250%). Solo play
+			-- tops out near 100%; rare workers push it higher, up to a maxed
+			-- Mythic's 2.5x. We clamp here so no worker can run away past the
+			-- ceiling (the old bug let a 6x Mythic make 600% games and print
+			-- money). Rarer workers also finish FASTER (more games/min).
+			local devQuality = math.min(GameData.MaxDevQuality, totalQuality / #GameData.Phases)
 			local trend1, trend2 = TrendsService.getCurrent()
 			local cash, classification, hitBonus = TrendMatch.computeCash(genre, topic, trend1, trend2, devQuality)
-			cash = math.floor(cash * GameData.getPCCashMultiplier(data.pcTier))
+			-- Higher floors both cost 2x more AND pay 2x more, so income
+			-- scales with the studio's floor count the same way costs do; an
+			-- active shop boost multiplies on top of that.
+			-- Subscribers give a permanent multiplier on cash you earn, on top
+			-- of the PC / floor / boost multipliers.
+			cash = math.floor(cash * GameData.getPCCashMultiplier(data.pcTier) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data))
 
 			data.cash += cash
 			data.gamesReleased += 1
 
+			-- Releasing a game grows your channel: more subscribers for a better
+			-- game, with a big bonus when it matched a trend. This can cross a
+			-- Play Button milestone (bonus cash + a trophy in the studio).
+			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data))
+			local milestoneReached = PlotManager.grantSubscribers(player, data, subsGained)
+
 			Remotes.DevelopmentComplete:FireClient(player, cash, classification == "copy", hitBonus)
 			Remotes.PlayerStateUpdated:FireClient(player, data)
+			Remotes.SubscribersGained:FireClient(player, subsGained, milestoneReached)
 		end)
 	end)
 end

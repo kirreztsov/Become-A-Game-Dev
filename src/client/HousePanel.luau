@@ -29,6 +29,22 @@ function HousePanel.init(player, theme, playerState)
 	stroke.Transparency = 0.4
 	stroke.Parent = frame
 
+	local gradient = Instance.new("UIGradient")
+	gradient.Color = ColorSequence.new(theme.PanelLight, theme.Panel)
+	gradient.Rotation = 90
+	gradient.Parent = frame
+
+	local headerBar = Instance.new("Frame")
+	headerBar.Name = "HeaderBar"
+	headerBar.Size = UDim2.new(1, 0, 0, 6)
+	headerBar.Position = UDim2.fromScale(0, 0)
+	headerBar.BackgroundColor3 = theme.Accent
+	headerBar.BorderSizePixel = 0
+	headerBar.Parent = frame
+	local headerCorner = Instance.new("UICorner")
+	headerCorner.CornerRadius = UDim.new(0, 6)
+	headerCorner.Parent = headerBar
+
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 16)
 	padding.PaddingBottom = UDim.new(0, 16)
@@ -42,7 +58,7 @@ function HousePanel.init(player, theme, playerState)
 	layout.Parent = frame
 
 	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Text = "\240\159\143\160 Plot Upgrade"
+	titleLabel.Text = "\240\159\143\162 Add a Floor"
 	titleLabel.Size = UDim2.new(1, 0, 0, 30)
 	titleLabel.LayoutOrder = 1
 	titleLabel.BackgroundTransparency = 1
@@ -67,7 +83,7 @@ function HousePanel.init(player, theme, playerState)
 	actionButton.Size = UDim2.new(1, 0, 0, 44)
 	actionButton.LayoutOrder = 3
 	actionButton.BackgroundColor3 = theme.Accent
-	actionButton.TextColor3 = theme.Text
+	actionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	actionButton.Font = Enum.Font.FredokaOne
 	actionButton.TextSize = 16
 	actionButton.TextWrapped = true
@@ -78,6 +94,18 @@ function HousePanel.init(player, theme, playerState)
 	local actionCorner = Instance.new("UICorner")
 	actionCorner.CornerRadius = UDim.new(0, 10)
 	actionCorner.Parent = actionButton
+
+	local actionGradient = Instance.new("UIGradient")
+	actionGradient.Color = ColorSequence.new(theme.Accent, theme.AccentDeep)
+	actionGradient.Rotation = 90
+	actionGradient.Parent = actionButton
+
+	actionButton.MouseEnter:Connect(function()
+		actionButton.BackgroundColor3 = theme.AccentDeep
+	end)
+	actionButton.MouseLeave:Connect(function()
+		actionButton.BackgroundColor3 = theme.Accent
+	end)
 
 	actionButton.MouseButton1Click:Connect(function()
 		Remotes.RequestUpgradeHouse:FireServer()
@@ -116,15 +144,16 @@ function HousePanel.init(player, theme, playerState)
 
 	local function refresh()
 		local tier = playerState.houseTier
-		tierLabel.Text = ("Tier %d of %d"):format(tier, GameData.HouseTierCount - 1)
+		local nextMultiplier = GameData.getFloorMultiplier(tier + 1)
+		tierLabel.Text = ("Floor %d of %d \194\183 costs & earnings x%d"):format(tier + 1, GameData.HouseTierCount, GameData.getFloorMultiplier(tier))
 
 		if tier >= GameData.HouseTierCount - 1 then
-			actionButton.Text = "Max tier reached!"
+			actionButton.Text = "Top floor reached!"
 			actionButton.Visible = false
 		else
 			actionButton.Visible = true
 			local cost = GameData.getHouseUpgradeCost(tier)
-			actionButton.Text = ("Upgrade Plot \194\183 $%d"):format(cost)
+			actionButton.Text = ("Add Floor %d \194\183 $%d\n(then x%d cost & cash)"):format(tier + 2, cost, nextMultiplier)
 		end
 	end
 

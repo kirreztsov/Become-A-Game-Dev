@@ -522,6 +522,41 @@ local function setStreetlampsOn(on)
 	end
 end
 
+-- One-time atmospheric polish: better lighting technology, a subtle haze for
+-- depth on the distant mountains, and gentle bloom + colour grading. Coexists
+-- with the day/night cycle (which only drives ClockTime + Brightness).
+local function buildAtmosphere()
+	Lighting.Technology = Enum.Technology.Future
+	Lighting.GlobalShadows = true
+	Lighting.EnvironmentDiffuseScale = 0.5
+	Lighting.EnvironmentSpecularScale = 0.4
+	Lighting.Ambient = Color3.fromRGB(70, 72, 80)
+	Lighting.OutdoorAmbient = Color3.fromRGB(140, 146, 160)
+	Lighting.ExposureCompensation = 0.1
+
+	local function ensure(class, name, props)
+		local inst = Lighting:FindFirstChild(name)
+		if not inst then
+			inst = Instance.new(class)
+			inst.Name = name
+			inst.Parent = Lighting
+		end
+		for k, v in pairs(props) do
+			inst[k] = v
+		end
+	end
+
+	ensure("Atmosphere", "TownAtmosphere", {
+		Density = 0.34, Offset = 0.1, Haze = 1.8, Glare = 0.2,
+		Color = Color3.fromRGB(210, 218, 230), Decay = Color3.fromRGB(96, 110, 140),
+	})
+	ensure("BloomEffect", "TownBloom", { Intensity = 0.45, Size = 24, Threshold = 1.1 })
+	ensure("ColorCorrectionEffect", "TownGrade", {
+		Saturation = 0.12, Contrast = 0.06, Brightness = 0, TintColor = Color3.fromRGB(255, 252, 245),
+	})
+	ensure("SunRaysEffect", "TownSunRays", { Intensity = 0.06, Spread = 0.9 })
+end
+
 local function startDayNightCycle()
 	if dayNightConnection then
 		dayNightConnection:Disconnect()
@@ -1567,14 +1602,21 @@ end
 -- the road's own top at Y = 1.4) despite buildCar looking correct.
 local CAR_BODY_REST_Y = FLOOR_TOP + 1.4
 
-local function buildCar(lobbyFolder, name, color, height)
+local function buildCar(lobbyFolder, name, color, height, modelName)
 	-- Detailed Blender car if synced. The animation pivots every car at world
 	-- Y = CAR_BODY_REST_Y (2.4); the road top is at 1.4, so we set the model's
 	-- pivot 1.0 stud above the wheel bottom, which lands the wheels on the road.
-	-- `height` (studs tall) varies the size so we get compact / sedan / SUV /
-	-- truck "types" from the one mesh.
-	if StudioModels.has("Car") then
-		local m = StudioModels.get("Car")
+	-- `modelName` picks the body type (Car / Van / Truck / SportsCar), falling
+	-- back to the base Car if that type isn't synced; `height` varies the size.
+	modelName = (modelName and StudioModels.has(modelName)) and modelName or "Car"
+	local m = StudioModels.get(modelName)
+	-- Guard against an empty/failed import (asset exists but has no parts):
+	-- discard it and fall back to the base Car so a car is never invisible.
+	if m and not m:FindFirstChildWhichIsA("BasePart", true) then
+		m:Destroy()
+		m = (modelName ~= "Car") and StudioModels.get("Car") or nil
+	end
+	if m then
 		m.Name = name
 		local _, size = m:GetBoundingBox()
 		if size.Y > 0 then
@@ -1673,21 +1715,22 @@ local function buildCarRoutes()
 	return { r1, r2, r3, r4, r5 }
 end
 
--- More cars, spread across the routes, with varied sizes (h) so they read as
--- different types: ~2.6 compact, 3.0 sedan, 3.4 SUV, 3.7 van/truck.
+-- Cars spread across the routes, mixing distinct body types (Car sedan / Van /
+-- Truck / SportsCar -- fall back to Car until each mesh is synced), each sized
+-- to suit its type.
 local CAR_SPAWN = {
-	{ route = 1, off = 0.0, speed = 22, h = 3.0, color = Color3.fromRGB(200, 55, 50) },
-	{ route = 1, off = 0.4, speed = 17, h = 3.7, color = Color3.fromRGB(70, 80, 92) },
-	{ route = 1, off = 0.75, speed = 25, h = 2.6, color = Color3.fromRGB(235, 232, 225) },
-	{ route = 2, off = 0.0, speed = 20, h = 3.0, color = Color3.fromRGB(60, 110, 200) },
-	{ route = 2, off = 0.35, speed = 16, h = 3.8, color = Color3.fromRGB(120, 92, 60) },
-	{ route = 2, off = 0.7, speed = 24, h = 2.7, color = Color3.fromRGB(90, 180, 90) },
-	{ route = 3, off = 0.0, speed = 24, h = 3.0, color = Color3.fromRGB(235, 209, 102) },
-	{ route = 3, off = 0.5, speed = 19, h = 3.4, color = Color3.fromRGB(150, 90, 210) },
-	{ route = 4, off = 0.0, speed = 21, h = 2.8, color = Color3.fromRGB(230, 120, 60) },
-	{ route = 4, off = 0.5, speed = 23, h = 3.3, color = Color3.fromRGB(60, 170, 180) },
-	{ route = 5, off = 0.0, speed = 20, h = 3.0, color = Color3.fromRGB(80, 190, 200) },
-	{ route = 5, off = 0.5, speed = 18, h = 3.6, color = Color3.fromRGB(212, 90, 140) },
+	{ route = 1, off = 0.0, speed = 22, h = 3.0, model = "Car", color = Color3.fromRGB(200, 55, 50) },
+	{ route = 1, off = 0.4, speed = 16, h = 3.4, model = "Van", color = Color3.fromRGB(70, 80, 92) },
+	{ route = 1, off = 0.75, speed = 26, h = 2.7, model = "SportsCar", color = Color3.fromRGB(235, 232, 225) },
+	{ route = 2, off = 0.0, speed = 20, h = 3.0, model = "Car", color = Color3.fromRGB(60, 110, 200) },
+	{ route = 2, off = 0.35, speed = 15, h = 3.5, model = "Truck", color = Color3.fromRGB(120, 92, 60) },
+	{ route = 2, off = 0.7, speed = 26, h = 2.7, model = "SportsCar", color = Color3.fromRGB(90, 180, 90) },
+	{ route = 3, off = 0.0, speed = 24, h = 3.0, model = "Car", color = Color3.fromRGB(235, 209, 102) },
+	{ route = 3, off = 0.5, speed = 17, h = 3.4, model = "Van", color = Color3.fromRGB(150, 90, 210) },
+	{ route = 4, off = 0.0, speed = 21, h = 2.8, model = "Car", color = Color3.fromRGB(230, 120, 60) },
+	{ route = 4, off = 0.5, speed = 15, h = 3.5, model = "Truck", color = Color3.fromRGB(60, 170, 180) },
+	{ route = 5, off = 0.0, speed = 20, h = 3.0, model = "Car", color = Color3.fromRGB(80, 190, 200) },
+	{ route = 5, off = 0.5, speed = 17, h = 3.4, model = "Van", color = Color3.fromRGB(212, 90, 140) },
 }
 
 local function buildCars(lobbyFolder)
@@ -1701,7 +1744,7 @@ local function buildCars(lobbyFolder)
 		route.cum, route.total = cum, total
 	end
 	for i, cfg in ipairs(CAR_SPAWN) do
-		local model = buildCar(lobbyFolder, "Car" .. i, cfg.color, cfg.h)
+		local model = buildCar(lobbyFolder, "Car" .. i, cfg.color, cfg.h, cfg.model)
 		local route = routes[cfg.route]
 		table.insert(activeCars, { model = model, route = route, dist = route.total * cfg.off, dir = 1, speed = cfg.speed })
 	end
@@ -1737,7 +1780,9 @@ local function startCarAnimation()
 			local pos, vel = posAlong(car.route, car.dist)
 			vel = vel * car.dir
 			if vel.Magnitude > 0.001 then
-				local facingDeg = math.deg(math.atan2(-vel.Z, vel.X))
+				-- +180: the imported car meshes' visual front ends up on -X, so
+				-- point that (not +X) along the travel direction.
+				local facingDeg = math.deg(math.atan2(-vel.Z, vel.X)) + 180
 				car.model:PivotTo(CFrame.new(pos) * CFrame.Angles(0, math.rad(facingDeg), 0))
 			end
 		end
@@ -1747,6 +1792,41 @@ end
 -- A simple blocky NPC (torso is the PrimaryPart so it can be pivoted around
 -- as one rigid model). Built at a ground position; parts stack upward from it.
 local function buildNPC(lobbyFolder, name, position, shirt, pants, skin, hat)
+	-- Detailed Blender person if synced. Built to the walk loop's proportions
+	-- (feet on the ground, Torso centre 3.9 up = the model's PrimaryPart), so
+	-- pedestrians glide + bob and shopkeepers stand put. Single mesh = no
+	-- per-leg swing (returns nil legs).
+	if StudioModels.has("Person") then
+		local m = StudioModels.get("Person")
+		m.Name = name
+		local _, size = m:GetBoundingBox()
+		if size.Y > 0 then
+			m:ScaleTo(m:GetScale() * (7 / size.Y))
+		end
+		local torso
+		for _, p in ipairs(m:GetDescendants()) do
+			if p:IsA("BasePart") then
+				local n = p.Name
+				if n:find("Torso") then
+					p.Color, torso = shirt, p
+				elseif n:find("Pants") then
+					p.Color = pants
+				elseif n:find("Hair") then
+					p.Color = hat or Color3.fromRGB(70, 50, 40)
+				elseif n:find("Eye") then
+					p.Color = Color3.fromRGB(40, 40, 40)
+				else
+					p.Color = skin
+				end
+				p.Material, p.Anchored, p.CanCollide = Enum.Material.SmoothPlastic, true, false
+			end
+		end
+		m.PrimaryPart = torso or m:FindFirstChildWhichIsA("BasePart", true)
+		m.Parent = lobbyFolder
+		m:PivotTo(CFrame.new(position + Vector3.new(0, 3.9, 0)))
+		return m, nil, nil
+	end
+
 	local model = Instance.new("Model")
 	model.Name = name
 	model.Parent = lobbyFolder
@@ -2691,6 +2771,7 @@ function Lobby.build()
 	buildCars(lobbyFolder)
 	startCarAnimation()
 	startBasketballWatchdog()
+	buildAtmosphere()
 	startDayNightCycle()
 	startLobbyLife()
 

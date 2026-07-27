@@ -16,8 +16,9 @@ local ALL = {
 	require(MapBuilding.PathConnect),
 	require(Testing.QAQuiz),
 	require(Testing.BugHunt),
+	require(Testing.PassOrFail),
 	-- later tasks append:
-	-- PassOrFail, CrashFix
+	-- CrashFix
 }
 
 local Registry = { byStation = {}, byId = {} }

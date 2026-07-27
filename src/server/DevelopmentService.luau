@@ -173,6 +173,20 @@ local function generateRoundInfo(variantId, difficulty, params)
 	elseif variantId == "BugHunt" then
 		local cells = params.gridN * params.gridN
 		return { gridN = params.gridN, correctIndex = rng:NextInteger(1, cells), answerSeconds = params.answerSeconds }
+	elseif variantId == "PassOrFail" then
+		local items, truth = {}, {}
+		for i = 1, params.count do
+			local it = GameData.PassOrFailItems[rng:NextInteger(1, #GameData.PassOrFailItems)]
+			items[i] = it.text
+			truth[i] = it.ship
+		end
+		return {
+			items = items,
+			truth = truth,
+			total = params.count,
+			flashSeconds = params.flashSeconds,
+			maxWait = params.count * params.flashSeconds + 3,
+		}
 	end
 	return {} -- mash variants need no content
 end

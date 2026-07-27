@@ -108,6 +108,30 @@ GameData.TestingQuestions = {
 	},
 }
 
+-- Each entry is one QA triage statement: `ship = true` means it's fine to
+-- release, `ship = false` means it's a blocker that should be cut/fixed
+-- first. DevelopmentService.generateRoundInfo("PassOrFail", ...) draws
+-- `count` of these (with repeats allowed) and records the truth array
+-- alongside the item text so the client's SHIP/CUT taps can be scored.
+GameData.PassOrFailItems = {
+	{ text = "Runs at 60 FPS on mobile", ship = true },
+	{ text = "Crashes on the loading screen", ship = false },
+	{ text = "Saves player progress correctly", ship = true },
+	{ text = "Players fall through the floor", ship = false },
+	{ text = "All buttons respond to taps", ship = true },
+	{ text = "Leaderboard shows the wrong names", ship = false },
+	{ text = "Sound effects play on cue", ship = true },
+	{ text = "Game freezes when two players join at once", ship = false },
+	{ text = "Inventory items stack correctly", ship = true },
+	{ text = "Currency can go negative", ship = false },
+	{ text = "Menus close when you tap outside them", ship = true },
+	{ text = "Textures fail to load half the time", ship = false },
+	{ text = "Daily rewards give the advertised amount", ship = true },
+	{ text = "Chat filter lets slurs through", ship = false },
+	{ text = "Settings save between sessions", ship = true },
+	{ text = "Purchasing an item doesn't grant it", ship = false },
+}
+
 -- Each set has one line that actually compiles/runs (`good`) and two that
 -- look almost right but are broken (`bad`) -- a missing paren/brace/quote, a
 -- typo'd keyword, or a typo'd identifier. DevelopmentService.generateRoundInfo
@@ -636,7 +660,7 @@ GameData.StationVariantIds = {
 GameData.ImplementedVariantIds = {
 	Coding      = { "CodeSprint", "BugSquash", "KeyCombo", "CompileCheck" },
 	MapBuilding = { "PrecisionPlace", "BlueprintMemory", "TileDrop", "PathConnect" },
-	Testing     = { "QAQuiz", "BugHunt" },
+	Testing     = { "QAQuiz", "BugHunt", "PassOrFail" },
 }
 
 GameData.VariantInputKind = {

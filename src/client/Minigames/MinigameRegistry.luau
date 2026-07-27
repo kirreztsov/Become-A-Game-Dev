@@ -7,9 +7,10 @@ local Testing = script.Parent.Testing
 
 local ALL = {
 	require(Coding.CodeSprint),
+	require(Coding.BugSquash),
 	require(MapBuilding.PrecisionPlace),
 	require(Testing.QAQuiz),
-	-- later tasks append: BugSquash, KeyCombo, CompileCheck, BlueprintMemory,
+	-- later tasks append: KeyCombo, CompileCheck, BlueprintMemory,
 	-- TileDrop, PathConnect, BugHunt, PassOrFail, CrashFix
 }
 

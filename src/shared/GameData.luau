@@ -20,9 +20,6 @@ GameData.TrendBonusMultiplier = 5
 GameData.Phases = { "Coding", "MapBuilding", "Testing" }
 GameData.RoundsPerPhase = 3
 
-GameData.CodingRoundSeconds = 3
-GameData.CodingTargetTaps = 15
-
 GameData.MapBuildingRoundSeconds = 2
 GameData.MapBuildingZoneCenter = 0.5
 GameData.MapBuildingZoneHalfWidth = 0.15

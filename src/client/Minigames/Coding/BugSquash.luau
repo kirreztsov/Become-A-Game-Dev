@@ -57,7 +57,7 @@ local function spawnBug(token, theme)
 	bug.Size = UDim2.fromOffset(BUG_SIZE, BUG_SIZE)
 	bug.Position = UDim2.fromOffset(x, y)
 	bug.BackgroundColor3 = BAR_BG
-	bug.Text = "\240\159\170\179" -- bug emoji
+	bug.Text = "\240\159\144\155" -- bug emoji
 	bug.Font = Enum.Font.SourceSansBold
 	bug.TextSize = 28
 	bug.AutoButtonColor = false

@@ -23,7 +23,6 @@ local crashes = {} -- live TextButton instances, so clear()/hide() can wipe them
 local PANEL_PAD = 16
 local CARD_W = 128
 local CARD_H = 52
-local CRASH_LIFETIME = 3 -- uncaught crashes linger (visually) rather than vanish quickly
 
 local BG = Color3.fromRGB(24, 26, 33)
 local TXT = Color3.fromRGB(210, 216, 230)
@@ -95,16 +94,6 @@ local function spawnCrash(token, theme)
 		end
 		remove()
 		reportFn()
-	end)
-
-	-- Uncaught crashes may linger past their lifetime (visual only) -- they
-	-- are simply not auto-removed by a timer the way BugSquash's bugs are.
-	-- We still clean them up eventually so the panel doesn't fill up forever,
-	-- but only long after they'd normally have been tapped.
-	task.delay(CRASH_LIFETIME, function()
-		if activeToken == token and card.Parent then
-			-- leave it lingering visually; do nothing here on purpose.
-		end
 	end)
 end
 

@@ -563,6 +563,15 @@ GameData.StationVariantIds = {
 	Testing     = { "BugHunt", "QAQuiz", "PassOrFail", "CrashFix" },
 }
 
+-- The subset of StationVariantIds that is actually implemented + registered
+-- client-side and therefore safe to pick. Each new variant task appends its
+-- id here as it's built, until all of StationVariantIds is covered.
+GameData.ImplementedVariantIds = {
+	Coding      = { "CodeSprint" },
+	MapBuilding = { "PrecisionPlace" },
+	Testing     = { "QAQuiz" },
+}
+
 GameData.VariantInputKind = {
 	CodeSprint = "mash", BugSquash = "mash", KeyCombo = "sequence", CompileCheck = "choice",
 	PrecisionPlace = "timing", BlueprintMemory = "sequence", TileDrop = "sequence", PathConnect = "sequence",
@@ -598,7 +607,7 @@ function GameData.getVariantParams(id, difficulty)
 end
 
 function GameData.pickVariantId(station, lastId, rng)
-	local ids = GameData.StationVariantIds[station]
+	local ids = GameData.ImplementedVariantIds[station]
 	local pool = {}
 	for _, id in ipairs(ids) do
 		if id ~= lastId or #ids == 1 then table.insert(pool, id) end

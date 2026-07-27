@@ -78,11 +78,11 @@ t:assertEqual(ph.a, 5, "midpoint float")
 t:assertEqual(ph.n, 5, "midpoint int rounded")
 GameData.VariantParams.__test = nil
 
--- rotation avoids repeats
-local ids = GameData.StationVariantIds.Coding
-t:assertEqual(#ids, 4, "coding has 4 variants")
--- rng stub returns 0 -> first item of pool; pool excludes lastId
-local first = GameData.pickVariantId("Coding", ids[1], function() return 0 end)
-t:assertEqual(first ~= ids[1], true, "never repeats lastId when pool > 1")
+-- rotation avoids repeats (inject a temp implemented pool so pool size > 1)
+GameData.ImplementedVariantIds.__test = { "a", "b", "c" }
+local first = GameData.pickVariantId("__test", "a", function() return 0 end)
+t:assertEqual(first ~= "a", true, "pickVariantId never repeats lastId when pool > 1")
+t:assertEqual(GameData.pickVariantId("__test", nil, function() return 0 end), "a", "pickVariantId with no lastId can return the first")
+GameData.ImplementedVariantIds.__test = nil
 
 t:summary()

@@ -146,7 +146,7 @@ local function generateRoundInfo(variantId, difficulty, params)
 		end
 		return { gridN = params.gridN, pattern = pattern, total = #pattern, maxWait = params.peekSeconds + 12 }
 	elseif variantId == "TileDrop" then
-		return { pieces = params.pieces, fallSeconds = params.fallSeconds, total = params.pieces, maxWait = params.pieces * params.fallSeconds + 3 }
+		return { pieces = params.pieces, fallSeconds = params.fallSeconds, total = params.pieces, maxWait = params.pieces * params.fallSeconds + 5 }
 	elseif variantId == "PathConnect" then
 		local n = params.gridN
 		local startRow = rng:NextInteger(0, n - 1)
@@ -406,6 +406,7 @@ end
 function DevelopmentService.cleanupPlayer(player)
 	activeRounds[player.UserId] = nil
 	developing[player.UserId] = nil
+	lastVariantByStation[player.UserId] = nil
 end
 
 return DevelopmentService

@@ -672,7 +672,7 @@ GameData.VariantParams = {
 	BugSquash      = { easy = { targetBugs = 6, spawnInterval = 0.55, windowSeconds = 4 }, hard = { targetBugs = 16, spawnInterval = 0.28, windowSeconds = 4 }, ints = { targetBugs = true } },
 	KeyCombo       = { easy = { len = 3, peekSeconds = 2.5, inputSeconds = 6 },    hard = { len = 8, peekSeconds = 0.8, inputSeconds = 5 },    ints = { len = true } },
 	CompileCheck   = { easy = { answerSeconds = 10 },                              hard = { answerSeconds = 4 },                               ints = {} },
-	PrecisionPlace = { easy = { zoneHalfWidth = 0.18, periodSeconds = 2.2 },       hard = { zoneHalfWidth = 0.05, periodSeconds = 1.0 },       ints = {} },
+	PrecisionPlace = { easy = { zoneHalfWidth = 0.18, periodSeconds = 2.2 },       hard = { zoneHalfWidth = 0.08, periodSeconds = 1.3 },       ints = {} },
 	BlueprintMemory= { easy = { gridN = 3, patternLen = 3, peekSeconds = 2.5 },    hard = { gridN = 4, patternLen = 8, peekSeconds = 1.0 },    ints = { gridN = true, patternLen = true } },
 	TileDrop       = { easy = { pieces = 3, fallSeconds = 2.0 },                   hard = { pieces = 7, fallSeconds = 0.9 },                   ints = { pieces = true } },
 	PathConnect    = { easy = { gridN = 4, timeSeconds = 8 },                      hard = { gridN = 6, timeSeconds = 5 },                      ints = { gridN = true } },

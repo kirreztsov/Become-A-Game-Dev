@@ -530,4 +530,27 @@ function GameData.describeDailyReward(reward)
 	return ("$%d"):format(reward.amount)
 end
 
+-- ---- Minigame scoring functions (per input kind) ----------------------------
+-- Each scoring function returns a 0..1 score based on player performance.
+
+function GameData.scoreMash(count, targetTaps)
+	return math.clamp(count / targetTaps, 0, 1)
+end
+
+function GameData.scoreTiming(markerPos, zoneCenter, zoneHalfWidth)
+	local dist = math.abs(markerPos - zoneCenter)
+	if dist > zoneHalfWidth then return 0 end
+	return 1 - (dist / zoneHalfWidth)
+end
+
+function GameData.scoreSequence(correct, total)
+	if total <= 0 then return 0 end
+	return math.clamp(correct / total, 0, 1)
+end
+
+function GameData.scoreChoice(chosenIndex, correctIndex, wrongScore)
+	if chosenIndex == correctIndex then return 1 end
+	return wrongScore
+end
+
 return GameData

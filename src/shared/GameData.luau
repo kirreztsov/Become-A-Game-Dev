@@ -567,7 +567,7 @@ GameData.StationVariantIds = {
 -- client-side and therefore safe to pick. Each new variant task appends its
 -- id here as it's built, until all of StationVariantIds is covered.
 GameData.ImplementedVariantIds = {
-	Coding      = { "CodeSprint", "BugSquash" },
+	Coding      = { "CodeSprint", "BugSquash", "KeyCombo" },
 	MapBuilding = { "PrecisionPlace" },
 	Testing     = { "QAQuiz" },
 }

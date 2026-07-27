@@ -98,6 +98,13 @@ local function generateRoundInfo(variantId, difficulty, params)
 			correctIndex = (correctIndex == 1) and 2 or 1
 		end
 		return { prompt = q.prompt, options = options, correctIndex = correctIndex }
+	elseif variantId == "KeyCombo" then
+		local glyphs = { "↑", "↓", "←", "→", "{", "}", ";", "(" }
+		local seq = {}
+		for i = 1, params.len do
+			seq[i] = glyphs[rng:NextInteger(1, #glyphs)]
+		end
+		return { keys = seq, total = params.len, maxWait = params.peekSeconds + params.inputSeconds + 2 }
 	end
 	return {} -- mash variants need no content
 end

@@ -170,6 +170,9 @@ local function generateRoundInfo(variantId, difficulty, params)
 			end
 		end
 		return { lines = lines, correctIndex = correctIndex }
+	elseif variantId == "BugHunt" then
+		local cells = params.gridN * params.gridN
+		return { gridN = params.gridN, correctIndex = rng:NextInteger(1, cells), answerSeconds = params.answerSeconds }
 	end
 	return {} -- mash variants need no content
 end

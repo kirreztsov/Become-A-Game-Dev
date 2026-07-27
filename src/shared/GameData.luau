@@ -636,7 +636,7 @@ GameData.StationVariantIds = {
 GameData.ImplementedVariantIds = {
 	Coding      = { "CodeSprint", "BugSquash", "KeyCombo", "CompileCheck" },
 	MapBuilding = { "PrecisionPlace", "BlueprintMemory", "TileDrop", "PathConnect" },
-	Testing     = { "QAQuiz" },
+	Testing     = { "QAQuiz", "BugHunt" },
 }
 
 GameData.VariantInputKind = {

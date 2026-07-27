@@ -12,9 +12,10 @@ local ALL = {
 	require(Coding.CompileCheck),
 	require(MapBuilding.PrecisionPlace),
 	require(MapBuilding.BlueprintMemory),
+	require(MapBuilding.TileDrop),
 	require(Testing.QAQuiz),
 	-- later tasks append:
-	-- TileDrop, PathConnect, BugHunt, PassOrFail, CrashFix
+	-- PathConnect, BugHunt, PassOrFail, CrashFix
 }
 
 local Registry = { byStation = {}, byId = {} }

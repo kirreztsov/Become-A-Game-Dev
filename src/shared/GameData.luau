@@ -56,6 +56,56 @@ GameData.TestingQuestions = {
 		options = { "Cram it in right before launch", "Note it for a future update" },
 		correctIndex = 2,
 	},
+	{
+		prompt = "Your game's fun but nobody's finding it. What's the best fix?",
+		options = {
+			"Spam every Discord server you can find",
+			"Improve the thumbnail, icon, and store description",
+			"Lower the price to zero forever",
+			"Wait it out, good games find players eventually",
+		},
+		correctIndex = 2,
+	},
+	{
+		prompt = "A whale offers to pay you directly outside the platform for a rare item. What do you do?",
+		options = {
+			"Take the deal, it's easy money",
+			"Decline -- it breaks platform rules and risks a ban",
+			"Ask for even more money first",
+			"Give the item away free instead",
+		},
+		correctIndex = 2,
+	},
+	{
+		prompt = "Your multiplayer game has a duplication exploit. What's the right response?",
+		options = {
+			"Patch it quickly and reset affected balances",
+			"Ignore it, most players won't find it",
+			"Turn it into a paid feature",
+			"Blame the players who used it and do nothing else",
+		},
+		correctIndex = 1,
+	},
+	{
+		prompt = "Reviews say your monetization feels too aggressive. What should you do?",
+		options = {
+			"Add even more ads and pop-ups",
+			"Rebalance so free play still feels rewarding",
+			"Ignore reviews, revenue is what matters",
+			"Remove the free version entirely",
+		},
+		correctIndex = 2,
+	},
+	{
+		prompt = "You're deciding between two features and only have time for one. How do you choose?",
+		options = {
+			"Whichever one you personally like more",
+			"Flip a coin",
+			"Whichever solves the bigger player pain point",
+			"Whichever took less code to plan",
+		},
+		correctIndex = 3,
+	},
 }
 
 -- Each set has one line that actually compiles/runs (`good`) and two that
@@ -585,7 +635,7 @@ GameData.StationVariantIds = {
 -- id here as it's built, until all of StationVariantIds is covered.
 GameData.ImplementedVariantIds = {
 	Coding      = { "CodeSprint", "BugSquash", "KeyCombo", "CompileCheck" },
-	MapBuilding = { "PrecisionPlace", "BlueprintMemory" },
+	MapBuilding = { "PrecisionPlace", "BlueprintMemory", "TileDrop" },
 	Testing     = { "QAQuiz" },
 }
 

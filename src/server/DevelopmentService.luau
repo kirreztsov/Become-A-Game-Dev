@@ -89,14 +89,43 @@ local function generateRoundInfo(variantId, difficulty, params)
 		}
 	elseif variantId == "QAQuiz" then
 		local q = GameData.TestingQuestions[rng:NextInteger(1, #GameData.TestingQuestions)]
-		-- Build an options list of params.optionCount, always including the
-		-- correct one (see Task 12 for >2 options).
-		local options = { q.options[1], q.options[2] }
-		local correctIndex = q.correctIndex
-		if rng:NextNumber() < 0.5 then
-			options = { options[2], options[1] }
-			correctIndex = (correctIndex == 1) and 2 or 1
+		local correctText = q.options[q.correctIndex]
+
+		-- Distractor pool: every other option this question carries. Shuffled
+		-- so which ones get used (when the question has more distractors than
+		-- optionCount-1 needs) varies round to round.
+		local distractorPool = {}
+		for i, opt in ipairs(q.options) do
+			if i ~= q.correctIndex then
+				table.insert(distractorPool, opt)
+			end
 		end
+		for i = #distractorPool, 2, -1 do
+			local j = rng:NextInteger(1, i)
+			distractorPool[i], distractorPool[j] = distractorPool[j], distractorPool[i]
+		end
+
+		-- Clamp to what the question can actually supply (some questions only
+		-- have 2 options even though optionCount can ask for up to 4).
+		local wantCount = math.min(params.optionCount or 2, 1 + #distractorPool)
+		local options = { correctText }
+		for i = 1, wantCount - 1 do
+			table.insert(options, distractorPool[i])
+		end
+
+		-- Fisher-Yates shuffle, tracking where the correct option (originally
+		-- index 1) lands -- same pattern as CompileCheck below.
+		local correctIndex = 1
+		for i = #options, 2, -1 do
+			local j = rng:NextInteger(1, i)
+			options[i], options[j] = options[j], options[i]
+			if correctIndex == i then
+				correctIndex = j
+			elseif correctIndex == j then
+				correctIndex = i
+			end
+		end
+
 		return { prompt = q.prompt, options = options, correctIndex = correctIndex }
 	elseif variantId == "KeyCombo" then
 		local glyphs = { "↑", "↓", "←", "→", "{", "}", ";", "(" }
@@ -116,6 +145,8 @@ local function generateRoundInfo(variantId, difficulty, params)
 			end
 		end
 		return { gridN = params.gridN, pattern = pattern, total = #pattern, maxWait = params.peekSeconds + 12 }
+	elseif variantId == "TileDrop" then
+		return { pieces = params.pieces, fallSeconds = params.fallSeconds, total = params.pieces, maxWait = params.pieces * params.fallSeconds + 3 }
 	elseif variantId == "CompileCheck" then
 		local s = GameData.CompileSnippets[rng:NextInteger(1, #GameData.CompileSnippets)]
 		local lines = { s.good, s.bad[1], s.bad[2] }

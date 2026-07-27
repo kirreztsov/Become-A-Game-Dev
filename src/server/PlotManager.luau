@@ -211,9 +211,13 @@ local function buildWorkersDesk(parent, origin, x, z, namePrefix)
 
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
-	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
-	makePart(namePrefix .. "WorkersMonitor", Vector3.new(2.2, monitorHeight, 0.2), origin + Vector3.new(x, monitorCenterY, z + 0.8), DARK_TRIM_COLOR, nil, parent)
-	local screen = makePart(namePrefix .. "WorkersMonitorScreen", Vector3.new(2, monitorHeight - 0.2, 0.05), origin + Vector3.new(x, monitorCenterY, z + 0.7), GOLD_COLOR, Enum.Material.Neon, parent)
+	local standH = 1.0
+	local monitorCenterY = deskTopSurfaceTopY + standH + monitorHeight / 2
+	local dark = Color3.fromRGB(34, 36, 42)
+	makePart(namePrefix .. "WorkersMonitorBase", Vector3.new(1.0, 0.18, 0.9), origin + Vector3.new(x, deskTopSurfaceTopY + 0.09, z + 0.85), dark, Enum.Material.Metal, parent)
+	makePart(namePrefix .. "WorkersMonitorNeck", Vector3.new(0.35, standH, 0.35), origin + Vector3.new(x, deskTopSurfaceTopY + standH / 2, z + 0.85), dark, Enum.Material.Metal, parent)
+	makePart(namePrefix .. "WorkersMonitor", Vector3.new(2.2, monitorHeight, 0.25), origin + Vector3.new(x, monitorCenterY, z + 0.85), dark, nil, parent)
+	local screen = makePart(namePrefix .. "WorkersMonitorScreen", Vector3.new(1.85, monitorHeight - 0.35, 0.06), origin + Vector3.new(x, monitorCenterY, z + 0.71), GOLD_COLOR, Enum.Material.Neon, parent)
 	screen.CanCollide = false
 
 	local workersPrompt = Instance.new("ProximityPrompt")
@@ -262,11 +266,18 @@ local function buildStationMonitorRig(parent, origin, config, tier, x, z, namePr
 
 	local monitorHeight = 1.6 + (tier * 0.3)
 	local monitorWidth = 2.2 + (tier * 0.4)
-	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
+	local standH = 1.0
+	local monitorCenterY = deskTopSurfaceTopY + standH + monitorHeight / 2
+	local dark = Color3.fromRGB(34, 36, 42)
 
-	makePart(namePrefix .. config.name .. "Monitor", Vector3.new(monitorWidth, monitorHeight, 0.2), origin + Vector3.new(x, monitorCenterY, z + 0.8), DARK_TRIM_COLOR, nil, rig)
+	-- Stand: a base foot on the desk + a neck up to the screen, so the monitor
+	-- reads as a real monitor instead of a flat box sitting on the desk.
+	makePart(namePrefix .. config.name .. "MonitorBase", Vector3.new(monitorWidth * 0.45, 0.18, 0.9), origin + Vector3.new(x, deskTopSurfaceTopY + 0.09, z + 0.85), dark, Enum.Material.Metal, rig)
+	makePart(namePrefix .. config.name .. "MonitorNeck", Vector3.new(0.35, standH, 0.35), origin + Vector3.new(x, deskTopSurfaceTopY + standH / 2, z + 0.85), dark, Enum.Material.Metal, rig)
+	-- Bezel body + glowing screen inset (a bit smaller, so the bezel shows).
+	makePart(namePrefix .. config.name .. "Monitor", Vector3.new(monitorWidth, monitorHeight, 0.25), origin + Vector3.new(x, monitorCenterY, z + 0.85), dark, nil, rig)
 	local screenColor = (tier > 0) and GOLD_COLOR or config.monitorColor
-	local screen = makePart(namePrefix .. config.name .. "MonitorScreen", Vector3.new(monitorWidth - 0.2, monitorHeight - 0.2, 0.05), origin + Vector3.new(x, monitorCenterY, z + 0.7), screenColor, Enum.Material.Neon, rig)
+	local screen = makePart(namePrefix .. config.name .. "MonitorScreen", Vector3.new(monitorWidth - 0.35, monitorHeight - 0.35, 0.06), origin + Vector3.new(x, monitorCenterY, z + 0.71), screenColor, Enum.Material.Neon, rig)
 	screen.CanCollide = false
 
 	-- Every floor's NewProject monitor carries the PC upgrade prompt (the PC
@@ -301,7 +312,9 @@ local function buildStation(parent, origin, config, x, z, namePrefix, monitorTie
 
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
-	local monitorCenterY = deskTopSurfaceTopY + monitorHeight / 2
+	-- Matches the raised monitor in buildStationMonitorRig (stand height 1.0)
+	-- so the nameplate still sits just above the screen.
+	local monitorCenterY = deskTopSurfaceTopY + 1.0 + monitorHeight / 2
 	buildStationMonitorRig(parent, origin, config, monitorTier, x, z, namePrefix)
 
 	local seatCenter = origin + Vector3.new(x, FLOOR_TOP + 1.2, z - 3)

@@ -11,8 +11,9 @@ local ALL = {
 	require(Coding.KeyCombo),
 	require(Coding.CompileCheck),
 	require(MapBuilding.PrecisionPlace),
+	require(MapBuilding.BlueprintMemory),
 	require(Testing.QAQuiz),
-	-- later tasks append: BlueprintMemory,
+	-- later tasks append:
 	-- TileDrop, PathConnect, BugHunt, PassOrFail, CrashFix
 }
 

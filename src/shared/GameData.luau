@@ -585,7 +585,7 @@ GameData.StationVariantIds = {
 -- id here as it's built, until all of StationVariantIds is covered.
 GameData.ImplementedVariantIds = {
 	Coding      = { "CodeSprint", "BugSquash", "KeyCombo", "CompileCheck" },
-	MapBuilding = { "PrecisionPlace" },
+	MapBuilding = { "PrecisionPlace", "BlueprintMemory" },
 	Testing     = { "QAQuiz" },
 }
 

@@ -105,6 +105,17 @@ local function generateRoundInfo(variantId, difficulty, params)
 			seq[i] = glyphs[rng:NextInteger(1, #glyphs)]
 		end
 		return { keys = seq, total = params.len, maxWait = params.peekSeconds + params.inputSeconds + 2 }
+	elseif variantId == "BlueprintMemory" then
+		local cells = params.gridN * params.gridN
+		local pattern, used = {}, {}
+		while #pattern < math.min(params.patternLen, cells) do
+			local c = rng:NextInteger(1, cells)
+			if not used[c] then
+				used[c] = true
+				table.insert(pattern, c)
+			end
+		end
+		return { gridN = params.gridN, pattern = pattern, total = #pattern, maxWait = params.peekSeconds + 12 }
 	elseif variantId == "CompileCheck" then
 		local s = GameData.CompileSnippets[rng:NextInteger(1, #GameData.CompileSnippets)]
 		local lines = { s.good, s.bad[1], s.bad[2] }

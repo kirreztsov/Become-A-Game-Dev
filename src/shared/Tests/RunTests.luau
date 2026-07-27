@@ -45,4 +45,44 @@ t:assertEqual(loseHit, false, "losing roll reports hitBonus false")
 local noneCash = TrendMatch.computeCash("Adventure", "Fantasy", trend1, trend2, 1, function() return 0.01 end)
 t:assertEqual(noneCash, GameData.getBaseCash(1), "no match always gives base cash regardless of roll")
 
+-- Studio level + difficulty
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 0, subscribers = 0 }), 1, "fresh studio is level 1")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 2, subscribers = 0 }), 2, "2 games -> +1 level")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 0, subscribers = 100 }), 3, "100 subs -> +2 levels")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 999, subscribers = 99999 }), GameData.StudioLevelMax, "level clamps at max")
+t:assertEqual(GameData.getDifficulty(1), 0, "level 1 -> difficulty 0")
+t:assertEqual(GameData.getDifficulty(GameData.DifficultyRampLevels + 1), 1, "ramp end -> difficulty 1")
+t:assertEqual(GameData.getDifficulty(9999), 1, "difficulty clamps at 1")
+
+t:assertEqual(GameData.scoreMash(15, 15), 1, "mash hitting target = 1")
+t:assertEqual(GameData.scoreMash(30, 15), 1, "mash over target clamps to 1")
+t:assertEqual(GameData.scoreMash(6, 12), 0.5, "mash half target = 0.5")
+t:assertEqual(GameData.scoreTiming(0.5, 0.5, 0.15), 1, "timing dead-center = 1")
+t:assertEqual(GameData.scoreTiming(0.65, 0.5, 0.15), 0, "timing at zone edge = 0")
+t:assertEqual(GameData.scoreTiming(0.9, 0.5, 0.15), 0, "timing outside zone = 0")
+t:assertEqual(GameData.scoreSequence(3, 6), 0.5, "sequence 3 of 6 = 0.5")
+t:assertEqual(GameData.scoreSequence(0, 0), 0, "sequence 0 of 0 = 0 (no divide error)")
+t:assertEqual(GameData.scoreChoice(2, 2, 0.3), 1, "correct choice = 1")
+t:assertEqual(GameData.scoreChoice(1, 2, 0.3), 0.3, "wrong choice = wrongScore")
+
+-- param lerp + rounding
+GameData.VariantParams.__test = { easy = { a = 0, n = 2 }, hard = { a = 10, n = 8 }, ints = { n = true } }
+local p0 = GameData.getVariantParams("__test", 0)
+t:assertEqual(p0.a, 0, "difficulty 0 -> easy value")
+t:assertEqual(p0.n, 2, "difficulty 0 -> easy int")
+local p1 = GameData.getVariantParams("__test", 1)
+t:assertEqual(p1.a, 10, "difficulty 1 -> hard value")
+t:assertEqual(p1.n, 8, "difficulty 1 -> hard int")
+local ph = GameData.getVariantParams("__test", 0.5)
+t:assertEqual(ph.a, 5, "midpoint float")
+t:assertEqual(ph.n, 5, "midpoint int rounded")
+GameData.VariantParams.__test = nil
+
+-- rotation avoids repeats (inject a temp implemented pool so pool size > 1)
+GameData.ImplementedVariantIds.__test = { "a", "b", "c" }
+local first = GameData.pickVariantId("__test", "a", function() return 0 end)
+t:assertEqual(first ~= "a", true, "pickVariantId never repeats lastId when pool > 1")
+t:assertEqual(GameData.pickVariantId("__test", nil, function() return 0 end), "a", "pickVariantId with no lastId can return the first")
+GameData.ImplementedVariantIds.__test = nil
+
 t:summary()

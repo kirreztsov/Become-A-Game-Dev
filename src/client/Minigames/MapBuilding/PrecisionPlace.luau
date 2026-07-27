@@ -1,21 +1,30 @@
+-- The "map building" mini-game screen: a horizontal track with a sweeping
+-- marker and a highlighted green zone, plus a big "Place It!" button. This is
+-- a "variant" implementation: it owns no remotes and no round logic -- it
+-- just builds UI and calls the injected `report` callback on every tap. The
+-- framework controller supplies `report`, decides round timing/targets (via
+-- `roundInfo`), and owns the server round.
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
-local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 
-local MapBuildingGame = {}
+local PrecisionPlace = { id = "PrecisionPlace", station = "MapBuilding", inputKind = "timing" }
 
 local container
 local marker
+local zoneHighlight
 local placeButton
+local reportFn
 local renderConnection
 local roundStartTime
 local roundPeriod
 local placed = false
 
-function MapBuildingGame.init(parent, theme)
+function PrecisionPlace.init(parent, theme, report)
+	reportFn = report
+
 	container = Instance.new("Frame")
-	container.Name = "MapBuildingGame"
+	container.Name = "PrecisionPlace"
 	container.Size = UDim2.fromScale(1, 1)
 	container.BackgroundTransparency = 1
 	container.Visible = false
@@ -33,7 +42,7 @@ function MapBuildingGame.init(parent, theme)
 	trackCorner.Parent = track
 
 	local zoneWidthScale = GameData.MapBuildingZoneHalfWidth * 2
-	local zoneHighlight = Instance.new("Frame")
+	zoneHighlight = Instance.new("Frame")
 	zoneHighlight.Size = UDim2.new(zoneWidthScale, 0, 1, 0)
 	zoneHighlight.Position = UDim2.new(GameData.MapBuildingZoneCenter - GameData.MapBuildingZoneHalfWidth, 0, 0, 0)
 	zoneHighlight.BackgroundColor3 = theme.Success
@@ -56,7 +65,7 @@ function MapBuildingGame.init(parent, theme)
 	placeButton.Text = "\240\159\147\141 Place It!"
 	placeButton.Font = Enum.Font.FredokaOne
 	placeButton.TextSize = 18
-	placeButton.TextColor3 = theme.Text
+	placeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	placeButton.AutoButtonColor = false
 	placeButton.BorderSizePixel = 0
 	placeButton.Parent = container
@@ -70,14 +79,21 @@ function MapBuildingGame.init(parent, theme)
 			return
 		end
 		placed = true
-		Remotes.ReportPlacement:FireServer()
+		reportFn()
 	end)
 end
 
-function MapBuildingGame.startRound(startTime, periodSeconds)
-	roundStartTime = startTime
-	roundPeriod = periodSeconds
+function PrecisionPlace.startRound(difficulty, params, roundInfo)
+	roundStartTime = roundInfo.startTime
+	roundPeriod = roundInfo.periodSeconds
 	placed = false
+
+	local zoneHalfWidth = roundInfo.zoneHalfWidth or GameData.MapBuildingZoneHalfWidth
+	if zoneHighlight then
+		zoneHighlight.Size = UDim2.new(zoneHalfWidth * 2, 0, 1, 0)
+		zoneHighlight.Position = UDim2.new(GameData.MapBuildingZoneCenter - zoneHalfWidth, 0, 0, 0)
+	end
+
 	container.Visible = true
 
 	if renderConnection then
@@ -91,7 +107,7 @@ function MapBuildingGame.startRound(startTime, periodSeconds)
 	end)
 end
 
-function MapBuildingGame.hide()
+function PrecisionPlace.hide()
 	if renderConnection then
 		renderConnection:Disconnect()
 		renderConnection = nil
@@ -101,4 +117,4 @@ function MapBuildingGame.hide()
 	end
 end
 
-return MapBuildingGame
+return PrecisionPlace

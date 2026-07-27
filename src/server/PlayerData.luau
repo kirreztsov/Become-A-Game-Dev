@@ -14,10 +14,53 @@ local function defaultData()
 		houseTier = 0,
 		pcTier = 0,
 		workers = {
-			Coding = { hired = false, level = 0 },
-			MapBuilding = { hired = false, level = 0 },
-			Testing = { hired = false, level = 0 },
+			Coding = { hired = false, level = 0, rarity = nil },
+			MapBuilding = { hired = false, level = 0, rarity = nil },
+			Testing = { hired = false, level = 0, rarity = nil },
 		},
+		-- Uncollected idle earnings per side room (see PlotManager idle loop).
+		idle = { Arcade = 0, Merch = 0 },
+		-- Which money rooms the player has bought (tycoon buy-buttons). Rooms
+		-- only earn once owned; no longer unlocked by house tier.
+		roomsOwned = { Arcade = false, Merch = false },
+		-- Server-time (Workspace:GetServerTimeNow) that the shop cash-boost
+		-- runs until; 0 = no active boost. boostMult is that boost's size.
+		boostUntil = 0,
+		boostMult = 1,
+		-- Icon + label of the active boost, for the on-screen boost timer.
+		boostIcon = nil,
+		boostLabel = nil,
+		-- Chosen character tint + label from the Clothes shop (nil = default).
+		outfitColor = nil,
+		outfitLabel = nil,
+		-- Studio decorations the player has placed: a list of
+		-- { id, x, y, z, yaw } (DataStore-safe numbers).
+		decorations = {},
+		-- Channel subscribers, the highest Play Button milestone index reached,
+		-- and a carry for fractional ad-revenue cash between ticks.
+		subscribers = 0,
+		subMilestone = 0,
+		subAdAccum = 0,
+		-- Daily reward streak: os.time() of the last claim, and the current
+		-- streak length (see DailyRewardService).
+		lastDailyClaim = 0,
+		dailyStreak = 0,
+		-- How many times the player has prestiged/rebirthed (permanent bonus).
+		prestigeLevel = 0,
+		-- Case pity counters (spins since the last guaranteed drop).
+		normalPity = 0,
+		luckyPity = 0,
+		-- Unspun spins the player has bought and can open whenever (stackable).
+		normalSpinsOwned = 0,
+		luckySpinsOwned = 0,
+		-- Whether the player has finished (or skipped) the onboarding tutorial.
+		tutorialDone = false,
+		-- Remembered UI preference: dark mode on/off.
+		darkMode = false,
+		-- Owned game passes (key -> true), and whether the one-time Starter Pack
+		-- has been bought. Passes are re-verified from Roblox on join.
+		passes = {},
+		starterPackBought = false,
 	}
 end
 
@@ -31,6 +74,32 @@ function PlayerData.load(player)
 			-- Existing save found in DataStore -- backfill any fields added since this save was written
 			data.houseTier = data.houseTier or 0
 			data.pcTier = data.pcTier or 0
+			data.idle = data.idle or { Arcade = 0, Merch = 0 }
+			data.roomsOwned = data.roomsOwned or { Arcade = false, Merch = false }
+			data.boostUntil = 0 -- boosts are session-only; never restore a stale one
+			data.boostMult = data.boostMult or 1
+			data.decorations = data.decorations or {}
+			data.subscribers = data.subscribers or 0
+			data.subMilestone = data.subMilestone or 0
+			data.subAdAccum = data.subAdAccum or 0
+			data.lastDailyClaim = data.lastDailyClaim or 0
+			data.dailyStreak = data.dailyStreak or 0
+			data.prestigeLevel = data.prestigeLevel or 0
+			data.normalPity = data.normalPity or 0
+			data.luckyPity = data.luckyPity or 0
+			data.normalSpinsOwned = data.normalSpinsOwned or 0
+			data.luckySpinsOwned = data.luckySpinsOwned or 0
+			if data.tutorialDone == nil then
+				data.tutorialDone = false
+			end
+			if data.darkMode == nil then
+				data.darkMode = false
+			end
+			data.passes = data.passes or {}
+			if data.starterPackBought == nil then
+				data.starterPackBought = false
+			end
+			-- outfitColor is stored as a DataStore-safe {r,g,b} table (or nil).
 			cache[player.UserId] = data
 			failedLoads[player.UserId] = nil
 		else

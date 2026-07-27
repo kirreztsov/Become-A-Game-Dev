@@ -1,6 +1,7 @@
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
+local PlotManager = require(script.Parent.PlotManager)
 
 local WorkerService = {}
 
@@ -16,16 +17,18 @@ function WorkerService.start()
 			return
 		end
 
-		if data.cash < GameData.WorkerHireCost then
+		local hireCost = GameData.getWorkerHireCost(data.houseTier)
+		if data.cash < hireCost then
 			Remotes.WorkerActionResult:FireClient(player, role, "hire", false)
 			return
 		end
 
-		data.cash -= GameData.WorkerHireCost
+		data.cash -= hireCost
 		worker.hired = true
 
 		Remotes.WorkerActionResult:FireClient(player, role, "hire", true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)
+		PlotManager.refreshWorkerNPCs(player)
 	end)
 
 	Remotes.RequestUpgradeWorker.OnServerEvent:Connect(function(player, role)
@@ -39,7 +42,7 @@ function WorkerService.start()
 			return
 		end
 
-		local cost = GameData.getWorkerUpgradeCost(worker.level)
+		local cost = GameData.getWorkerUpgradeCost(worker.level, data.houseTier)
 		if data.cash < cost then
 			Remotes.WorkerActionResult:FireClient(player, role, "upgrade", false)
 			return

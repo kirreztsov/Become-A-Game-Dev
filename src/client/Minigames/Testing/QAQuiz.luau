@@ -1,15 +1,23 @@
-local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+-- The "testing" mini-game screen: a prompt label plus up to 4 option
+-- buttons. This is a "variant" implementation: it owns no remotes and no
+-- round logic -- it just builds UI and calls the injected `report` callback
+-- on every tap. The framework controller supplies `report`, decides round
+-- content (via `roundInfo`), and owns the server round.
+local QAQuiz = { id = "QAQuiz", station = "Testing", inputKind = "choice" }
 
-local TestingGame = {}
+local MAX_OPTIONS = 4
 
 local container
 local promptLabel
 local optionButtons = {}
+local reportFn
 local answered = false
 
-function TestingGame.init(parent, theme)
+function QAQuiz.init(parent, theme, report)
+	reportFn = report
+
 	container = Instance.new("Frame")
-	container.Name = "TestingGame"
+	container.Name = "QAQuiz"
 	container.Size = UDim2.fromScale(1, 1)
 	container.BackgroundTransparency = 1
 	container.Visible = false
@@ -26,7 +34,7 @@ function TestingGame.init(parent, theme)
 	promptLabel.TextColor3 = theme.Text
 	promptLabel.Parent = container
 
-	for i = 1, 2 do
+	for i = 1, MAX_OPTIONS do
 		local button = Instance.new("TextButton")
 		button.Size = UDim2.new(1, -24, 0, 36)
 		button.Position = UDim2.fromOffset(12, 70 + (i - 1) * 44)
@@ -38,6 +46,7 @@ function TestingGame.init(parent, theme)
 		button.TextColor3 = theme.Text
 		button.AutoButtonColor = false
 		button.BorderSizePixel = 0
+		button.Visible = false
 		button.Parent = container
 
 		local corner = Instance.new("UICorner")
@@ -49,26 +58,36 @@ function TestingGame.init(parent, theme)
 				return
 			end
 			answered = true
-			Remotes.ReportChoice:FireServer(i)
+			reportFn(i)
 		end)
 
 		optionButtons[i] = button
 	end
 end
 
-function TestingGame.startRound(prompt, options)
+function QAQuiz.startRound(difficulty, params, roundInfo)
 	answered = false
-	promptLabel.Text = prompt
+	promptLabel.Text = roundInfo.prompt or ""
+
+	local options = roundInfo.options or {}
 	for i, button in ipairs(optionButtons) do
-		button.Text = options[i] or ""
+		local text = options[i]
+		if text then
+			button.Text = text
+			button.Visible = true
+		else
+			button.Text = ""
+			button.Visible = false
+		end
 	end
+
 	container.Visible = true
 end
 
-function TestingGame.hide()
+function QAQuiz.hide()
 	if container then
 		container.Visible = false
 	end
 end
 
-return TestingGame
+return QAQuiz

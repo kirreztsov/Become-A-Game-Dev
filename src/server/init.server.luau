@@ -7,15 +7,27 @@ local WorkerService = require(script.WorkerService)
 local HouseService = require(script.HouseService)
 local PCService = require(script.PCService)
 local PlotManager = require(script.PlotManager)
+local DailyRewardService = require(script.DailyRewardService)
+local LeaderboardService = require(script.LeaderboardService)
+local WorkerCaseService = require(script.WorkerCaseService)
+local MonetizationService = require(script.MonetizationService)
+local TutorialService = require(script.TutorialService)
 local Lobby = require(script.Lobby)
 
 PlotManager.build()
 Lobby.build()
+LeaderboardService.build()
 TrendsService.start()
 DevelopmentService.start()
 WorkerService.start()
 HouseService.start()
 PCService.start()
+PlotManager.start()
+DailyRewardService.start()
+LeaderboardService.start()
+WorkerCaseService.start()
+MonetizationService.start()
+TutorialService.start()
 Lobby.start()
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
@@ -45,11 +57,15 @@ local function onPlayerJoined(player)
 	PlotManager.assignPlot(player)
 
 	local data = PlayerData.load(player)
-	PlotManager.rebuildHouseForPlayer(player, data.houseTier)
+	PlotManager.rebuildHouseForPlayer(player, data.houseTier, data.pcTier)
 	PlotManager.rebuildPCForPlayer(player, data.pcTier)
+	PlotManager.rebuildDecorForPlayer(player, data.decorations)
+	PlotManager.refreshWorkerNPCs(player)
+	PlotManager.rebuildPlayButtons(player, data.subMilestone)
 
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 	TrendsService.sendCurrentTo(player)
+	DailyRewardService.checkForPlayer(player)
 
 	player.CharacterAdded:Connect(function(character)
 		teleportToLobby(character)
@@ -61,6 +77,23 @@ local function onPlayerJoined(player)
 end
 
 Players.PlayerAdded:Connect(onPlayerJoined)
+
+-- Clients pull their state once their listeners are connected -- the initial
+-- push at join can be missed while a client is still loading its UI.
+Remotes.RequestInitialState.OnServerEvent:Connect(function(player)
+	local data = PlayerData.get(player)
+	if data then
+		Remotes.PlayerStateUpdated:FireClient(player, data)
+	end
+end)
+
+-- Remember the player's dark-mode UI preference.
+Remotes.SetDarkMode.OnServerEvent:Connect(function(player, on)
+	local data = PlayerData.get(player)
+	if data then
+		data.darkMode = on and true or false
+	end
+end)
 
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(onPlayerJoined, player)

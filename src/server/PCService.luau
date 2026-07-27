@@ -17,7 +17,7 @@ function PCService.start()
 			return
 		end
 
-		local cost = GameData.getPCUpgradeCost(data.pcTier)
+		local cost = GameData.getPCUpgradeCost(data.pcTier, data.houseTier)
 		if data.cash < cost then
 			Remotes.PCActionResult:FireClient(player, false)
 			return

@@ -17,8 +17,7 @@ local ALL = {
 	require(Testing.QAQuiz),
 	require(Testing.BugHunt),
 	require(Testing.PassOrFail),
-	-- later tasks append:
-	-- CrashFix
+	require(Testing.CrashFix),
 }
 
 local Registry = { byStation = {}, byId = {} }

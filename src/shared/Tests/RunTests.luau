@@ -45,4 +45,13 @@ t:assertEqual(loseHit, false, "losing roll reports hitBonus false")
 local noneCash = TrendMatch.computeCash("Adventure", "Fantasy", trend1, trend2, 1, function() return 0.01 end)
 t:assertEqual(noneCash, GameData.getBaseCash(1), "no match always gives base cash regardless of roll")
 
+-- Studio level + difficulty
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 0, subscribers = 0 }), 1, "fresh studio is level 1")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 2, subscribers = 0 }), 2, "2 games -> +1 level")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 0, subscribers = 100 }), 3, "100 subs -> +2 levels")
+t:assertEqual(GameData.getStudioLevel({ gamesReleased = 999, subscribers = 99999 }), GameData.StudioLevelMax, "level clamps at max")
+t:assertEqual(GameData.getDifficulty(1), 0, "level 1 -> difficulty 0")
+t:assertEqual(GameData.getDifficulty(GameData.DifficultyRampLevels + 1), 1, "ramp end -> difficulty 1")
+t:assertEqual(GameData.getDifficulty(9999), 1, "difficulty clamps at 1")
+
 t:summary()

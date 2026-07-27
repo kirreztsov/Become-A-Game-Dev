@@ -320,6 +320,22 @@ function GameData.getBaseCash(devQuality)
 	return GameData.PayoutMultiplier * devQuality
 end
 
+GameData.StudioLevelPerGames = 2
+GameData.StudioLevelPerSubs  = 50
+GameData.StudioLevelMax      = 50
+GameData.DifficultyRampLevels = 19
+
+function GameData.getStudioLevel(data)
+	local lvl = 1
+		+ math.floor((data.gamesReleased or 0) / GameData.StudioLevelPerGames)
+		+ math.floor((data.subscribers or 0) / GameData.StudioLevelPerSubs)
+	return math.min(lvl, GameData.StudioLevelMax)
+end
+
+function GameData.getDifficulty(studioLevel)
+	return math.clamp((studioLevel - 1) / GameData.DifficultyRampLevels, 0, 1)
+end
+
 function GameData.getMarkerPosition(elapsedSeconds, periodSeconds)
 	local phase01 = (elapsedSeconds % periodSeconds) / periodSeconds
 

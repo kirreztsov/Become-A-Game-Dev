@@ -64,12 +64,12 @@ GameData.TestingQuestions = {
 -- shuffles the three into `lines` and tracks which shuffled slot is correct.
 GameData.CompileSnippets = {
 	{ good = "local x = 5", bad = { "local x = ", "locl x = 5" } },
-	{ good = "print(\"hi\")", bad = { "print(\"hi\"", "prin(\"hi\")" } },
+	{ good = "print(\"hi\")", bad = { "print(\"hi\"", "print((\"hi\")" } },
 	{ good = "if x then end", bad = { "if x then", "iff x then end" } },
 	{ good = "local t = {}", bad = { "local t = {", "locla t = {}" } },
 	{ good = "for i = 1, 10 do end", bad = { "for i = 1 10 do end", "fr i = 1, 10 do end" } },
 	{ good = "function foo() end", bad = { "function foo(", "functoin foo() end" } },
-	{ good = "return true", bad = { "retrun true", "return tru" } },
+	{ good = "return true", bad = { "retrun true", "return true true" } },
 	{ good = "local s = \"test\"", bad = { "local s = \"test", "local s = test\"" } },
 	{ good = "while x do end", bad = { "while x do", "whille x do end" } },
 	{ good = "local a, b = 1, 2", bad = { "local a, b = 1,", "locl a, b = 1, 2" } },

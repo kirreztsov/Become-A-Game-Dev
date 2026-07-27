@@ -65,4 +65,24 @@ t:assertEqual(GameData.scoreSequence(0, 0), 0, "sequence 0 of 0 = 0 (no divide e
 t:assertEqual(GameData.scoreChoice(2, 2, 0.3), 1, "correct choice = 1")
 t:assertEqual(GameData.scoreChoice(1, 2, 0.3), 0.3, "wrong choice = wrongScore")
 
+-- param lerp + rounding
+GameData.VariantParams.__test = { easy = { a = 0, n = 2 }, hard = { a = 10, n = 8 }, ints = { n = true } }
+local p0 = GameData.getVariantParams("__test", 0)
+t:assertEqual(p0.a, 0, "difficulty 0 -> easy value")
+t:assertEqual(p0.n, 2, "difficulty 0 -> easy int")
+local p1 = GameData.getVariantParams("__test", 1)
+t:assertEqual(p1.a, 10, "difficulty 1 -> hard value")
+t:assertEqual(p1.n, 8, "difficulty 1 -> hard int")
+local ph = GameData.getVariantParams("__test", 0.5)
+t:assertEqual(ph.a, 5, "midpoint float")
+t:assertEqual(ph.n, 5, "midpoint int rounded")
+GameData.VariantParams.__test = nil
+
+-- rotation avoids repeats
+local ids = GameData.StationVariantIds.Coding
+t:assertEqual(#ids, 4, "coding has 4 variants")
+-- rng stub returns 0 -> first item of pool; pool excludes lastId
+local first = GameData.pickVariantId("Coding", ids[1], function() return 0 end)
+t:assertEqual(first ~= ids[1], true, "never repeats lastId when pool > 1")
+
 t:summary()

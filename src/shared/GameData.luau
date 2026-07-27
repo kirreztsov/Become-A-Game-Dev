@@ -553,4 +553,57 @@ function GameData.scoreChoice(chosenIndex, correctIndex, wrongScore)
 	return wrongScore
 end
 
+-- ---- Minigame variants & difficulty scaling --------------------------------
+-- Three phases, each with four minigame variants. Variants are picked in
+-- rotation, avoiding repeats when possible. Parameters scale per difficulty.
+
+GameData.StationVariantIds = {
+	Coding      = { "CodeSprint", "BugSquash", "KeyCombo", "CompileCheck" },
+	MapBuilding = { "PrecisionPlace", "BlueprintMemory", "TileDrop", "PathConnect" },
+	Testing     = { "BugHunt", "QAQuiz", "PassOrFail", "CrashFix" },
+}
+
+GameData.VariantInputKind = {
+	CodeSprint = "mash", BugSquash = "mash", KeyCombo = "sequence", CompileCheck = "choice",
+	PrecisionPlace = "timing", BlueprintMemory = "sequence", TileDrop = "sequence", PathConnect = "sequence",
+	BugHunt = "choice", QAQuiz = "choice", PassOrFail = "sequence", CrashFix = "mash",
+}
+
+-- Filled incrementally by each variant task. Values below are the final targets.
+GameData.VariantParams = {
+	CodeSprint     = { easy = { targetTaps = 12, windowSeconds = 3 },              hard = { targetTaps = 40, windowSeconds = 3 },              ints = { targetTaps = true } },
+	BugSquash      = { easy = { targetBugs = 6, spawnInterval = 0.55, windowSeconds = 4 }, hard = { targetBugs = 16, spawnInterval = 0.28, windowSeconds = 4 }, ints = { targetBugs = true } },
+	KeyCombo       = { easy = { len = 3, peekSeconds = 2.5, inputSeconds = 6 },    hard = { len = 8, peekSeconds = 0.8, inputSeconds = 5 },    ints = { len = true } },
+	CompileCheck   = { easy = { answerSeconds = 10 },                              hard = { answerSeconds = 4 },                               ints = {} },
+	PrecisionPlace = { easy = { zoneHalfWidth = 0.18, periodSeconds = 2.2 },       hard = { zoneHalfWidth = 0.05, periodSeconds = 1.0 },       ints = {} },
+	BlueprintMemory= { easy = { gridN = 3, patternLen = 3, peekSeconds = 2.5 },    hard = { gridN = 4, patternLen = 8, peekSeconds = 1.0 },    ints = { gridN = true, patternLen = true } },
+	TileDrop       = { easy = { pieces = 3, fallSeconds = 2.0 },                   hard = { pieces = 7, fallSeconds = 0.9 },                   ints = { pieces = true } },
+	PathConnect    = { easy = { gridN = 4, timeSeconds = 8 },                      hard = { gridN = 6, timeSeconds = 5 },                      ints = { gridN = true } },
+	BugHunt        = { easy = { gridN = 3, answerSeconds = 6 },                    hard = { gridN = 5, answerSeconds = 3 },                    ints = { gridN = true } },
+	QAQuiz         = { easy = { optionCount = 2, answerSeconds = 12 },             hard = { optionCount = 4, answerSeconds = 5 },              ints = { optionCount = true } },
+	PassOrFail     = { easy = { count = 5, flashSeconds = 2.0 },                   hard = { count = 12, flashSeconds = 0.8 },                  ints = { count = true } },
+	CrashFix       = { easy = { targetCrashes = 6, spawnInterval = 0.6, windowSeconds = 5 }, hard = { targetCrashes = 18, spawnInterval = 0.25, windowSeconds = 5 }, ints = { targetCrashes = true } },
+}
+
+function GameData.getVariantParams(id, difficulty)
+	local spec = GameData.VariantParams[id]
+	local ints = spec.ints or {}
+	local out = {}
+	for key, easyVal in pairs(spec.easy) do
+		local v = easyVal + (spec.hard[key] - easyVal) * difficulty
+		if ints[key] then v = math.floor(v + 0.5) end
+		out[key] = v
+	end
+	return out
+end
+
+function GameData.pickVariantId(station, lastId, rng)
+	local ids = GameData.StationVariantIds[station]
+	local pool = {}
+	for _, id in ipairs(ids) do
+		if id ~= lastId or #ids == 1 then table.insert(pool, id) end
+	end
+	return pool[math.floor(rng() * #pool) + 1]
+end
+
 return GameData

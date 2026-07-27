@@ -9,9 +9,10 @@ local ALL = {
 	require(Coding.CodeSprint),
 	require(Coding.BugSquash),
 	require(Coding.KeyCombo),
+	require(Coding.CompileCheck),
 	require(MapBuilding.PrecisionPlace),
 	require(Testing.QAQuiz),
-	-- later tasks append: CompileCheck, BlueprintMemory,
+	-- later tasks append: BlueprintMemory,
 	-- TileDrop, PathConnect, BugHunt, PassOrFail, CrashFix
 }
 

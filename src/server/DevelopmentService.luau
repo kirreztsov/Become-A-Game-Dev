@@ -105,6 +105,21 @@ local function generateRoundInfo(variantId, difficulty, params)
 			seq[i] = glyphs[rng:NextInteger(1, #glyphs)]
 		end
 		return { keys = seq, total = params.len, maxWait = params.peekSeconds + params.inputSeconds + 2 }
+	elseif variantId == "CompileCheck" then
+		local s = GameData.CompileSnippets[rng:NextInteger(1, #GameData.CompileSnippets)]
+		local lines = { s.good, s.bad[1], s.bad[2] }
+		-- Fisher-Yates shuffle, tracking where the good line (originally index 1) lands.
+		local correctIndex = 1
+		for i = #lines, 2, -1 do
+			local j = rng:NextInteger(1, i)
+			lines[i], lines[j] = lines[j], lines[i]
+			if correctIndex == i then
+				correctIndex = j
+			elseif correctIndex == j then
+				correctIndex = i
+			end
+		end
+		return { lines = lines, correctIndex = correctIndex }
 	end
 	return {} -- mash variants need no content
 end

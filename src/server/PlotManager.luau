@@ -96,6 +96,69 @@ local function buildChairVisual(parent, namePrefix, seatCenter, color)
 	pedestal.Parent = parent
 end
 
+-- Places a Blender interior prop (Desk / Chair) with its base at worldBasePos,
+-- scaled to `targetHeight` studs, painted by name. Returns the model or nil.
+local function placeInteriorProp(name, parent, worldBasePos, targetHeight, yaw, paint)
+	local model = StudioModels.get(name)
+	if not model then
+		return nil
+	end
+	local _, size = model:GetBoundingBox()
+	if size.Y > 0 then
+		model:ScaleTo(model:GetScale() * (targetHeight / size.Y))
+	end
+	model:PivotTo(CFrame.new(worldBasePos) * CFrame.Angles(0, yaw or 0, 0))
+	local cf, sz = model:GetBoundingBox()
+	model:PivotTo(model:GetPivot() + Vector3.new(0, worldBasePos.Y - (cf.Position.Y - sz.Y / 2), 0))
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			paint(p)
+			p.Anchored = true
+		end
+	end
+	model.Parent = parent
+	return model
+end
+
+-- Blender desk (top surface at floor+2.5, so the monitor still sits on it).
+-- Returns true if a mesh was placed (caller skips the procedural desk).
+local function placeDeskMesh(parent, origin, x, z, deskName)
+	if not StudioModels.has("Desk") then
+		return false
+	end
+	local m = placeInteriorProp("Desk", parent, origin + Vector3.new(x, FLOOR_TOP, z), 2.5, 0, function(p)
+		if p.Name:find("Top") then
+			p.Color, p.Material, p.CanCollide = DESK_COLOR, Enum.Material.Wood, true
+		else
+			p.Color, p.Material, p.CanCollide = DARK_TRIM_COLOR, Enum.Material.Metal, true
+		end
+	end)
+	if m then
+		m.Name = deskName
+	end
+	return m ~= nil
+end
+
+-- Blender office chair placed so its cushion lands at `center` (the seat spot).
+-- Returns true if placed (caller skips the procedural chair visual).
+local function placeChairMesh(parent, center, chairName)
+	if not StudioModels.has("Chair") then
+		return false
+	end
+	local m = placeInteriorProp("Chair", parent, center - Vector3.new(0, 1.2, 0), 3.2, 0, function(p)
+		if p.Name:find("Seat") then
+			p.Color, p.Material = CHAIR_COLOR, Enum.Material.Fabric
+		else
+			p.Color, p.Material = DARK_TRIM_COLOR, Enum.Material.Metal
+		end
+		p.CanCollide = false
+	end)
+	if m then
+		m.Name = chairName
+	end
+	return m ~= nil
+end
+
 -- The plot is now just the building's own lot: a foundation pad under the
 -- tower plus a short entrance apron reaching out toward the road (-Z),
 -- rather than a big open yard. This is persistent (the ground floor always
@@ -138,11 +201,13 @@ local function buildWorkersDesk(parent, origin, x, z, namePrefix)
 	local legCenterY = FLOOR_TOP + legHeight / 2
 	local deskCenterY = deskTopSurfaceY + 0.25
 
-	makePart(namePrefix .. "WorkersDeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, parent)
-	makePart(namePrefix .. "WorkersDeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. "WorkersDeskLegB", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. "WorkersDeskLegC", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. "WorkersDeskLegD", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+	if not placeDeskMesh(parent, origin, x, z, namePrefix .. "WorkersDesk") then
+		makePart(namePrefix .. "WorkersDeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, parent)
+		makePart(namePrefix .. "WorkersDeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. "WorkersDeskLegB", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. "WorkersDeskLegC", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. "WorkersDeskLegD", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+	end
 
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
@@ -160,10 +225,11 @@ local function buildWorkersDesk(parent, origin, x, z, namePrefix)
 	workersPrompt.MaxActivationDistance = 14
 	workersPrompt.Parent = screen
 
-	local chairHeight = 0.6
 	local chairCenter = origin + Vector3.new(x, FLOOR_TOP + 1.3, z - 3)
-	makePart(namePrefix .. "WorkersChair", Vector3.new(2, chairHeight, 2), chairCenter, CHAIR_COLOR, nil, parent)
-	buildChairVisual(parent, namePrefix .. "Workers", chairCenter, CHAIR_COLOR)
+	if not placeChairMesh(parent, chairCenter, namePrefix .. "WorkersChairModel") then
+		makePart(namePrefix .. "WorkersChair", Vector3.new(2, 0.6, 2), chairCenter, CHAIR_COLOR, nil, parent)
+		buildChairVisual(parent, namePrefix .. "Workers", chairCenter, CHAIR_COLOR)
+	end
 end
 
 -- Desk positions are computed (see computeStudioLayout), not stored here --
@@ -225,11 +291,13 @@ local function buildStation(parent, origin, config, x, z, namePrefix, monitorTie
 	local legCenterY = FLOOR_TOP + legHeight / 2
 	local deskCenterY = deskTopSurfaceY + 0.25
 
-	makePart(namePrefix .. config.name .. "DeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, parent)
-	makePart(namePrefix .. config.name .. "DeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. config.name .. "DeskLegB", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. config.name .. "DeskLegC", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
-	makePart(namePrefix .. config.name .. "DeskLegD", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+	if not placeDeskMesh(parent, origin, x, z, namePrefix .. config.name .. "Desk") then
+		makePart(namePrefix .. config.name .. "DeskTop", Vector3.new(6, 0.5, 3), origin + Vector3.new(x, deskCenterY, z), DESK_COLOR, nil, parent)
+		makePart(namePrefix .. config.name .. "DeskLegA", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. config.name .. "DeskLegB", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z + 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. config.name .. "DeskLegC", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x - 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+		makePart(namePrefix .. config.name .. "DeskLegD", Vector3.new(0.4, legHeight, 0.4), origin + Vector3.new(x + 2.6, legCenterY, z - 1), DARK_TRIM_COLOR, nil, parent)
+	end
 
 	local deskTopSurfaceTopY = deskTopSurfaceY + 0.5
 	local monitorHeight = 1.6
@@ -249,9 +317,14 @@ local function buildStation(parent, origin, config, x, z, namePrefix, monitorTie
 	seat.CFrame = CFrame.new(seatCenter) * CFrame.Angles(0, math.rad(180), 0)
 	seat.Parent = parent
 
-	-- Decoration only -- the seat's own geometry/CFrame (what actually
-	-- matters for player-sitting behavior) is left untouched above.
-	buildChairVisual(parent, namePrefix .. config.name, seatCenter, CHAIR_COLOR)
+	-- Decoration only -- the seat's own CFrame (what matters for sitting) is
+	-- untouched. A Blender office chair replaces the blocky visual if synced;
+	-- the functional Seat is hidden (still sittable) so the mesh cushion shows.
+	if placeChairMesh(parent, seatCenter, namePrefix .. config.name .. "ChairModel") then
+		seat.Transparency = 1
+	else
+		buildChairVisual(parent, namePrefix .. config.name, seatCenter, CHAIR_COLOR)
+	end
 
 	-- A real painted nameplate (not a floating BillboardGui) facing the
 	-- seat, so it reads as a physical placard on the desk.

@@ -526,7 +526,9 @@ end
 -- depth on the distant mountains, and gentle bloom + colour grading. Coexists
 -- with the day/night cycle (which only drives ClockTime + Brightness).
 local function buildAtmosphere()
-	Lighting.Technology = Enum.Technology.Future
+	-- NOTE: Lighting.Technology can only be set in Studio/the place file, not
+	-- from a runtime server script (it needs the RobloxScript capability and
+	-- throws otherwise) -- so it's intentionally NOT set here.
 	Lighting.GlobalShadows = true
 	Lighting.EnvironmentDiffuseScale = 0.5
 	Lighting.EnvironmentSpecularScale = 0.4
@@ -1821,9 +1823,25 @@ local function buildNPC(lobbyFolder, name, position, shirt, pants, skin, hat)
 				p.Material, p.Anchored, p.CanCollide = Enum.Material.SmoothPlastic, true, false
 			end
 		end
-		m.PrimaryPart = torso or m:FindFirstChildWhichIsA("BasePart", true)
 		m.Parent = lobbyFolder
-		m:PivotTo(CFrame.new(position + Vector3.new(0, 3.9, 0)))
+		-- Sit the feet on the ground at `position`.
+		m:PivotTo(CFrame.new(position))
+		local cf, sz = m:GetBoundingBox()
+		m:PivotTo(m:GetPivot() + Vector3.new(0, position.Y - (cf.Position.Y - sz.Y / 2), 0))
+		-- Invisible IDENTITY-oriented root as the PrimaryPart, 3.9 above the
+		-- feet. The walk loop PivotTo's a look-at CFrame; with an identity root
+		-- that is a pure yaw, so the mesh stays UPRIGHT. (Using a mesh part as
+		-- the PrimaryPart stripped the import's up-axis rotation and laid the
+		-- character flat on its back.)
+		local root = Instance.new("Part")
+		root.Name = "NPCRoot"
+		root.Size = Vector3.new(1, 1, 1)
+		root.Transparency = 1
+		root.CanCollide = false
+		root.Anchored = true
+		root.CFrame = CFrame.new(position + Vector3.new(0, 3.9, 0))
+		root.Parent = m
+		m.PrimaryPart = root
 		return m, nil, nil
 	end
 
@@ -2207,7 +2225,9 @@ local function buildShop(lobbyFolder, index, def, center, yaw)
 	-- The shops sit SOUTH of Main Street, so the storefront (door, window,
 	-- awning, sign) must face +Z toward the street/plaza where players walk;
 	-- the blank back wall (-Z) is the one that backs onto the skyline towers.
-	makePart(prefix .. "Floor", Vector3.new(w, 1, d), center + Vector3.new(0, FLOOR_TOP - 0.5, 0), Color3.fromRGB(210, 205, 196), Enum.Material.Concrete, lobbyFolder)
+	-- Floor top sits 0.15 ABOVE the grass (was exactly level -> z-fighting that
+	-- read as a "broken" flickering texture on the shop floor).
+	makePart(prefix .. "Floor", Vector3.new(w, 1, d), center + Vector3.new(0, FLOOR_TOP - 0.35, 0), Color3.fromRGB(210, 205, 196), Enum.Material.Concrete, lobbyFolder)
 	makePart(prefix .. "WallBack", Vector3.new(w, h, wt), center + Vector3.new(0, wallCenterY, -halfD), wallColor, Enum.Material.SmoothPlastic, lobbyFolder)
 	makePart(prefix .. "WallLeft", Vector3.new(wt, h, d), center + Vector3.new(-halfW, wallCenterY, 0), wallColor, Enum.Material.SmoothPlastic, lobbyFolder)
 	makePart(prefix .. "WallRight", Vector3.new(wt, h, d), center + Vector3.new(halfW, wallCenterY, 0), wallColor, Enum.Material.SmoothPlastic, lobbyFolder)
@@ -2771,7 +2791,7 @@ function Lobby.build()
 	buildCars(lobbyFolder)
 	startCarAnimation()
 	startBasketballWatchdog()
-	buildAtmosphere()
+	pcall(buildAtmosphere) -- never let a Lighting quirk abort the rest of build()
 	startDayNightCycle()
 	startLobbyLife()
 

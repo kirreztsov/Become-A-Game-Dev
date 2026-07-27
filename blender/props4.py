@@ -132,23 +132,26 @@ def build_flowerbed():
 def build_slide():
     clear_scene()
     frame, chute, step = [], [], []
-    # Top platform + 4 legs.
-    box((2.6, 2.6, 0.3), (0, 0, 3.0), frame)
+    platZ = 3.0
+    # Top platform + 4 vertical legs.
+    box((2.6, 2.6, 0.3), (0, 0, platZ), frame)
     for ox in (-1.1, 1.1):
         for oy in (-1.1, 1.1):
-            box((0.25, 0.25, 3.0), (ox, oy, 1.5), frame)
-    # Guard rails around the platform top.
+            box((0.25, 0.25, platZ), (ox, oy, platZ / 2), frame)
+    # Guard rails: back (-X, above the ladder) + both sides, leaving +X open.
+    box((0.2, 2.6, 1.0), (-1.2, 0, platZ + 0.6), frame)
     for oy in (-1.2, 1.2):
-        box((2.6, 0.14, 1.0), (0, oy, 3.6), frame)
-    # Steps up the -X side.
+        box((1.6, 0.2, 1.0), (-0.4, oy, platZ + 0.6), frame)
+    # Ladder on the -X side: two rails + rungs climbing to the platform.
+    for oy in (-0.9, 0.9):
+        box((0.18, 0.18, platZ + 0.4), (-1.35, oy, (platZ + 0.4) / 2), frame)
     for i in range(4):
-        box((1.0, 2.2, 0.18), (-1.3 - i * 0.0, -0.0 + 0, 0.6 + i * 0.7), step, rot=(0, 0, 0))
-    for i in range(4):
-        pass
-    # Slide chute down the +X side (a sloped ramp + two side walls).
-    box((4.6, 1.6, 0.2), (2.6, 0, 1.7), chute, rot=(0, -34, 0))
-    for oy in (-0.85, 0.85):
-        box((4.6, 0.15, 0.6), (2.6, oy, 1.9), chute, rot=(0, -34, 0))
+        box((0.95, 0.16, 0.16), (-1.35, 0, 0.5 + i * 0.75), step)
+    # Chute on the +X side: a sloped ramp from the platform top to the ground,
+    # with two low side walls. Runs from ~(1.3, 3.0) down to ~(4.6, 0.4).
+    box((4.3, 1.5, 0.2), (2.95, 0, 1.75), chute, rot=(0, -39, 0))
+    for oy in (-0.8, 0.8):
+        box((4.3, 0.2, 0.55), (2.95, oy, 1.95), chute, rot=(0, -39, 0))
     join_bevel(frame, "SlideFrame")
     join_bevel(chute, "SlideChute")
     join_bevel(step, "SlideStep")
@@ -160,10 +163,11 @@ def build_swing():
     clear_scene()
     frame, seat = [], []
     topZ = 4.0
-    # Two A-frames (each two splayed legs) + top bar.
+    # Two A-frames: each pair of legs meets at the top bar and SPLAYS at the
+    # bottom (the front leg at -Y leans back toward the apex, and vice-versa).
     for ex in (-3.0, 3.0):
-        box((0.25, 0.25, 4.4), (ex, -1.4, topZ / 2), frame, rot=(28, 0, 0))
-        box((0.25, 0.25, 4.4), (ex, 1.4, topZ / 2), frame, rot=(-28, 0, 0))
+        box((0.25, 0.25, 4.4), (ex, -1.4, topZ / 2), frame, rot=(-28, 0, 0))
+        box((0.25, 0.25, 4.4), (ex, 1.4, topZ / 2), frame, rot=(28, 0, 0))
     box((6.6, 0.3, 0.3), (0, 0, topZ), frame)               # top bar
     # Two swings: chains + a seat.
     for sx in (-1.5, 1.5):

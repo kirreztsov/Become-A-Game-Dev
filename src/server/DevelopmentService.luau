@@ -147,6 +147,14 @@ local function generateRoundInfo(variantId, difficulty, params)
 		return { gridN = params.gridN, pattern = pattern, total = #pattern, maxWait = params.peekSeconds + 12 }
 	elseif variantId == "TileDrop" then
 		return { pieces = params.pieces, fallSeconds = params.fallSeconds, total = params.pieces, maxWait = params.pieces * params.fallSeconds + 3 }
+	elseif variantId == "PathConnect" then
+		local n = params.gridN
+		local startRow = rng:NextInteger(0, n - 1)
+		local exitRow = rng:NextInteger(0, n - 1)
+		local startCell = startRow * n + 1 -- left column (col 0)
+		local exitCell = exitRow * n + n -- right column (col n-1)
+		local pathLen = (n - 1) + math.abs(exitRow - startRow) -- Manhattan shortest path in tiles-moved
+		return { gridN = n, startCell = startCell, exitCell = exitCell, total = pathLen, maxWait = params.timeSeconds + 2 }
 	elseif variantId == "CompileCheck" then
 		local s = GameData.CompileSnippets[rng:NextInteger(1, #GameData.CompileSnippets)]
 		local lines = { s.good, s.bad[1], s.bad[2] }

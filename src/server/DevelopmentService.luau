@@ -10,6 +10,8 @@ local DevelopmentService = {}
 
 local developing = {}
 local activeRounds = {}
+local lastVariantByStation = {}
+local rng = Random.new()
 
 local function isValidGenre(genre)
 	return table.find(GameData.Genres, genre) ~= nil
@@ -18,105 +20,6 @@ end
 local function isValidTopic(topic)
 	return table.find(GameData.Topics, topic) ~= nil
 end
-
-local function runCodingRound(player, roundIndex)
-	activeRounds[player.UserId] = { kind = "tap", tapCount = 0 }
-	Remotes.RoundStarted:FireClient(player, "Coding", roundIndex, {})
-	task.wait(GameData.CodingRoundSeconds)
-
-	local round = activeRounds[player.UserId]
-	activeRounds[player.UserId] = nil
-
-	if not round then
-		return 0
-	end
-
-	return math.clamp(round.tapCount / GameData.CodingTargetTaps, 0, 1)
-end
-
-local function runMapBuildingRound(player, roundIndex)
-	local startTime = Workspace:GetServerTimeNow()
-	activeRounds[player.UserId] = { kind = "timing", placed = false, startTime = startTime }
-
-	Remotes.RoundStarted:FireClient(player, "MapBuilding", roundIndex, {
-		startTime = startTime,
-		periodSeconds = GameData.MapBuildingRoundSeconds,
-	})
-
-	local waited = 0
-	while waited < GameData.MapBuildingMaxWaitSeconds do
-		local round = activeRounds[player.UserId]
-		if not round or round.placed then
-			break
-		end
-		task.wait(0.1)
-		waited += 0.1
-	end
-
-	local round = activeRounds[player.UserId]
-	activeRounds[player.UserId] = nil
-
-	if not round or not round.placed then
-		return 0
-	end
-
-	local elapsed = round.placementTime - round.startTime
-	local markerPosition = GameData.getMarkerPosition(elapsed, GameData.MapBuildingRoundSeconds)
-	local distance = math.abs(markerPosition - GameData.MapBuildingZoneCenter)
-
-	if distance > GameData.MapBuildingZoneHalfWidth then
-		return 0
-	end
-
-	return 1 - (distance / GameData.MapBuildingZoneHalfWidth)
-end
-
-local function runTestingRound(player, roundIndex)
-	local question = GameData.TestingQuestions[math.random(1, #GameData.TestingQuestions)]
-	local options = question.options
-	local correctIndex = question.correctIndex
-
-	if math.random() < 0.5 then
-		options = { options[2], options[1] }
-		correctIndex = (correctIndex == 1) and 2 or 1
-	end
-
-	activeRounds[player.UserId] = { kind = "choice", chosen = false, correctIndex = correctIndex }
-
-	Remotes.RoundStarted:FireClient(player, "Testing", roundIndex, {
-		prompt = question.prompt,
-		options = options,
-	})
-
-	local waited = 0
-	while waited < GameData.TestingMaxWaitSeconds do
-		local round = activeRounds[player.UserId]
-		if not round or round.chosen then
-			break
-		end
-		task.wait(0.1)
-		waited += 0.1
-	end
-
-	local round = activeRounds[player.UserId]
-	activeRounds[player.UserId] = nil
-
-	if not round or not round.chosen then
-		return 0
-	end
-
-	if round.chosenIndex == round.correctIndex then
-		return 1
-	end
-
-	return GameData.TestingWrongAnswerScore
-end
-
-local ROUND_RUNNERS = {
-	Coding = runCodingRound,
-	MapBuilding = runMapBuildingRound,
-	Testing = runTestingRound,
-}
 
 local STATION_SEAT_NAMES = {
 	Coding = "CodingSeat",
@@ -171,6 +74,102 @@ local function waitForPlayerSeated(player, phase)
 	end
 end
 
+local STATION_FOR_PHASE = { Coding = "Coding", MapBuilding = "MapBuilding", Testing = "Testing" }
+
+-- Builds the server-authoritative content for a round (quiz question, timing
+-- window, etc). Mash variants (CodeSprint) need no content beyond params, so
+-- they fall through to the empty table. Every later variant task adds its own
+-- branch here.
+local function generateRoundInfo(variantId, difficulty, params)
+	if variantId == "PrecisionPlace" then
+		return {
+			startTime = Workspace:GetServerTimeNow(),
+			periodSeconds = params.periodSeconds,
+			zoneHalfWidth = params.zoneHalfWidth,
+		}
+	elseif variantId == "QAQuiz" then
+		local q = GameData.TestingQuestions[rng:NextInteger(1, #GameData.TestingQuestions)]
+		-- Build an options list of params.optionCount, always including the
+		-- correct one (see Task 12 for >2 options).
+		local options = { q.options[1], q.options[2] }
+		local correctIndex = q.correctIndex
+		if rng:NextNumber() < 0.5 then
+			options = { options[2], options[1] }
+			correctIndex = (correctIndex == 1) and 2 or 1
+		end
+		return { prompt = q.prompt, options = options, correctIndex = correctIndex }
+	end
+	return {} -- mash variants need no content
+end
+
+-- Waits for the client to report input (per input kind, with a timeout so an
+-- AFK/disconnected player doesn't stall the round forever) then scores the
+-- round from what was reported.
+local function waitAndScore(player, variantId, kind, params, roundInfo)
+	local uid = player.UserId
+
+	if kind == "mash" then
+		task.wait(params.windowSeconds)
+		local r = activeRounds[uid]
+		activeRounds[uid] = nil
+		local target = params.targetTaps or params.targetBugs or params.targetCrashes
+		return r and GameData.scoreMash(r.count or 0, target) or 0
+	elseif kind == "timing" then
+		local waited = 0
+		while waited < GameData.MapBuildingMaxWaitSeconds do
+			local r = activeRounds[uid]
+			if not r or r.placed then
+				break
+			end
+			task.wait(0.1)
+			waited += 0.1
+		end
+		local r = activeRounds[uid]
+		activeRounds[uid] = nil
+		if not r or not r.placed then
+			return 0
+		end
+		local elapsed = r.placementTime - roundInfo.startTime
+		local pos = GameData.getMarkerPosition(elapsed, params.periodSeconds)
+		return GameData.scoreTiming(pos, GameData.MapBuildingZoneCenter, params.zoneHalfWidth)
+	elseif kind == "sequence" then
+		local maxWait = roundInfo.maxWait or 12
+		local waited = 0
+		while waited < maxWait do
+			local r = activeRounds[uid]
+			if not r or r.reported then
+				break
+			end
+			task.wait(0.1)
+			waited += 0.1
+		end
+		local r = activeRounds[uid]
+		activeRounds[uid] = nil
+		if not r or not r.reported then
+			return 0
+		end
+		return GameData.scoreSequence(r.correctCount or 0, roundInfo.total)
+	elseif kind == "choice" then
+		local waited = 0
+		while waited < (params.answerSeconds or GameData.TestingMaxWaitSeconds) do
+			local r = activeRounds[uid]
+			if not r or r.chosen then
+				break
+			end
+			task.wait(0.1)
+			waited += 0.1
+		end
+		local r = activeRounds[uid]
+		activeRounds[uid] = nil
+		if not r or not r.chosen then
+			return 0
+		end
+		return GameData.scoreChoice(r.chosenIndex, roundInfo.correctIndex, GameData.TestingWrongAnswerScore)
+	end
+
+	return 0
+end
+
 local function runPhase(player, data, phase)
 	local worker = data.workers[phase]
 
@@ -195,13 +194,32 @@ local function runPhase(player, data, phase)
 		return 0
 	end
 
+	local uid = player.UserId
+	local station = STATION_FOR_PHASE[phase]
+	local difficulty = GameData.getDifficulty(GameData.getStudioLevel(data))
+	lastVariantByStation[uid] = lastVariantByStation[uid] or {}
+	local variantId = GameData.pickVariantId(station, lastVariantByStation[uid][station], function()
+		return rng:NextNumber()
+	end)
+	lastVariantByStation[uid][station] = variantId
+	local kind = GameData.VariantInputKind[variantId]
+	local params = GameData.getVariantParams(variantId, difficulty)
+
 	local total = 0
 	for roundIndex = 1, GameData.RoundsPerPhase do
 		if not player.Parent then
 			return 0
 		end
 
-		local roundScore = ROUND_RUNNERS[phase](player, roundIndex)
+		local roundInfo = generateRoundInfo(variantId, difficulty, params)
+		activeRounds[uid] = { kind = kind, params = params, roundInfo = roundInfo }
+		Remotes.RoundStarted:FireClient(player, station, roundIndex, {
+			variantId = variantId,
+			difficulty = difficulty,
+			params = params,
+			roundInfo = roundInfo,
+		})
+		local roundScore = waitAndScore(player, variantId, kind, params, roundInfo)
 		total += roundScore
 		Remotes.RoundComplete:FireClient(player, phase, roundIndex, roundScore)
 	end
@@ -212,26 +230,22 @@ local function runPhase(player, data, phase)
 end
 
 function DevelopmentService.start()
-	Remotes.ReportTap.OnServerEvent:Connect(function(player)
+	Remotes.ReportMinigameInput.OnServerEvent:Connect(function(player, value)
 		local round = activeRounds[player.UserId]
-		if round and round.kind == "tap" then
-			round.tapCount += 1
+		if not round then
+			return
 		end
-	end)
-
-	Remotes.ReportPlacement.OnServerEvent:Connect(function(player)
-		local round = activeRounds[player.UserId]
-		if round and round.kind == "timing" and not round.placed then
+		if round.kind == "mash" then
+			round.count = (round.count or 0) + 1
+		elseif round.kind == "timing" and not round.placed then
 			round.placed = true
 			round.placementTime = Workspace:GetServerTimeNow()
-		end
-	end)
-
-	Remotes.ReportChoice.OnServerEvent:Connect(function(player, optionIndex)
-		local round = activeRounds[player.UserId]
-		if round and round.kind == "choice" and not round.chosen then
+		elseif round.kind == "sequence" and not round.reported then
+			round.reported = true
+			round.correctCount = tonumber(value) or 0
+		elseif round.kind == "choice" and not round.chosen then
 			round.chosen = true
-			round.chosenIndex = optionIndex
+			round.chosenIndex = tonumber(value)
 		end
 	end)
 

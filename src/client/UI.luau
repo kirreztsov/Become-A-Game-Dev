@@ -212,7 +212,7 @@ UI.addShadow = addShadow
 local function makeStationPanel(screenGui, name)
 	local panel = Instance.new("Frame")
 	panel.Name = name .. "Panel"
-	panel.Size = UDim2.fromOffset(380, 190)
+	panel.Size = UDim2.fromOffset(420, 300)
 	-- Centred so it reads as the open "app window" on the computer desktop.
 	-- (No raised ZIndex: the panel is already above the desktop via its
 	-- ScreenGui's DisplayOrder, and raising it here hid its own contents.)
@@ -238,9 +238,7 @@ end
 
 function UI.init()
 	local player = Players.LocalPlayer
-	local CodingGame = require(script.Parent.CodingGame)
-	local MapBuildingGame = require(script.Parent.MapBuildingGame)
-	local TestingGame = require(script.Parent.TestingGame)
+	local MinigameHost = require(script.Parent.Minigames.MinigameHost)
 	local WorkersPanel = require(script.Parent.WorkersPanel)
 	local HousePanel = require(script.Parent.HousePanel)
 	local PCPanel = require(script.Parent.PCPanel)
@@ -1062,14 +1060,16 @@ function UI.init()
 	local mapBuildingPanel = makeStationPanel(screenGui, "MapBuilding")
 	local testingPanel = makeStationPanel(screenGui, "Testing")
 
-	CodingGame.init(codingPanel, Theme)
-	MapBuildingGame.init(mapBuildingPanel, Theme)
-	TestingGame.init(testingPanel, Theme)
+	local hosts = {
+		Coding = MinigameHost.new("Coding", codingPanel, Theme),
+		MapBuilding = MinigameHost.new("MapBuilding", mapBuildingPanel, Theme),
+		Testing = MinigameHost.new("Testing", testingPanel, Theme),
+	}
 
 	local function hideAllMiniGames()
-		CodingGame.hide()
-		MapBuildingGame.hide()
-		TestingGame.hide()
+		for _, h in pairs(hosts) do
+			h:hide()
+		end
 	end
 
 	hideAllMiniGames()
@@ -1654,16 +1654,13 @@ function UI.init()
 		end
 	end)
 
-	Remotes.RoundStarted.OnClientEvent:Connect(function(phase, roundIndex, roundData)
+	Remotes.RoundStarted.OnClientEvent:Connect(function(station, roundIndex, info)
 		armWatchdog()
-		statusToast.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[phase], roundIndex, GameData.RoundsPerPhase)
+		statusToast.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[station], roundIndex, GameData.RoundsPerPhase)
 		statusToast.TextColor3 = Theme.TextMuted
-		if phase == "Coding" then
-			CodingGame.startRound()
-		elseif phase == "MapBuilding" then
-			MapBuildingGame.startRound(roundData.startTime, roundData.periodSeconds)
-		elseif phase == "Testing" then
-			TestingGame.startRound(roundData.prompt, roundData.options)
+		local host = hosts[station]
+		if host then
+			host:show(info.variantId, info.difficulty, info.params, info.roundInfo)
 		end
 	end)
 

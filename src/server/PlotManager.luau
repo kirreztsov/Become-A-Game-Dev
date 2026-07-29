@@ -1657,69 +1657,124 @@ end
 -- ---- Subscriber Play Button trophies --------------------------------------
 -- A framed play-button plaque on a pedestal; awarded at each sub milestone and
 -- lined up along the ground-floor back wall.
+-- Group digits with commas: 1000000 -> "1,000,000".
+local function withCommas(n)
+	local s = tostring(math.floor(n))
+	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return (out:gsub("^,", ""))
+end
+
+-- A "special" milestone award: a gold trophy cup with handles on a marble
+-- pedestal, a glowing Neon accent ring + play-button badge in the tier's colour,
+-- an engraved subscriber count, a soft point-light shine and gold sparkles.
+-- Awarded at each sub milestone and lined up along the ground-floor back wall.
 local function buildPlayButton(parent, index, milestone, base)
 	local root = base + Vector3.new(-12 + (index - 1) * 6, 0, BUILDING_HALF_D - 3)
 	local prefix = "PlayButton" .. index .. "_"
-	makePart(prefix .. "Pedestal", Vector3.new(2.6, 2, 2.6), root + Vector3.new(0, FLOOR_TOP + 1, 0), Color3.fromRGB(40, 34, 52), Enum.Material.Marble, parent)
-	local plaque = makePart(prefix .. "Plaque", Vector3.new(3.6, 3.6, 0.4), root + Vector3.new(0, FLOOR_TOP + 4.1, 0), Color3.fromRGB(24, 20, 32), Enum.Material.SmoothPlastic, parent)
-	plaque.CanCollide = false
-	local sg = Instance.new("SurfaceGui")
-	sg.Face = Enum.NormalId.Front -- -Z, toward the room
-	sg.CanvasSize = Vector2.new(200, 200)
-	sg.LightInfluence = 0
-	sg.Parent = plaque
+	local S = 0.5 -- scale so the trophy fits the studio + lines up with siblings
 
-	-- The award "plate" (like a YouTube play-button plate) carrying a wrench +
-	-- a Roblox-style tilted square, instead of a play triangle.
-	local plate = Instance.new("Frame")
-	plate.Size = UDim2.new(0.8, 0, 0.5, 0)
-	plate.Position = UDim2.new(0.1, 0, 0.07, 0)
-	plate.BackgroundColor3 = milestone.color
-	plate.BorderSizePixel = 0
-	plate.Parent = sg
-	local pcorner = Instance.new("UICorner")
-	pcorner.CornerRadius = UDim.new(0.14, 0)
-	pcorner.Parent = plate
+	local GOLD = Color3.fromRGB(214, 164, 58)
+	local GOLD2 = Color3.fromRGB(244, 212, 120)
+	local STONE = Color3.fromRGB(40, 34, 52)
+	local PLATEC = Color3.fromRGB(30, 26, 20)
+	local ACCENT = milestone.color
 
-	local wrench = Instance.new("TextLabel")
-	wrench.Size = UDim2.fromScale(0.46, 1)
-	wrench.Position = UDim2.fromScale(0.03, 0)
-	wrench.BackgroundTransparency = 1
-	wrench.Text = "\240\159\148\167" -- 🔧
-	wrench.TextScaled = true
-	wrench.Font = Enum.Font.FredokaOne
-	wrench.Parent = plate
+	local model = Instance.new("Model")
+	model.Name = prefix .. "Trophy"
+	model.Parent = parent
 
-	-- Roblox-style rounded tilted square (dark, with a square hole).
-	local rbx = Instance.new("Frame")
-	rbx.Size = UDim2.fromScale(0.34, 0.5)
-	rbx.Position = UDim2.fromScale(0.54, 0.25)
-	rbx.Rotation = 12
-	rbx.BackgroundColor3 = Color3.fromRGB(28, 24, 36)
-	rbx.BorderSizePixel = 0
-	rbx.Parent = plate
-	local rcorner = Instance.new("UICorner")
-	rcorner.CornerRadius = UDim.new(0.24, 0)
-	rcorner.Parent = rbx
-	local hole = Instance.new("Frame")
-	hole.Size = UDim2.fromScale(0.4, 0.4)
-	hole.Position = UDim2.fromScale(0.3, 0.3)
-	hole.BackgroundColor3 = milestone.color
-	hole.BorderSizePixel = 0
-	hole.Parent = rbx
-	local hcorner = Instance.new("UICorner")
-	hcorner.CornerRadius = UDim.new(0.22, 0)
-	hcorner.Parent = hole
+	local rotZ = CFrame.Angles(0, 0, math.rad(90))
+	local rotY = CFrame.Angles(0, math.rad(90), 0)
+	-- tp: a trophy part. offsets/size are in un-scaled "model" units (dy is
+	-- height above the floor); everything is multiplied by S and grounded.
+	local function tp(name, shape, size, dx, dy, dz, color, mat, rot)
+		local pos = root + Vector3.new(dx * S, FLOOR_TOP + dy * S, dz * S)
+		local p = makePart(prefix .. name, size * S, pos, color, mat, model)
+		p.Shape = shape
+		p.CanCollide = false
+		if rot then
+			p.CFrame = CFrame.new(pos) * rot
+		end
+		return p
+	end
+	local V = Vector3.new
 
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, 0, 0.32, 0)
-	lbl.Position = UDim2.fromScale(0, 0.64)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = milestone.label
-	lbl.TextColor3 = Color3.fromRGB(240, 238, 250)
-	lbl.Font = Enum.Font.GothamBold
-	lbl.TextScaled = true
-	lbl.Parent = sg
+	-- premium pedestal + glowing accent ring
+	tp("Ped1", Enum.PartType.Cylinder, V(2.0, 7.4, 7.4), 0, 1.0, 0, STONE, Enum.Material.Marble, rotZ)
+	tp("PedRing", Enum.PartType.Cylinder, V(0.5, 7.8, 7.8), 0, 2.15, 0, ACCENT, Enum.Material.Neon, rotZ)
+	tp("Ped2", Enum.PartType.Cylinder, V(1.2, 5.0, 5.0), 0, 2.9, 0, STONE, Enum.Material.Marble, rotZ)
+	-- stem + cup
+	tp("Stem", Enum.PartType.Cylinder, V(3.2, 1.1, 1.1), 0, 5.0, 0, GOLD, Enum.Material.Metal, rotZ)
+	tp("Knob", Enum.PartType.Ball, V(1.5, 1.5, 1.5), 0, 6.6, 0, GOLD, Enum.Material.Metal)
+	tp("CupBottom", Enum.PartType.Ball, V(6, 6, 6), 0, 8.3, 0, GOLD, Enum.Material.Metal)
+	tp("CupBody", Enum.PartType.Cylinder, V(3.2, 6, 6), 0, 10.1, 0, GOLD, Enum.Material.Metal, rotZ)
+	tp("CupRim", Enum.PartType.Cylinder, V(0.55, 6.7, 6.7), 0, 11.8, 0, GOLD2, Enum.Material.Metal, rotZ)
+	-- handles: a C of small gold spheres on each side
+	for _, sx in ipairs({ -1, 1 }) do
+		for k = 0, 5 do
+			local a = math.rad(-70 + k * (140 / 5))
+			tp("Handle" .. sx .. "_" .. k, Enum.PartType.Ball, V(0.7, 0.7, 0.7),
+				sx * (3.0 + math.cos(a) * 1.5), 9.6 + math.sin(a) * 1.9, 0, GOLD, Enum.Material.Metal)
+		end
+	end
+	-- top post + glowing play badge (tier colour) with a halo + a big ▶
+	tp("BadgePost", Enum.PartType.Cylinder, V(1.3, 0.7, 0.7), 0, 12.6, 0, GOLD, Enum.Material.Metal, rotZ)
+	tp("BadgeHalo", Enum.PartType.Cylinder, V(0.3, 4.6, 4.6), 0, 14.2, 0.1, ACCENT, Enum.Material.Neon, rotY)
+	local badge = tp("Badge", Enum.PartType.Cylinder, V(0.5, 3.7, 3.7), 0, 14.2, 0, ACCENT, Enum.Material.Neon, rotY)
+	local pd = tp("PlaySymbol", Enum.PartType.Block, V(3.0, 3.0, 0.08), 0, 14.2, -0.3, ACCENT, Enum.Material.Neon)
+	pd.Transparency = 1
+	do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = Enum.NormalId.Front
+		sg.LightInfluence = 0
+		sg.Parent = pd
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1.9, 1.9)
+		t.Position = UDim2.fromScale(-0.45, -0.5)
+		t.BackgroundTransparency = 1
+		t.Text = "\226\150\182" -- ▶
+		t.Font = Enum.Font.GothamBold
+		t.TextScaled = true
+		t.TextColor3 = Color3.fromRGB(255, 255, 255)
+		t.Parent = sg
+	end
+	-- engraved subscriber count on the cup front (dark plate, gold number)
+	local ban = tp("Plate", Enum.PartType.Block, V(4.8, 2.4, 0.25), 0, 10.1, -3.05, PLATEC, Enum.Material.Metal)
+	do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = Enum.NormalId.Front
+		sg.LightInfluence = 0
+		sg.Parent = ban
+		local n = Instance.new("TextLabel")
+		n.Size = UDim2.fromScale(0.94, 0.55)
+		n.Position = UDim2.fromScale(0.03, 0.05)
+		n.BackgroundTransparency = 1
+		n.Text = withCommas(milestone.subs)
+		n.Font = Enum.Font.FredokaOne
+		n.TextScaled = true
+		n.TextColor3 = GOLD2
+		n.Parent = sg
+		local s = Instance.new("TextLabel")
+		s.Size = UDim2.fromScale(0.9, 0.26)
+		s.Position = UDim2.fromScale(0.05, 0.66)
+		s.BackgroundTransparency = 1
+		s.Text = "SUBSCRIBERS"
+		s.Font = Enum.Font.GothamBold
+		s.TextScaled = true
+		s.TextColor3 = Color3.fromRGB(230, 230, 238)
+		s.Parent = sg
+	end
+	-- soft tinted shine (kept gentle so the gold stays gold) + gold sparkles
+	local light = Instance.new("PointLight")
+	light.Color = ACCENT:Lerp(Color3.new(1, 1, 1), 0.5)
+	light.Brightness = 1.3
+	light.Range = 12
+	light.Parent = badge
+	local sparkle = Instance.new("Sparkles")
+	sparkle.SparkleColor = GOLD2
+	sparkle.Parent = model:FindFirstChild(prefix .. "CupBody") or badge
+
+	model.PrimaryPart = badge
 end
 
 function PlotManager.rebuildPlayButtons(player, count)

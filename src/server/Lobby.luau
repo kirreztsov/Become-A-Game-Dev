@@ -2788,17 +2788,19 @@ local function buildPlazaHologram(lobbyFolder)
 	em.Acceleration = Vector3.new(0, 4, 0)
 	em.Parent = beam
 
-	-- the floating controller, tilted so its face shows
+	-- the floating controller: flat + wide with shoulder buttons and grips so it
+	-- clearly reads as a controller (not a glowing bug), glass body + neon accents
+	local EDGE = Color3.fromRGB(70, 150, 235)
 	local model = Instance.new("Model")
 	model.Name = "PlazaHologram"
 	model.Parent = lobbyFolder
-	local tilt = CFrame.Angles(math.rad(-20), 0, 0)
-	local function hp(shape, size, pos, color, tr, rot)
+	local tilt = CFrame.Angles(math.rad(-14), 0, 0)
+	local function hp(shape, size, pos, color, mat, tr, rot)
 		local pt = Instance.new("Part")
 		pt.Shape = shape
 		pt.Size = size
 		pt.Color = color
-		pt.Material = Enum.Material.Neon
+		pt.Material = mat
 		pt.Transparency = tr or 0
 		pt.Anchored = true
 		pt.CanCollide = false
@@ -2809,28 +2811,30 @@ local function buildPlazaHologram(lobbyFolder)
 	local function L(x, dy, z)
 		return P + Vector3.new(x, dy, z)
 	end
-	local body = hp(Enum.PartType.Block, Vector3.new(5.6, 2.2, 2.6), L(0, 0, 0), HOLO, 0.18, tilt)
-	hp(Enum.PartType.Ball, Vector3.new(3.0, 2.6, 3.0), L(-2.7, 0, 0), HOLO, 0.18, tilt)
-	hp(Enum.PartType.Ball, Vector3.new(3.0, 2.6, 3.0), L(2.7, 0, 0), HOLO, 0.18, tilt)
-	hp(Enum.PartType.Block, Vector3.new(1.4, 2.6, 1.6), L(-2.3, -1.4, 0.6), HOLO, 0.18, CFrame.Angles(math.rad(-20), 0, math.rad(20)))
-	hp(Enum.PartType.Block, Vector3.new(1.4, 2.6, 1.6), L(2.3, -1.4, 0.6), HOLO, 0.18, CFrame.Angles(math.rad(-20), 0, math.rad(-20)))
-	local fo = tilt * CFrame.new(0, 1.0, -1.35)
+	local G = Enum.Material.Glass
+	local body = hp(Enum.PartType.Block, Vector3.new(7.2, 1.9, 3.2), L(0, 0, 0), HOLO, G, 0.28, tilt)
+	hp(Enum.PartType.Cylinder, Vector3.new(3.2, 2.0, 2.0), L(-3.4, 0.1, 0), HOLO, G, 0.28, tilt * CFrame.Angles(0, 0, math.rad(90)))
+	hp(Enum.PartType.Cylinder, Vector3.new(3.2, 2.0, 2.0), L(3.4, 0.1, 0), HOLO, G, 0.28, tilt * CFrame.Angles(0, 0, math.rad(90)))
+	hp(Enum.PartType.Block, Vector3.new(1.5, 3.0, 1.7), L(-2.6, -1.7, 0.5), HOLO, G, 0.28, CFrame.Angles(math.rad(-14), 0, math.rad(26)))
+	hp(Enum.PartType.Block, Vector3.new(1.5, 3.0, 1.7), L(2.6, -1.7, 0.5), HOLO, G, 0.28, CFrame.Angles(math.rad(-14), 0, math.rad(-26)))
+	hp(Enum.PartType.Block, Vector3.new(6.4, 0.18, 0.18), L(0, 1.0, -1.5), EDGE, Enum.Material.Neon, 0, tilt) -- glow rim
+	local fo = tilt * CFrame.new(0, 1.05, -1.55)
 	local function ctrl(dx, dz, size, color, shape)
 		local pos = (CFrame.new(L(0, 0, 0)) * fo * CFrame.new(dx, 0, dz)).Position
-		hp(shape or Enum.PartType.Ball, size, pos, color, 0)
+		hp(shape or Enum.PartType.Ball, size, pos, color, Enum.Material.Neon, 0)
 	end
-	ctrl(-1.7, 0, Vector3.new(1.3, 0.35, 0.45), PURPLE, Enum.PartType.Block) -- d-pad
-	ctrl(-1.7, 0, Vector3.new(0.45, 0.35, 1.3), PURPLE, Enum.PartType.Block)
-	ctrl(1.4, -0.7, Vector3.new(0.6, 0.6, 0.6), GOLD)
-	ctrl(2.0, 0, Vector3.new(0.6, 0.6, 0.6), RED)
-	ctrl(1.4, 0.7, Vector3.new(0.6, 0.6, 0.6), GREEN)
-	ctrl(0.8, 0, Vector3.new(0.6, 0.6, 0.6), HOLO)
-	ctrl(-0.5, 0.9, Vector3.new(0.7, 0.7, 0.7), PURPLE, Enum.PartType.Ball) -- sticks
-	ctrl(0.4, 0.9, Vector3.new(0.7, 0.7, 0.7), PURPLE, Enum.PartType.Ball)
+	ctrl(-2.1, 0, Vector3.new(1.4, 0.3, 0.5), PURPLE, Enum.PartType.Block) -- d-pad
+	ctrl(-2.1, 0, Vector3.new(0.5, 0.3, 1.4), PURPLE, Enum.PartType.Block)
+	ctrl(2.0, -0.7, Vector3.new(0.62, 0.5, 0.62), GOLD)
+	ctrl(2.6, 0, Vector3.new(0.62, 0.5, 0.62), RED)
+	ctrl(2.0, 0.7, Vector3.new(0.62, 0.5, 0.62), GREEN)
+	ctrl(1.4, 0, Vector3.new(0.62, 0.5, 0.62), HOLO)
+	ctrl(-0.7, 1.0, Vector3.new(0.8, 0.5, 0.8), PURPLE, Enum.PartType.Cylinder) -- sticks
+	ctrl(0.4, 1.0, Vector3.new(0.8, 0.5, 0.8), PURPLE, Enum.PartType.Cylinder)
 	local light = Instance.new("PointLight")
 	light.Color = HOLO
-	light.Brightness = 4
-	light.Range = 26
+	light.Brightness = 1.1
+	light.Range = 13
 	light.Parent = body
 
 	model.PrimaryPart = body

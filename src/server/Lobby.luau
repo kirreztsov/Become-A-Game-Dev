@@ -79,6 +79,8 @@ local isNight = false
 local activeNPCs = {}
 local activeFish = {}
 local lobbyLifeConnection
+local hologramSpinConnection
+local plazaHologram
 
 local function makePart(name, size, position, color, material, parent)
 	local part = Instance.new("Part")
@@ -2747,6 +2749,115 @@ local function startLobbyLife()
 	end)
 end
 
+-- A glowing holographic game controller that hovers above the plaza fountain,
+-- projected up on a light beam with rising sparkles. Purely decorative eye
+-- candy; startHologramSpin() slowly rotates it.
+local function buildPlazaHologram(lobbyFolder)
+	local fountainCenter = LOBBY_ORIGIN + Vector3.new(0, 0, -10)
+	local P = fountainCenter + Vector3.new(0, FLOOR_TOP + 15, 0) -- controller hover centre
+	local HOLO = Color3.fromRGB(110, 214, 255)
+	local PURPLE = Color3.fromRGB(160, 120, 255)
+	local GOLD = Color3.fromRGB(240, 205, 110)
+	local GREEN = Color3.fromRGB(120, 230, 150)
+	local RED = Color3.fromRGB(255, 110, 120)
+
+	-- projection beam from the fountain spout up to the hologram
+	local beam = Instance.new("Part")
+	beam.Name = "HologramBeam"
+	beam.Shape = Enum.PartType.Cylinder
+	beam.Size = Vector3.new(9, 5.5, 5.5)
+	beam.CFrame = CFrame.new(fountainCenter + Vector3.new(0, FLOOR_TOP + 11, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	beam.Color = HOLO
+	beam.Material = Enum.Material.Neon
+	beam.Transparency = 0.88
+	beam.Anchored = true
+	beam.CanCollide = false
+	beam.Parent = lobbyFolder
+	local em = Instance.new("ParticleEmitter")
+	em.Color = ColorSequence.new(HOLO)
+	em.Rate = 24
+	em.Lifetime = NumberRange.new(1.4, 2.4)
+	em.Speed = NumberRange.new(3, 5)
+	em.Size = NumberSequence.new(0.5)
+	em.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	em.LightEmission = 1
+	em.SpreadAngle = Vector2.new(10, 10)
+	em.Acceleration = Vector3.new(0, 4, 0)
+	em.Parent = beam
+
+	-- the floating controller, tilted so its face shows
+	local model = Instance.new("Model")
+	model.Name = "PlazaHologram"
+	model.Parent = lobbyFolder
+	local tilt = CFrame.Angles(math.rad(-20), 0, 0)
+	local function hp(shape, size, pos, color, tr, rot)
+		local pt = Instance.new("Part")
+		pt.Shape = shape
+		pt.Size = size
+		pt.Color = color
+		pt.Material = Enum.Material.Neon
+		pt.Transparency = tr or 0
+		pt.Anchored = true
+		pt.CanCollide = false
+		pt.CFrame = CFrame.new(pos) * (rot or CFrame.new())
+		pt.Parent = model
+		return pt
+	end
+	local function L(x, dy, z)
+		return P + Vector3.new(x, dy, z)
+	end
+	local body = hp(Enum.PartType.Block, Vector3.new(5.6, 2.2, 2.6), L(0, 0, 0), HOLO, 0.18, tilt)
+	hp(Enum.PartType.Ball, Vector3.new(3.0, 2.6, 3.0), L(-2.7, 0, 0), HOLO, 0.18, tilt)
+	hp(Enum.PartType.Ball, Vector3.new(3.0, 2.6, 3.0), L(2.7, 0, 0), HOLO, 0.18, tilt)
+	hp(Enum.PartType.Block, Vector3.new(1.4, 2.6, 1.6), L(-2.3, -1.4, 0.6), HOLO, 0.18, CFrame.Angles(math.rad(-20), 0, math.rad(20)))
+	hp(Enum.PartType.Block, Vector3.new(1.4, 2.6, 1.6), L(2.3, -1.4, 0.6), HOLO, 0.18, CFrame.Angles(math.rad(-20), 0, math.rad(-20)))
+	local fo = tilt * CFrame.new(0, 1.0, -1.35)
+	local function ctrl(dx, dz, size, color, shape)
+		local pos = (CFrame.new(L(0, 0, 0)) * fo * CFrame.new(dx, 0, dz)).Position
+		hp(shape or Enum.PartType.Ball, size, pos, color, 0)
+	end
+	ctrl(-1.7, 0, Vector3.new(1.3, 0.35, 0.45), PURPLE, Enum.PartType.Block) -- d-pad
+	ctrl(-1.7, 0, Vector3.new(0.45, 0.35, 1.3), PURPLE, Enum.PartType.Block)
+	ctrl(1.4, -0.7, Vector3.new(0.6, 0.6, 0.6), GOLD)
+	ctrl(2.0, 0, Vector3.new(0.6, 0.6, 0.6), RED)
+	ctrl(1.4, 0.7, Vector3.new(0.6, 0.6, 0.6), GREEN)
+	ctrl(0.8, 0, Vector3.new(0.6, 0.6, 0.6), HOLO)
+	ctrl(-0.5, 0.9, Vector3.new(0.7, 0.7, 0.7), PURPLE, Enum.PartType.Ball) -- sticks
+	ctrl(0.4, 0.9, Vector3.new(0.7, 0.7, 0.7), PURPLE, Enum.PartType.Ball)
+	local light = Instance.new("PointLight")
+	light.Color = HOLO
+	light.Brightness = 4
+	light.Range = 26
+	light.Parent = body
+
+	model.PrimaryPart = body
+	plazaHologram = model
+end
+
+-- Slowly spin the plaza hologram about the world Y axis, keeping its tilt.
+local function startHologramSpin()
+	if hologramSpinConnection then
+		hologramSpinConnection:Disconnect()
+	end
+	if not plazaHologram or not plazaHologram.PrimaryPart then
+		return
+	end
+	local rest = plazaHologram:GetPivot()
+	local pos = rest.Position
+	local tiltRot = rest.Rotation
+	local angle = 0
+	hologramSpinConnection = RunService.Heartbeat:Connect(function(dt)
+		if not plazaHologram or not plazaHologram.Parent then
+			return
+		end
+		angle += dt * 0.6 -- ~0.6 rad/s, a gentle spin
+		plazaHologram:PivotTo(CFrame.new(pos) * CFrame.Angles(0, angle, 0) * tiltRot)
+	end)
+end
+
 function Lobby.build()
 	restyleBaseplate()
 
@@ -2777,6 +2888,7 @@ function Lobby.build()
 	buildNeighborhoodHouses(lobbyFolder)
 	buildCrosswalks(lobbyFolder)
 	buildFountain(lobbyFolder)
+	buildPlazaHologram(lobbyFolder)
 	buildParkDecor(lobbyFolder)
 	buildPlayground(lobbyFolder)
 	buildPlazaExtras(lobbyFolder)
@@ -2790,6 +2902,7 @@ function Lobby.build()
 	activeCars = {}
 	buildCars(lobbyFolder)
 	startCarAnimation()
+	startHologramSpin()
 	startBasketballWatchdog()
 	pcall(buildAtmosphere) -- never let a Lighting quirk abort the rest of build()
 	startDayNightCycle()

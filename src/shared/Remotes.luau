@@ -37,6 +37,7 @@ local REMOTE_NAMES = {
 	"SetTutorialDone",
 	"RequestInitialState",
 	"SetDarkMode",
+	"SetSoundMuted",
 }
 
 local Remotes = {}

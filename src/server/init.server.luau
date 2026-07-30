@@ -95,6 +95,14 @@ Remotes.SetDarkMode.OnServerEvent:Connect(function(player, on)
 	end
 end)
 
+-- Remember the player's sound mute preference.
+Remotes.SetSoundMuted.OnServerEvent:Connect(function(player, on)
+	local data = PlayerData.get(player)
+	if data then
+		data.soundMuted = on and true or false
+	end
+end)
+
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(onPlayerJoined, player)
 end

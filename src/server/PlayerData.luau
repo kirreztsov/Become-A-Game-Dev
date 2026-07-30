@@ -57,6 +57,8 @@ local function defaultData()
 		tutorialDone = false,
 		-- Remembered UI preference: dark mode on/off.
 		darkMode = false,
+		-- Remembered UI preference: sound muted on/off.
+		soundMuted = false,
 		-- Owned game passes (key -> true), and whether the one-time Starter Pack
 		-- has been bought. Passes are re-verified from Roblox on join.
 		passes = {},
@@ -94,6 +96,9 @@ function PlayerData.load(player)
 			end
 			if data.darkMode == nil then
 				data.darkMode = false
+			end
+			if data.soundMuted == nil then
+				data.soundMuted = false
 			end
 			data.passes = data.passes or {}
 			if data.starterPackBought == nil then

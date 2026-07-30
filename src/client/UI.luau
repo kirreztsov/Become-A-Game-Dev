@@ -252,6 +252,7 @@ function UI.init()
 	local VIPChat = require(script.Parent.VIPChat)
 	local Fx = require(script.Parent.Fx)
 	local DarkMode = require(script.Parent.DarkMode)
+	local Sound = require(script.Parent.Sound)
 	local MobileScale = require(script.Parent.MobileScale)
 
 	local screenGui = Instance.new("ScreenGui")
@@ -1789,6 +1790,7 @@ function UI.init()
 	-- M6 polish: give every button in every panel a springy hover/press feel.
 	juiceAllButtons(player:WaitForChild("PlayerGui"))
 	DarkMode.init(player, playerState)
+	Sound.init(player, playerState)
 
 	-- M5 mobile: auto-fit every menu/HUD to the screen size (no-op on desktop).
 	MobileScale.init(player)

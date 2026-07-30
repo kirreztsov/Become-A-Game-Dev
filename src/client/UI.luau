@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Sound = require(script.Parent.Sound)
 
 local UI = {}
 
@@ -146,6 +147,7 @@ local function addButtonJuice(btn)
 		animateTo(1)
 	end)
 	btn.MouseButton1Down:Connect(function()
+		Sound.play("Click")
 		animateTo(0.93)
 	end)
 	btn.MouseButton1Up:Connect(function()
@@ -169,6 +171,7 @@ end
 
 -- Pop a frame in with a little overshoot when it appears (0.9 -> 1.04 -> 1).
 local function popIn(frame)
+	Sound.play("PanelOpen")
 	local scale = frame:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	scale.Parent = frame
 	scale.Scale = 0.9
@@ -252,7 +255,6 @@ function UI.init()
 	local VIPChat = require(script.Parent.VIPChat)
 	local Fx = require(script.Parent.Fx)
 	local DarkMode = require(script.Parent.DarkMode)
-	local Sound = require(script.Parent.Sound)
 	local MobileScale = require(script.Parent.MobileScale)
 
 	local screenGui = Instance.new("ScreenGui")
@@ -881,6 +883,7 @@ function UI.init()
 	addCorner(toStudioBtn, 12)
 	addStroke(toStudioBtn, Color3.fromRGB(255, 255, 255), 1, 0.7)
 	toStudioBtn.MouseButton1Click:Connect(function()
+		Sound.play("Teleport")
 		Remotes.RequestGoToStudio:FireServer()
 	end)
 
@@ -899,6 +902,7 @@ function UI.init()
 	addCorner(leaderboardBtn, 12)
 	addStroke(leaderboardBtn, Color3.fromRGB(255, 255, 255), 1, 0.6)
 	leaderboardBtn.MouseButton1Click:Connect(function()
+		Sound.play("Teleport")
 		Remotes.RequestGoToLeaderboards:FireServer()
 	end)
 
@@ -1698,6 +1702,10 @@ function UI.init()
 	end)
 
 	Remotes.DevelopmentComplete.OnClientEvent:Connect(function(cash, wasCopy, hitBonus)
+		Sound.play("Shipped")
+		if hitBonus then
+			Sound.play("TrendHit")
+		end
 		developing = false
 		hideAllMiniGames()
 		currentPhase = nil
@@ -1756,6 +1764,7 @@ function UI.init()
 			if cashDelta > 0 then
 				local c = coin.AbsolutePosition + coin.AbsoluteSize / 2
 				Fx.coinBurst(c.X, c.Y)
+				Sound.play("Cash")
 			end
 		end
 	end)
@@ -1765,6 +1774,7 @@ function UI.init()
 			showSubsGained(amount)
 		end
 		if milestoneReached and milestoneReached > 0 then
+			Sound.play("Milestone")
 			showMilestoneCelebration(milestoneReached)
 			Fx.confetti(44)
 		end

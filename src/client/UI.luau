@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
@@ -1786,6 +1787,54 @@ function UI.init()
 		updateTrendsSigns(("%s + %s\n%s + %s"):format(
 			trend1.genre, trend1.topic, trend2.genre, trend2.topic
 		))
+	end)
+
+	-- "Get VIP+" cosmetic reminder while standing in the tycoon lounge (M8).
+	-- Purely visual -- the actual earning gate is server-side in LoungeService.
+	local vipBanner = Instance.new("TextLabel")
+	vipBanner.Name = "VIPLoungeBanner"
+	vipBanner.Size = UDim2.fromOffset(460, 56)
+	vipBanner.Position = UDim2.new(0.5, 0, 0, 96)
+	vipBanner.AnchorPoint = Vector2.new(0.5, 0)
+	vipBanner.BackgroundColor3 = Theme.Panel
+	vipBanner.BackgroundTransparency = 0.05
+	vipBanner.TextColor3 = Theme.Gold
+	vipBanner.Font = Enum.Font.FredokaOne
+	vipBanner.TextSize = 22
+	vipBanner.TextWrapped = true
+	vipBanner.Text = "\240\159\146\142 Get VIP+ to earn cash in the lounge!"
+	vipBanner.Visible = false
+	vipBanner.ZIndex = 20
+	vipBanner.Parent = screenGui
+	addCorner(vipBanner, 16)
+	addStroke(vipBanner, Theme.Accent, 2, 0.25)
+	addGradient(vipBanner, Theme.PanelLight, Theme.Panel, 90)
+
+	local function inLoungeZone(pos, zone)
+		local o = zone.CFrame:PointToObjectSpace(pos)
+		local h = zone.Size / 2
+		return math.abs(o.X) <= h.X and math.abs(o.Y) <= h.Y and math.abs(o.Z) <= h.Z
+	end
+
+	local vipCheckAccum = 0
+	RunService.Heartbeat:Connect(function(dt)
+		vipCheckAccum += dt
+		if vipCheckAccum < 0.25 then -- ~4x/sec
+			return
+		end
+		vipCheckAccum = 0
+
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local lobby = Workspace:FindFirstChild("Lobby")
+		local zone = lobby and lobby:FindFirstChild("LoungeZone")
+		local hasVIP = playerState and playerState.passes and playerState.passes.VIPPlus
+
+		if root and zone and playerState and not hasVIP and inLoungeZone(root.Position, zone) then
+			vipBanner.Visible = true
+		else
+			vipBanner.Visible = false
+		end
 	end)
 
 	WorkersPanel.init(player, Theme, playerState)

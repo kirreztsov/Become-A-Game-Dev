@@ -2788,6 +2788,56 @@ local function buildPlazaHologram(lobbyFolder)
 	em.Acceleration = Vector3.new(0, 4, 0)
 	em.Parent = beam
 
+	-- Prefer the Blender controller mesh (nicer shape) painted as one translucent
+	-- glowing cyan hologram. Falls back to the procedural controller below.
+	local meshCtrl = StudioModels.get("Controller")
+	if meshCtrl then
+		meshCtrl.Name = "PlazaHologram"
+		local sizeX
+		if meshCtrl:IsA("Model") then
+			local _, sz = meshCtrl:GetBoundingBox()
+			sizeX = sz.X
+		elseif meshCtrl:IsA("BasePart") then
+			sizeX = meshCtrl.Size.X
+		end
+		local scale = (sizeX and sizeX > 0) and (9 / sizeX) or 1
+		if meshCtrl:IsA("Model") then
+			meshCtrl:ScaleTo(meshCtrl:GetScale() * scale)
+		elseif meshCtrl:IsA("BasePart") then
+			meshCtrl.Size = meshCtrl.Size * scale
+		end
+		local function paintHolo(p)
+			p.Color = HOLO
+			p.Material = Enum.Material.Neon
+			p.Transparency = 0.4
+			p.Anchored = true
+			p.CanCollide = false
+			p.CastShadow = false
+		end
+		if meshCtrl:IsA("BasePart") then
+			paintHolo(meshCtrl)
+		else
+			for _, d in ipairs(meshCtrl:GetDescendants()) do
+				if d:IsA("BasePart") then
+					paintHolo(d)
+				end
+			end
+			if not meshCtrl.PrimaryPart then
+				meshCtrl.PrimaryPart = meshCtrl:FindFirstChildWhichIsA("BasePart")
+			end
+		end
+		-- Face up + toward the plaza (orientation tuned after a look in-game).
+		meshCtrl:PivotTo(CFrame.new(P) * CFrame.Angles(math.rad(-90), 0, 0))
+		local mlight = Instance.new("PointLight")
+		mlight.Color = HOLO
+		mlight.Brightness = 1.3
+		mlight.Range = 14
+		mlight.Parent = meshCtrl:IsA("BasePart") and meshCtrl or meshCtrl.PrimaryPart
+		meshCtrl.Parent = lobbyFolder
+		plazaHologram = meshCtrl
+		return
+	end
+
 	-- the floating controller: flat + wide with shoulder buttons and grips so it
 	-- clearly reads as a controller (not a glowing bug), glass body + neon accents
 	local EDGE = Color3.fromRGB(70, 150, 235)

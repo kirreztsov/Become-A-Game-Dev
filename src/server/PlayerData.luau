@@ -59,6 +59,8 @@ local function defaultData()
 		darkMode = false,
 		-- Remembered UI preference: sound muted on/off.
 		soundMuted = false,
+		-- Chosen cosmetic studio skin ("Default", "Gold", "Neon", "Midnight").
+		activeSkin = "Default",
 		-- Owned game passes (key -> true), and whether the one-time Starter Pack
 		-- has been bought. Passes are re-verified from Roblox on join.
 		passes = {},
@@ -99,6 +101,9 @@ function PlayerData.load(player)
 			end
 			if data.soundMuted == nil then
 				data.soundMuted = false
+			end
+			if data.activeSkin == nil then
+				data.activeSkin = "Default"
 			end
 			data.passes = data.passes or {}
 			if data.starterPackBought == nil then

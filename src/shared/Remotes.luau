@@ -38,6 +38,7 @@ local REMOTE_NAMES = {
 	"RequestInitialState",
 	"SetDarkMode",
 	"SetSoundMuted",
+	"RequestSetSkin",
 }
 
 local Remotes = {}

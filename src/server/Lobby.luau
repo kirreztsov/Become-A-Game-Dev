@@ -790,6 +790,28 @@ local function buildRecreationArea(lobbyFolder)
 	end
 
 	buildBasketballCourtGame(lobbyFolder, courtCenter, hoopOffset)
+
+	-- Decorative Blender skate ramp just south of the court (optional -- skipped
+	-- cleanly if the mesh isn't synced).
+	local ramp = StudioModels.place("SkateRamp", lobbyFolder,
+		CFrame.new(courtCenter + Vector3.new(0, 6, 18)), { name = "SkateRamp", targetWidth = 12 })
+	if ramp and ramp:IsA("Model") then
+		local bcf, bsz = ramp:GetBoundingBox()
+		ramp:PivotTo(ramp:GetPivot() + Vector3.new(0, FLOOR_TOP - (bcf.Y - bsz.Y / 2), 0))
+		for _, d in ipairs(ramp:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+				d.CanCollide = true
+				if d.Name:find("Coping") then
+					d.Color, d.Material = Color3.fromRGB(200, 205, 215), Enum.Material.Metal
+				elseif d.Name:find("Deck") then
+					d.Color, d.Material = Color3.fromRGB(120, 124, 133), Enum.Material.Concrete
+				else
+					d.Color, d.Material = Color3.fromRGB(150, 154, 163), Enum.Material.Concrete
+				end
+			end
+		end
+	end
 end
 
 -- Watches the ball and returns it to the center rest spot a second after

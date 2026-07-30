@@ -1660,6 +1660,7 @@ function UI.init()
 	end)
 
 	Remotes.RoundStarted.OnClientEvent:Connect(function(station, roundIndex, info)
+		Sound.play("RoundStart")
 		armWatchdog()
 		statusToast.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[station], roundIndex, GameData.RoundsPerPhase)
 		statusToast.TextColor3 = Theme.TextMuted
@@ -1670,6 +1671,7 @@ function UI.init()
 	end)
 
 	Remotes.RoundComplete.OnClientEvent:Connect(function(phase, roundIndex, score)
+		Sound.play(score >= 0.5 and "Correct" or "Wrong")
 		armWatchdog()
 		statusToast.Text = ("Round %d: %d%%"):format(roundIndex, math.floor(score * 100 + 0.5))
 		statusToast.TextColor3 = Theme.TextMuted

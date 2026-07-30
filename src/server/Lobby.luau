@@ -2629,6 +2629,35 @@ local function buildBush(parent, name, rx, rz)
 	end
 end
 
+local function buildVIPLounge(lobbyFolder)
+	local center = LOBBY_ORIGIN + Vector3.new(-34, 0, 6) -- open plaza spot; nudge in playtest if it overlaps
+	makePart("LoungeRug", Vector3.new(16, 0.2, 12), center + Vector3.new(0, FLOOR_TOP + 0.1, 0), Color3.fromRGB(150, 90, 200), Enum.Material.Fabric, lobbyFolder).CanCollide = false
+	-- two simple sofas
+	for _, sx in ipairs({ -4, 4 }) do
+		makePart("LoungeSofa", Vector3.new(4, 1, 2), center + Vector3.new(sx, FLOOR_TOP + 0.6, 3), Color3.fromRGB(90, 70, 130), Enum.Material.Fabric, lobbyFolder)
+		makePart("LoungeSofaBack", Vector3.new(4, 1.4, 0.5), center + Vector3.new(sx, FLOOR_TOP + 1.3, 4), Color3.fromRGB(90, 70, 130), Enum.Material.Fabric, lobbyFolder).CanCollide = false
+	end
+	-- "VIP+ Only" sign
+	local signPost = makePart("LoungeSignPost", Vector3.new(0.4, 5, 0.4), center + Vector3.new(0, FLOOR_TOP + 2.5, -5), Color3.fromRGB(60, 50, 80), Enum.Material.Metal, lobbyFolder)
+	local sign = makePart("LoungeSign", Vector3.new(7, 2, 0.3), center + Vector3.new(0, FLOOR_TOP + 5, -5), Color3.fromRGB(120, 90, 235), Enum.Material.SmoothPlastic, lobbyFolder)
+	sign.CanCollide = false
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Front
+	sg.Parent = sign
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.fromScale(1, 1)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = "\240\159\146\142 VIP+ Lounge"
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.Font = Enum.Font.FredokaOne
+	lbl.TextScaled = true
+	lbl.Parent = sg
+	-- invisible earning zone
+	local zone = makePart("LoungeZone", Vector3.new(16, 10, 12), center + Vector3.new(0, FLOOR_TOP + 5, 0), Color3.fromRGB(120, 90, 235), Enum.Material.SmoothPlastic, lobbyFolder)
+	zone.Transparency = 1
+	zone.CanCollide = false
+end
+
 local function buildPlazaExtras(lobbyFolder)
 	buildFoodCart(lobbyFolder, "IceCreamCart", -24, -8, Color3.fromRGB(120, 180, 210), Color3.fromRGB(235, 150, 180), "\240\159\141\166")
 	buildFoodCart(lobbyFolder, "HotDogCart", 24, -8, Color3.fromRGB(210, 90, 80), Color3.fromRGB(220, 70, 70), "\240\159\140\173")
@@ -2968,6 +2997,7 @@ function Lobby.build()
 	buildParkDecor(lobbyFolder)
 	buildPlayground(lobbyFolder)
 	buildPlazaExtras(lobbyFolder)
+	buildVIPLounge(lobbyFolder)
 	buildMountains(lobbyFolder)
 	buildRoTubePeaks(lobbyFolder)
 	buildTunnels(lobbyFolder)

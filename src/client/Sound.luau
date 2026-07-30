@@ -69,8 +69,8 @@ function Sound.play(cueName)
 	s.Ended:Connect(function()
 		s:Destroy()
 	end)
-	task.delay(6, function()
-		if s and s.Parent then
+	task.delay(20, function()
+		if s and s.Parent and not s.IsPlaying then
 			s:Destroy()
 		end
 	end)
@@ -157,8 +157,6 @@ function Sound.init(player, state)
 		refreshIcon()
 	end)
 
-	startBeds()
-
 	-- Load the saved preference (mirror DarkMode): first state we receive.
 	local loaded = false
 	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
@@ -167,7 +165,14 @@ function Sound.init(player, state)
 			if data.soundMuted then
 				Sound.setMuted(true, false)
 				refreshIcon()
+			else
+				startBeds()
 			end
+		end
+	end)
+	task.delay(4, function()
+		if not loaded then
+			startBeds()
 		end
 	end)
 	Remotes.RequestInitialState:FireServer()

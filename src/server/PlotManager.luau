@@ -1577,7 +1577,8 @@ function PlotManager.applySkin(player, skinKey)
 	end
 	local skin = GameData.StudioSkins[skinKey] -- nil for "Default"
 	for _, d in ipairs(plotFolder:GetDescendants()) do
-		if d:IsA("BasePart") and (string.find(d.Name, "Wall") or string.find(d.Name, "Roof")) then
+		local isDecor = string.find(d.Name, "Bush") or string.find(d.Name, "Lamp") or string.find(d.Name, "Planter") or string.find(d.Name, "Deck")
+		if d:IsA("BasePart") and not isDecor and (string.find(d.Name, "Wall") or string.find(d.Name, "Roof")) then
 			-- remember the original look once
 			if d:GetAttribute("SkinBaseColor") == nil then
 				d:SetAttribute("SkinBaseColor", d.Color)

@@ -171,12 +171,22 @@ function MonetizationService.start()
 				applyVIPCosmetic(player)
 			end
 		end
+		local function applySpeed()
+			local data = PlayerData.get(player)
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if data and hum and data.passes and data.passes.Speed2x then
+				hum.WalkSpeed = GameData.GamePasses.Speed2x.walkSpeed
+			end
+		end
 		if player.Character then
 			applyIfVIP()
+			applySpeed()
 		end
 		player.CharacterAdded:Connect(function()
 			task.wait(0.5)
 			applyIfVIP()
+			applySpeed()
 		end)
 	end
 

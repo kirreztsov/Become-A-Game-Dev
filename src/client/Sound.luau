@@ -7,26 +7,27 @@ local Sound = {}
 -- Paste the full "rbxassetid://XXXX" or just the number; an id of 0 (or blank)
 -- is "unset" and plays nothing (no errors), so the game runs while slots fill.
 local CUES = {
-	Music       = { id = "rbxassetid://1848354536", volume = 0.30, looped = true },   -- "Relaxed Scene" (APM)
-	Ambient     = { id = "rbxassetid://9112831284", volume = 0.12, looped = true },   -- Morning Birds loop (Pro Sound Effects)
-	Click       = { id = "rbxassetid://88442833509532", volume = 0.50 },              -- ui-simple-button-click
-	PanelOpen   = { id = "rbxassetid://130029763520057", volume = 0.45 },             -- Open SFX
-	Error       = { id = "rbxassetid://16903690359", volume = 0.45 },                 -- warning beep
-	Teleport    = { id = "rbxassetid://129081570292387", volume = 0.50 },             -- Teleport Warp
-	Cash        = { id = "rbxassetid://93529351909119", volume = 0.50 },              -- coin pickup
-	Purchase    = { id = "rbxassetid://4612374036", volume = 0.55 },                  -- bling pickup
-	Hire        = { id = "rbxassetid://3416831713", volume = 0.55 },                  -- Token_Get
-	DailyReward = { id = "rbxassetid://1848281810", volume = 0.55 },                  -- "Everything Works Out" sting (APM)
-	RoundStart  = { id = "rbxassetid://117166473587029", volume = 0.40 },             -- spin/start beep
-	MinigameTap = { id = "rbxassetid://9113873775", volume = 0.35 },                  -- keyboard key (Pro Sound Effects)
-	Correct     = { id = "rbxassetid://3416831713", volume = 0.50 },                  -- Token_Get (positive ding)
-	Wrong       = { id = "rbxassetid://16903690359", volume = 0.40 },                 -- warning beep
-	Shipped     = { id = "rbxassetid://9045295141", volume = 0.55 },                  -- "Roll The Dice" sting (APM)
-	TrendHit    = { id = "rbxassetid://1839881844", volume = 0.70 },                  -- "Spinning Around" sting (APM)
-	Milestone   = { id = "rbxassetid://9045298695", volume = 0.70 },                  -- "Crack The Safe" sting (APM)
-	CaseSpin    = { id = "rbxassetid://95442501996101", volume = 0.45 },              -- wheel spin
-	CaseReveal  = { id = "rbxassetid://1840076509", volume = 0.60 },                  -- "Through the Roof" sting (APM)
-	Rebirth     = { id = "rbxassetid://126805498637586", volume = 0.65 },             -- magical
+	-- Volumes kept low + gentle on purpose (cozy game); tune freely.
+	Music       = { id = "rbxassetid://1848354536", volume = 0.20, looped = true },   -- "Relaxed Scene" (APM)
+	Ambient     = { id = "rbxassetid://9112831284", volume = 0.07, looped = true },   -- Morning Birds loop (Pro Sound Effects)
+	Click       = { id = "rbxassetid://88442833509532", volume = 0.30 },              -- soft UI click
+	PanelOpen   = { id = "rbxassetid://130029763520057", volume = 0.28 },             -- open pop
+	Error       = { id = "rbxassetid://16903690359", volume = 0.22 },                 -- soft warning beep
+	Teleport    = { id = "rbxassetid://129081570292387", volume = 0.30 },             -- warp
+	Cash        = { id = "rbxassetid://93529351909119", volume = 0.32 },              -- coin pickup
+	Purchase    = { id = "rbxassetid://4612374036", volume = 0.32 },                  -- bling
+	Hire        = { id = "rbxassetid://3416831713", volume = 0.32 },                  -- token get
+	DailyReward = { id = "rbxassetid://114558778620362", volume = 0.30 },             -- gentle twinkle
+	RoundStart  = { id = "rbxassetid://117166473587029", volume = 0.26 },             -- start beep
+	MinigameTap = { id = "rbxassetid://9113873775", volume = 0.20 },                  -- keyboard key (Pro Sound Effects)
+	Correct     = { id = "rbxassetid://3416831713", volume = 0.32 },                  -- positive ding
+	Wrong       = { id = "rbxassetid://16903690359", volume = 0.22 },                 -- soft warning beep
+	Shipped     = { id = "rbxassetid://107123499340448", volume = 0.33 },             -- pleasant bell chime
+	TrendHit    = { id = "rbxassetid://73370234810660", volume = 0.38 },              -- sparkle pickup
+	Milestone   = { id = "rbxassetid://79130903404606", volume = 0.38 },              -- crystal chime
+	CaseSpin    = { id = "rbxassetid://95442501996101", volume = 0.28 },              -- wheel spin
+	CaseReveal  = { id = "rbxassetid://4612374495", volume = 0.36 },                  -- bling reveal
+	Rebirth     = { id = "rbxassetid://118372621575284", volume = 0.36 },             -- calm bell (suzu)
 }
 
 local function normalizeId(id)

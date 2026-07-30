@@ -1562,6 +1562,43 @@ function PlotManager.getPlotFolder(index)
 	return workspace.Plots:FindFirstChild("Plot" .. index)
 end
 
+-- Recolor a player's studio exterior to the given skin key ("Default" or a
+-- key from GameData.StudioSkins). Original Wall/Roof colors are remembered
+-- per-part via attributes the first time a skin is applied, so "Default"
+-- restores exactly with no dependency on the current theme.
+function PlotManager.applySkin(player, skinKey)
+	local index = plotOfPlayer[player.UserId]
+	if not index then
+		return
+	end
+	local plotFolder = PlotManager.getPlotFolder(index)
+	if not plotFolder then
+		return
+	end
+	local skin = GameData.StudioSkins[skinKey] -- nil for "Default"
+	for _, d in ipairs(plotFolder:GetDescendants()) do
+		if d:IsA("BasePart") and (string.find(d.Name, "Wall") or string.find(d.Name, "Roof")) then
+			-- remember the original look once
+			if d:GetAttribute("SkinBaseColor") == nil then
+				d:SetAttribute("SkinBaseColor", d.Color)
+				d:SetAttribute("SkinBaseMat", d.Material.Name)
+			end
+			local isAccent = string.find(d.Name, "Trim") or string.find(d.Name, "RailCap") or string.find(d.Name, "Lintel")
+			if not skin then
+				-- Default: restore saved original
+				d.Color = d:GetAttribute("SkinBaseColor")
+				d.Material = Enum.Material[d:GetAttribute("SkinBaseMat")]
+			elseif isAccent and skin.accent then
+				d.Color = skin.accent
+				d.Material = skin.accentMat or d.Material
+			else
+				d.Color = skin.wall
+				d.Material = skin.wallMat or d.Material
+			end
+		end
+	end
+end
+
 function PlotManager.rebuildHouseForPlayer(player, tier, pcTier)
 	local index = plotOfPlayer[player.UserId]
 	if not index then
@@ -1576,6 +1613,11 @@ function PlotManager.rebuildHouseForPlayer(player, tier, pcTier)
 	buildHouse(plotFolder, PLOT_ORIGINS[index], tier, pcTier or 0)
 	-- Rooms are rebuilt with their buy buttons showing; restore ownership.
 	PlotManager.applyRoomOwnership(player)
+
+	local data = PlayerData.get(player)
+	if data then
+		PlotManager.applySkin(player, data.activeSkin or "Default")
+	end
 end
 
 function PlotManager.rebuildPCForPlayer(player, tier)

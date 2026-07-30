@@ -61,6 +61,14 @@ local function grantPass(player, data, key)
 	data.passes[key] = true
 	if key == "VIP" then
 		applyVIPCosmetic(player)
+	elseif key == "Speed2x" then
+		-- Apply immediately to the current character; no need to wait for
+		-- a respawn (mirrors the CharacterAdded applySpeed logic below).
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.WalkSpeed = GameData.GamePasses.Speed2x.walkSpeed
+		end
 	end
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 end
@@ -171,12 +179,22 @@ function MonetizationService.start()
 				applyVIPCosmetic(player)
 			end
 		end
+		local function applySpeed()
+			local data = PlayerData.get(player)
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if data and hum and data.passes and data.passes.Speed2x then
+				hum.WalkSpeed = GameData.GamePasses.Speed2x.walkSpeed
+			end
+		end
 		if player.Character then
 			applyIfVIP()
+			applySpeed()
 		end
 		player.CharacterAdded:Connect(function()
 			task.wait(0.5)
 			applyIfVIP()
+			applySpeed()
 		end)
 	end
 

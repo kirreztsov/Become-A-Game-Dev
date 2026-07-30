@@ -182,6 +182,14 @@ function StorePanel.init(player, theme, playerState)
 		corner(action, 10)
 
 		action.MouseButton1Click:Connect(function()
+			-- Owned skins: clicking the action button wears the skin instead
+			-- of prompting a purchase (there's nothing left to buy).
+			if info.skin and playerState.passes and playerState.passes[entry.key] then
+				if playerState.activeSkin ~= info.skin then
+					Remotes.RequestSetSkin:FireServer(info.skin)
+				end
+				return
+			end
 			if not (info.id and info.id > 0) then
 				return -- not created yet
 			end
@@ -201,7 +209,16 @@ function StorePanel.init(player, theme, playerState)
 				owned = playerState.starterPackBought
 			end
 
-			if not created then
+			if info.skin and owned then
+				-- Owned skin pass: "Wear" it (or show it's already worn).
+				local wearing = playerState.activeSkin == info.skin
+				action.Text = wearing and "Wearing \226\156\133" or "Wear"
+				action.BackgroundColor3 = wearing and (theme.Success or Color3.fromRGB(90, 190, 120))
+					or (theme.Accent or Color3.fromRGB(120, 90, 235))
+				action.AutoButtonColor = not wearing
+				action.Active = not wearing
+				card.Visible = true
+			elseif not created then
 				action.Text = "Coming soon"
 				action.BackgroundColor3 = theme.Neutral
 				action.AutoButtonColor = false
@@ -225,6 +242,77 @@ function StorePanel.init(player, theme, playerState)
 		refreshers[entry.key]()
 	end
 
+	-- Always-available "Plain look" card to revert to the Default skin, even
+	-- once every skin pass is owned. Sits above all the passes (LayoutOrder 0).
+	do
+		local card = Instance.new("Frame")
+		card.Name = "DefaultLook"
+		card.Size = UDim2.new(1, -6, 0, 92)
+		card.LayoutOrder = 0
+		card.BackgroundColor3 = theme.PanelLight or theme.Panel
+		card.Parent = list
+		corner(card, 12)
+
+		local icon = Instance.new("TextLabel")
+		icon.Size = UDim2.fromOffset(56, 56)
+		icon.Position = UDim2.fromOffset(14, 18)
+		icon.BackgroundTransparency = 1
+		icon.Text = "\240\159\143\160"
+		icon.TextSize = 40
+		icon.Font = Enum.Font.FredokaOne
+		icon.Parent = card
+
+		local name = Instance.new("TextLabel")
+		name.Size = UDim2.new(1, -240, 0, 26)
+		name.Position = UDim2.fromOffset(78, 14)
+		name.BackgroundTransparency = 1
+		name.TextXAlignment = Enum.TextXAlignment.Left
+		name.Text = "Plain Look"
+		name.TextColor3 = theme.Text
+		name.Font = Enum.Font.FredokaOne
+		name.TextSize = 19
+		name.Parent = card
+
+		local desc = Instance.new("TextLabel")
+		desc.Size = UDim2.new(1, -240, 0, 44)
+		desc.Position = UDim2.fromOffset(78, 40)
+		desc.BackgroundTransparency = 1
+		desc.TextXAlignment = Enum.TextXAlignment.Left
+		desc.TextYAlignment = Enum.TextYAlignment.Top
+		desc.TextWrapped = true
+		desc.Text = "Revert your studio to its plain, default look."
+		desc.TextColor3 = theme.TextMuted
+		desc.Font = Enum.Font.GothamMedium
+		desc.TextSize = 13
+		desc.Parent = card
+
+		local action = Instance.new("TextButton")
+		action.Size = UDim2.fromOffset(140, 44)
+		action.Position = UDim2.new(1, -16, 0.5, 0)
+		action.AnchorPoint = Vector2.new(1, 0.5)
+		action.Font = Enum.Font.FredokaOne
+		action.TextSize = 17
+		action.TextColor3 = Color3.fromRGB(255, 255, 255)
+		action.Parent = card
+		corner(action, 10)
+
+		action.MouseButton1Click:Connect(function()
+			if playerState.activeSkin ~= "Default" then
+				Remotes.RequestSetSkin:FireServer("Default")
+			end
+		end)
+
+		refreshers.DefaultLook = function()
+			local active = playerState.activeSkin == "Default" or playerState.activeSkin == nil
+			action.Text = active and "Wearing \226\156\133" or "Wear"
+			action.BackgroundColor3 = active and (theme.Success or Color3.fromRGB(90, 190, 120))
+				or (theme.Accent or Color3.fromRGB(120, 90, 235))
+			action.AutoButtonColor = not active
+			action.Active = not active
+		end
+		refreshers.DefaultLook()
+	end
+
 	local function refreshAll()
 		for _, fn in pairs(refreshers) do
 			fn()
@@ -245,6 +333,9 @@ function StorePanel.init(player, theme, playerState)
 		end
 		if data.starterPackBought ~= nil then
 			playerState.starterPackBought = data.starterPackBought
+		end
+		if data.activeSkin ~= nil then
+			playerState.activeSkin = data.activeSkin
 		end
 		refreshAll()
 	end)

@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local PlayerData = require(script.PlayerData)
 local TrendsService = require(script.TrendsService)
 local DevelopmentService = require(script.DevelopmentService)
@@ -11,6 +12,7 @@ local DailyRewardService = require(script.DailyRewardService)
 local LeaderboardService = require(script.LeaderboardService)
 local WorkerCaseService = require(script.WorkerCaseService)
 local MonetizationService = require(script.MonetizationService)
+local LoungeService = require(script.LoungeService)
 local TutorialService = require(script.TutorialService)
 local Lobby = require(script.Lobby)
 
@@ -27,6 +29,7 @@ DailyRewardService.start()
 LeaderboardService.start()
 WorkerCaseService.start()
 MonetizationService.start()
+LoungeService.start()
 TutorialService.start()
 Lobby.start()
 
@@ -101,6 +104,27 @@ Remotes.SetSoundMuted.OnServerEvent:Connect(function(player, on)
 	if data then
 		data.soundMuted = on and true or false
 	end
+end)
+
+-- Change the player's studio exterior skin (validates ownership of the
+-- matching Robux pass unless reverting to "Default").
+Remotes.RequestSetSkin.OnServerEvent:Connect(function(player, skinKey)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	if skinKey ~= "Default" then
+		if not GameData.StudioSkins[skinKey] then
+			return -- unknown skin
+		end
+		local passKey = "Skin" .. tostring(skinKey) -- "Gold" -> "SkinGold"
+		if not (data.passes and data.passes[passKey]) then
+			return -- must own the skin pass
+		end
+	end
+	data.activeSkin = skinKey
+	PlotManager.applySkin(player, skinKey)
+	Remotes.PlayerStateUpdated:FireClient(player, data)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do

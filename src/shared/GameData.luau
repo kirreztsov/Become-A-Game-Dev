@@ -199,11 +199,11 @@ GameData.GamePasses = {
 	VIP = { id = 1927380272, order = 2, icon = "\226\173\144", name = "VIP", desc = "+25% cash forever, a gold look and a VIP tag.", cashMult = 1.25 },
 	FasterWorkers = { id = 1927680275, order = 3, icon = "\240\159\145\183", name = "Faster Workers", desc = "Your workers build games 1.5x faster.", workerSpeedMult = 1.5 },
 	Subs2x = { id = 1927332286, order = 4, icon = "\240\159\147\136", name = "2x Subscribers", desc = "Get DOUBLE subscribers from every release.", subsMult = 2 },
-	VIPPlus      = { id = 0, order = 5, icon = "\240\159\146\142", name = "VIP+", desc = "Unlocks the VIP+ Lounge -- earn passive cash while you relax." },
-	Speed2x      = { id = 0, order = 6, icon = "\240\159\143\131", name = "2x Speed", desc = "Move twice as fast around the world.", walkSpeed = 32 },
-	SkinGold     = { id = 0, order = 7, icon = "\240\159\142\168", name = "Gold Studio", desc = "A shiny gold look for your studio.", skin = "Gold" },
-	SkinNeon     = { id = 0, order = 8, icon = "\240\159\142\168", name = "Neon Studio", desc = "Dark walls with glowing neon trim.", skin = "Neon" },
-	SkinMidnight = { id = 0, order = 9, icon = "\240\159\142\168", name = "Midnight Studio", desc = "A deep midnight-blue look.", skin = "Midnight" },
+	VIPPlus      = { id = 1933034533, order = 5, icon = "\240\159\146\142", name = "VIP+", desc = "Unlocks the VIP+ Lounge -- earn passive cash while you relax." },
+	Speed2x      = { id = 1933844495, order = 6, icon = "\240\159\143\131", name = "2x Speed", desc = "Move twice as fast around the world.", walkSpeed = 32 },
+	SkinGold     = { id = 1933784486, order = 7, icon = "\240\159\142\168", name = "Gold Studio", desc = "A shiny gold look for your studio.", skin = "Gold" },
+	SkinNeon     = { id = 1932164824, order = 8, icon = "\240\159\142\168", name = "Neon Studio", desc = "Dark walls with glowing neon trim.", skin = "Neon" },
+	SkinMidnight = { id = 1932056863, order = 9, icon = "\240\159\142\168", name = "Midnight Studio", desc = "A deep midnight-blue look.", skin = "Midnight" },
 }
 GameData.Products = {
 	StarterPack = { id = 3611343811, order = 1, icon = "\240\159\142\129", name = "Starter Pack", desc = "$500 cash + a 2x boost (10 min) + a guaranteed Rare worker!", cash = 500, boostMult = 2, boostDur = 600, worker = "Rare" },

@@ -1,4 +1,5 @@
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Sound = require(script.Parent.Sound)
 
 local DailyRewardPanel = {}
 
@@ -139,6 +140,7 @@ function DailyRewardPanel.init(player, theme)
 
 	Remotes.DailyRewardClaimed.OnClientEvent:Connect(function()
 		screenGui.Enabled = false
+		Sound.play("DailyReward")
 	end)
 end
 

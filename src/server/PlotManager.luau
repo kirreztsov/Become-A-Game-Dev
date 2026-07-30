@@ -1583,17 +1583,21 @@ function PlotManager.applySkin(player, skinKey)
 				d:SetAttribute("SkinBaseColor", d.Color)
 				d:SetAttribute("SkinBaseMat", d.Material.Name)
 			end
-			local isAccent = string.find(d.Name, "Trim") or string.find(d.Name, "RailCap") or string.find(d.Name, "Lintel")
-			if not skin then
-				-- Default: restore saved original
-				d.Color = d:GetAttribute("SkinBaseColor")
-				d.Material = Enum.Material[d:GetAttribute("SkinBaseMat")]
-			elseif isAccent and skin.accent then
-				d.Color = skin.accent
-				d.Material = skin.accentMat or d.Material
+			if d:GetAttribute("SkinBaseMat") == "Glass" then
+				-- Glass windows: never recolor/re-material, for any skin.
 			else
-				d.Color = skin.wall
-				d.Material = skin.wallMat or d.Material
+				local isAccent = string.find(d.Name, "Trim") or string.find(d.Name, "RailCap") or string.find(d.Name, "Lintel")
+				if not skin then
+					-- Default: restore saved original
+					d.Color = d:GetAttribute("SkinBaseColor")
+					d.Material = Enum.Material[d:GetAttribute("SkinBaseMat")]
+				elseif isAccent and skin.accent then
+					d.Color = skin.accent
+					d.Material = skin.accentMat or Enum.Material[d:GetAttribute("SkinBaseMat")]
+				else
+					d.Color = skin.wall
+					d.Material = skin.wallMat or Enum.Material[d:GetAttribute("SkinBaseMat")]
+				end
 			end
 		end
 	end

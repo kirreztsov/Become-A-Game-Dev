@@ -2826,8 +2826,8 @@ local function buildPlazaHologram(lobbyFolder)
 				meshCtrl.PrimaryPart = meshCtrl:FindFirstChildWhichIsA("BasePart")
 			end
 		end
-		-- Face up + toward the plaza (orientation tuned after a look in-game).
-		meshCtrl:PivotTo(CFrame.new(P) * CFrame.Angles(math.rad(-90), 0, 0))
+		-- Tilt the face down toward players on the ground (spin preserves this).
+		meshCtrl:PivotTo(CFrame.new(P) * CFrame.Angles(math.rad(-55), 0, 0))
 		local mlight = Instance.new("PointLight")
 		mlight.Color = HOLO
 		mlight.Brightness = 1.3

@@ -1,6 +1,7 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local Sound = require(script.Parent.Sound)
 
 local WorkersPanel = {}
 
@@ -228,8 +229,11 @@ function WorkersPanel.init(player, theme, playerState)
 	end)
 
 	Remotes.WorkerActionResult.OnClientEvent:Connect(function(role, action, success)
-		if not success then
+		if success then
+			Sound.play("Hire")
+		else
 			statusLabel.Text = ("Not enough cash to %s the %s worker!"):format(action, role)
+			Sound.play("Error")
 		end
 	end)
 

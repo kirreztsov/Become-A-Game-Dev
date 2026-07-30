@@ -3,6 +3,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Sound = require(script.Parent.Sound)
 
 local UI = {}
 
@@ -146,6 +147,7 @@ local function addButtonJuice(btn)
 		animateTo(1)
 	end)
 	btn.MouseButton1Down:Connect(function()
+		Sound.play("Click")
 		animateTo(0.93)
 	end)
 	btn.MouseButton1Up:Connect(function()
@@ -169,6 +171,7 @@ end
 
 -- Pop a frame in with a little overshoot when it appears (0.9 -> 1.04 -> 1).
 local function popIn(frame)
+	Sound.play("PanelOpen")
 	local scale = frame:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	scale.Parent = frame
 	scale.Scale = 0.9
@@ -880,6 +883,7 @@ function UI.init()
 	addCorner(toStudioBtn, 12)
 	addStroke(toStudioBtn, Color3.fromRGB(255, 255, 255), 1, 0.7)
 	toStudioBtn.MouseButton1Click:Connect(function()
+		Sound.play("Teleport")
 		Remotes.RequestGoToStudio:FireServer()
 	end)
 
@@ -898,6 +902,7 @@ function UI.init()
 	addCorner(leaderboardBtn, 12)
 	addStroke(leaderboardBtn, Color3.fromRGB(255, 255, 255), 1, 0.6)
 	leaderboardBtn.MouseButton1Click:Connect(function()
+		Sound.play("Teleport")
 		Remotes.RequestGoToLeaderboards:FireServer()
 	end)
 
@@ -1655,6 +1660,7 @@ function UI.init()
 	end)
 
 	Remotes.RoundStarted.OnClientEvent:Connect(function(station, roundIndex, info)
+		Sound.play("RoundStart")
 		armWatchdog()
 		statusToast.Text = ("%s \226\128\148 round %d/%d"):format(PHASE_DISPLAY_NAMES[station], roundIndex, GameData.RoundsPerPhase)
 		statusToast.TextColor3 = Theme.TextMuted
@@ -1665,6 +1671,7 @@ function UI.init()
 	end)
 
 	Remotes.RoundComplete.OnClientEvent:Connect(function(phase, roundIndex, score)
+		Sound.play(score >= 0.5 and "Correct" or "Wrong")
 		armWatchdog()
 		statusToast.Text = ("Round %d: %d%%"):format(roundIndex, math.floor(score * 100 + 0.5))
 		statusToast.TextColor3 = Theme.TextMuted
@@ -1697,6 +1704,10 @@ function UI.init()
 	end)
 
 	Remotes.DevelopmentComplete.OnClientEvent:Connect(function(cash, wasCopy, hitBonus)
+		Sound.play("Shipped")
+		if hitBonus then
+			Sound.play("TrendHit")
+		end
 		developing = false
 		hideAllMiniGames()
 		currentPhase = nil
@@ -1755,6 +1766,7 @@ function UI.init()
 			if cashDelta > 0 then
 				local c = coin.AbsolutePosition + coin.AbsoluteSize / 2
 				Fx.coinBurst(c.X, c.Y)
+				Sound.play("Cash")
 			end
 		end
 	end)
@@ -1764,6 +1776,7 @@ function UI.init()
 			showSubsGained(amount)
 		end
 		if milestoneReached and milestoneReached > 0 then
+			Sound.play("Milestone")
 			showMilestoneCelebration(milestoneReached)
 			Fx.confetti(44)
 		end
@@ -1789,6 +1802,7 @@ function UI.init()
 	-- M6 polish: give every button in every panel a springy hover/press feel.
 	juiceAllButtons(player:WaitForChild("PlayerGui"))
 	DarkMode.init(player, playerState)
+	Sound.init(player, playerState)
 
 	-- M5 mobile: auto-fit every menu/HUD to the screen size (no-op on desktop).
 	MobileScale.init(player)

@@ -4,6 +4,7 @@ local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local WorkersPanel = require(script.Parent.WorkersPanel)
 local Fx = require(script.Parent.Fx)
+local Sound = require(script.Parent.Sound)
 
 local WorkerHub = {}
 
@@ -225,6 +226,7 @@ function WorkerHub.init(player, theme)
 				return
 			end
 			spinning = true
+			Sound.play("CaseSpin")
 			if refreshCounts then
 				refreshCounts()
 			end
@@ -308,6 +310,7 @@ function WorkerHub.init(player, theme)
 			local info = GameData.getRarityInfo(rolledRarity)
 			resultLabel.TextColor3 = info.color
 			resultLabel.Text = ("\240\159\142\137 %s!  Your %s worker leveled up!"):format(rolledRarity, workerType)
+			Sound.play("CaseReveal")
 			for _, s in ipairs({ 1.5, 1.2, 1.35, 1.12, 1.0 }) do
 				scale.Scale = s
 				task.wait(0.045)

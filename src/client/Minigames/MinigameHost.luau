@@ -6,6 +6,7 @@
 -- ReportMinigameInput remote.
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Registry = require(script.Parent.MinigameRegistry)
+local Sound = require(script.Parent.Parent.Sound)
 
 local Host = {}
 Host.__index = Host
@@ -14,6 +15,7 @@ function Host.new(station, panel, theme)
 	local self = setmetatable({ station = station, active = nil, variants = {} }, Host)
 	for _, v in ipairs(Registry.forStation(station) or {}) do
 		v.init(panel, theme, function(value)
+			Sound.play("MinigameTap")
 			Remotes.ReportMinigameInput:FireServer(value)
 		end)
 		v.hide()

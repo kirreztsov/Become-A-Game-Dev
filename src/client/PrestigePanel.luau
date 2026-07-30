@@ -1,6 +1,7 @@
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Fx = require(script.Parent.Fx)
+local Sound = require(script.Parent.Sound)
 
 local PrestigePanel = {}
 
@@ -322,6 +323,7 @@ function PrestigePanel.init(player, theme, playerState)
 	Remotes.PrestigeResult.OnClientEvent:Connect(function(newLevel)
 		playerState.prestigeLevel = newLevel
 		refresh()
+		Sound.play("Rebirth")
 		Fx.celebrate(("\226\173\144 REBIRTH! Prestige %d"):format(newLevel), Color3.fromRGB(150, 92, 255))
 		-- brief celebration banner
 		local toast = Instance.new("TextLabel")

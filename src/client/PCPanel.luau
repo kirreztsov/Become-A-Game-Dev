@@ -1,6 +1,7 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local Sound = require(script.Parent.Sound)
 
 local PCPanel = {}
 
@@ -164,8 +165,11 @@ function PCPanel.init(player, theme, playerState)
 	end)
 
 	Remotes.PCActionResult.OnClientEvent:Connect(function(success)
-		if not success then
+		if success then
+			Sound.play("Purchase")
+		else
 			statusLabel.Text = "Not enough cash!"
+			Sound.play("Error")
 		end
 	end)
 

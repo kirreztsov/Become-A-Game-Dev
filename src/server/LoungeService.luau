@@ -20,13 +20,15 @@ function LoungeService.start()
 			local zone = lobby and lobby:FindFirstChild("LoungeZone")
 			if zone then
 				for _, player in ipairs(Players:GetPlayers()) do
-					local data = PlayerData.get(player)
-					local char = player.Character
-					local root = char and char:FindFirstChild("HumanoidRootPart")
-					if data and root and data.passes and data.passes.VIPPlus and inZone(root.Position, zone) then
-						data.cash += GameData.getLoungeRate(data)
-						Remotes.PlayerStateUpdated:FireClient(player, data)
-					end
+					pcall(function()
+						local data = PlayerData.get(player)
+						local char = player.Character
+						local root = char and char:FindFirstChild("HumanoidRootPart")
+						if data and root and data.passes and data.passes.VIPPlus and inZone(root.Position, zone) then
+							data.cash += GameData.getLoungeRate(data)
+							Remotes.PlayerStateUpdated:FireClient(player, data)
+						end
+					end)
 				end
 			end
 		end

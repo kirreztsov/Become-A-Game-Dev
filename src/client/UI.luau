@@ -257,6 +257,7 @@ function UI.init()
 	local Fx = require(script.Parent.Fx)
 	local DarkMode = require(script.Parent.DarkMode)
 	local MobileScale = require(script.Parent.MobileScale)
+	local LeaderboardPanel = require(script.Parent.LeaderboardPanel)
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "GameDevTycoonUI"
@@ -903,8 +904,8 @@ function UI.init()
 	addCorner(leaderboardBtn, 12)
 	addStroke(leaderboardBtn, Color3.fromRGB(255, 255, 255), 1, 0.6)
 	leaderboardBtn.MouseButton1Click:Connect(function()
-		Sound.play("Teleport")
-		Remotes.RequestGoToLeaderboards:FireServer()
+		Sound.play("PanelOpen")
+		LeaderboardPanel.toggle()
 	end)
 
 	-- A "+$X" pops up next to the cash pill and floats up while fading
@@ -1859,6 +1860,7 @@ function UI.init()
 	WorkerHub.init(player, Theme)
 	StorePanel.init(player, Theme, playerState)
 	VIPChat.setup()
+	LeaderboardPanel.init(player)
 
 	-- M6 polish: give every button in every panel a springy hover/press feel.
 	juiceAllButtons(player:WaitForChild("PlayerGui"))

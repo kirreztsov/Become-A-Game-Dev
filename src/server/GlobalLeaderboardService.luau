@@ -43,6 +43,9 @@ end
 local function writePlayer(player)
 	local data = PlayerData.get(player)
 	if not data then return end
+	-- If this player's load failed, `data` is defaults (zeros) -- writing it
+	-- would clobber their real global standing. Skip, like PlayerData.save does.
+	if PlayerData.loadFailed(player) then return end
 	PlayerData.rolloverWeekIfNeeded(data, os.time())
 	for _, stat in ipairs(GameData.LeaderboardStats) do
 		for _, period in ipairs({ "all", "week" }) do

@@ -147,6 +147,13 @@ function PlayerData.get(player)
 	return cache[player.UserId]
 end
 
+-- True when this player's most recent load FAILED (so their cached data is
+-- defaults, not their real save). Writers should refuse to persist in this
+-- state, or they'd overwrite real data with zeros.
+function PlayerData.loadFailed(player)
+	return failedLoads[player.UserId] == true
+end
+
 function PlayerData.save(player)
 	-- Refuse to save if the most recent load failed; prevents overwriting real data with defaults
 	if failedLoads[player.UserId] then

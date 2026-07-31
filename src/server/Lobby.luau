@@ -2631,28 +2631,176 @@ end
 
 local function buildVIPLounge(lobbyFolder)
 	local center = LOBBY_ORIGIN + Vector3.new(-34, 0, 6) -- open plaza spot; nudge in playtest if it overlaps
-	makePart("LoungeRug", Vector3.new(16, 0.2, 12), center + Vector3.new(0, FLOOR_TOP + 0.1, 0), Color3.fromRGB(150, 90, 200), Enum.Material.Fabric, lobbyFolder).CanCollide = false
-	-- two simple sofas
-	for _, sx in ipairs({ -4, 4 }) do
-		makePart("LoungeSofa", Vector3.new(4, 1, 2), center + Vector3.new(sx, FLOOR_TOP + 0.6, 3), Color3.fromRGB(90, 70, 130), Enum.Material.Fabric, lobbyFolder)
-		makePart("LoungeSofaBack", Vector3.new(4, 1.4, 0.5), center + Vector3.new(sx, FLOOR_TOP + 1.3, 4), Color3.fromRGB(90, 70, 130), Enum.Material.Fabric, lobbyFolder).CanCollide = false
+	local deckTop = FLOOR_TOP + 0.2 -- surface everything rests on
+
+	-- palette (Neon reserved for accent trim only, per project rule)
+	local SLATE = Color3.fromRGB(38, 30, 54)
+	local GOLD = GOLD_COLOR
+	local NEON_GOLD = Color3.fromRGB(255, 226, 150)
+	local VELVET = Color3.fromRGB(108, 74, 150)
+	local CUSHION = Color3.fromRGB(158, 116, 210)
+	local RUG = Color3.fromRGB(120, 80, 175)
+	local ROPE = Color3.fromRGB(158, 44, 74)
+	local POT = Color3.fromRGB(120, 78, 60)
+	local LEAF = Color3.fromRGB(70, 140, 86)
+
+	-- helper: makePart at an offset from the lounge centre. Returns the part.
+	local function P(name, size, off, color, mat)
+		return makePart(name, size, center + off, color, mat, lobbyFolder)
 	end
-	-- "VIP+ Only" sign
-	local signPost = makePart("LoungeSignPost", Vector3.new(0.4, 5, 0.4), center + Vector3.new(0, FLOOR_TOP + 2.5, -5), Color3.fromRGB(60, 50, 80), Enum.Material.Metal, lobbyFolder)
-	local sign = makePart("LoungeSign", Vector3.new(7, 2, 0.3), center + Vector3.new(0, FLOOR_TOP + 5, -5), Color3.fromRGB(120, 90, 235), Enum.Material.SmoothPlastic, lobbyFolder)
+
+	-- ---- marble deck + gold trim ----
+	P("LoungeDeck", Vector3.new(15, 0.4, 11), Vector3.new(0, FLOOR_TOP, 0), SLATE, Enum.Material.Marble)
+	-- gold border frame (thin, sits on the deck edge — decorative, non-colliding)
+	local bx, bz = 7.5, 5.5
+	for _, b in ipairs({
+		{ n = "N", s = Vector3.new(15, 0.35, 0.5), o = Vector3.new(0, deckTop + 0.15, -bz) },
+		{ n = "S", s = Vector3.new(15, 0.35, 0.5), o = Vector3.new(0, deckTop + 0.15, bz) },
+		{ n = "E", s = Vector3.new(0.5, 0.35, 11), o = Vector3.new(bx, deckTop + 0.15, 0) },
+		{ n = "W", s = Vector3.new(0.5, 0.35, 11), o = Vector3.new(-bx, deckTop + 0.15, 0) },
+	}) do
+		P("LoungeTrim" .. b.n, b.s, b.o, GOLD, Enum.Material.Metal).CanCollide = false
+	end
+	-- glowing accent line inset just inside the trim (the "VIP glow")
+	for _, b in ipairs({
+		{ n = "N", s = Vector3.new(13.6, 0.12, 0.14), o = Vector3.new(0, deckTop + 0.18, -bz + 0.5) },
+		{ n = "S", s = Vector3.new(13.6, 0.12, 0.14), o = Vector3.new(0, deckTop + 0.18, bz - 0.5) },
+	}) do
+		P("LoungeGlow" .. b.n, b.s, b.o, NEON_GOLD, Enum.Material.Neon).CanCollide = false
+	end
+
+	-- ---- plush rug with a diamond emblem ----
+	local rug = P("LoungeRug", Vector3.new(9, 0.15, 6), Vector3.new(0, deckTop + 0.08, 0.5), RUG, Enum.Material.Fabric)
+	rug.CanCollide = false
+	local rugGui = Instance.new("SurfaceGui")
+	rugGui.Face = Enum.NormalId.Top
+	rugGui.Parent = rug
+	local rugLbl = Instance.new("TextLabel")
+	rugLbl.Size = UDim2.fromScale(1, 1)
+	rugLbl.BackgroundTransparency = 1
+	rugLbl.Text = "\240\159\146\142"
+	rugLbl.TextColor3 = Color3.fromRGB(255, 235, 180)
+	rugLbl.TextTransparency = 0.55
+	rugLbl.Font = Enum.Font.FredokaOne
+	rugLbl.TextScaled = true
+	rugLbl.Parent = rugGui
+
+	-- ---- back sofa (faces the plaza, +z) ----
+	P("LoungeSofaBase", Vector3.new(8, 0.9, 2.2), Vector3.new(0, deckTop + 0.45, -3.3), VELVET, Enum.Material.Fabric)
+	P("LoungeSofaSeat", Vector3.new(7.4, 0.35, 1.8), Vector3.new(0, deckTop + 1.05, -3.2), CUSHION, Enum.Material.Fabric).CanCollide = false
+	P("LoungeSofaBack", Vector3.new(8, 1.7, 0.5), Vector3.new(0, deckTop + 0.9, -4.3), VELVET, Enum.Material.Fabric)
+	P("LoungeSofaArmL", Vector3.new(0.6, 1.1, 2.2), Vector3.new(-3.9, deckTop + 0.55, -3.3), VELVET, Enum.Material.Fabric)
+	P("LoungeSofaArmR", Vector3.new(0.6, 1.1, 2.2), Vector3.new(3.9, deckTop + 0.55, -3.3), VELVET, Enum.Material.Fabric)
+
+	-- ---- two armchairs at the front corners, angled inward ----
+	for _, c in ipairs({ { x = -5, yaw = -32 }, { x = 5, yaw = 32 } }) do
+		local base = P("LoungeChairBase", Vector3.new(2.4, 0.9, 2.4), Vector3.new(c.x, deckTop + 0.45, 3.4), VELVET, Enum.Material.Fabric)
+		base.CFrame = base.CFrame * CFrame.Angles(0, math.rad(c.yaw), 0)
+		local seat = P("LoungeChairSeat", Vector3.new(2, 0.3, 2), Vector3.new(c.x, deckTop + 1.05, 3.4), CUSHION, Enum.Material.Fabric)
+		seat.CFrame = seat.CFrame * CFrame.Angles(0, math.rad(c.yaw), 0)
+		seat.CanCollide = false
+		local back = P("LoungeChairBack", Vector3.new(2.4, 1.5, 0.5), center + Vector3.new(c.x, deckTop + 0.9, 3.4), VELVET, Enum.Material.Fabric)
+		-- push the backrest to the outer edge along the chair's own facing
+		back.CFrame = CFrame.new(center + Vector3.new(c.x, deckTop + 0.9, 3.4)) * CFrame.Angles(0, math.rad(c.yaw), 0) * CFrame.new(0, 0, 1.1)
+		back.CanCollide = false
+	end
+
+	-- ---- glass coffee table + little gold trophy ----
+	P("LoungeTableTop", Vector3.new(2.6, 0.2, 2.6), Vector3.new(0, deckTop + 1.0, 0.5), Color3.fromRGB(210, 235, 245), Enum.Material.Glass).CanCollide = false
+	for _, lx in ipairs({ -1, 1 }) do
+		for _, lz in ipairs({ -1, 1 }) do
+			P("LoungeTableLeg", Vector3.new(0.18, 1.0, 0.18), Vector3.new(lx * 1.05, deckTop + 0.5, 0.5 + lz * 1.05), GOLD, Enum.Material.Metal).CanCollide = false
+		end
+	end
+	P("LoungeTrophyBase", Vector3.new(0.5, 0.2, 0.5), Vector3.new(0, deckTop + 1.2, 0.5), GOLD, Enum.Material.Metal).CanCollide = false
+	P("LoungeTrophyStem", Vector3.new(0.14, 0.4, 0.14), Vector3.new(0, deckTop + 1.45, 0.5), GOLD, Enum.Material.Metal).CanCollide = false
+	local cup = P("LoungeTrophyCup", Vector3.new(0.7, 0.7, 0.7), Vector3.new(0, deckTop + 1.85, 0.5), GOLD, Enum.Material.Metal)
+	cup.Shape = Enum.PartType.Ball
+	cup.CanCollide = false
+
+	-- ---- potted plants at the back corners ----
+	for _, px in ipairs({ -6, 6 }) do
+		P("LoungePot", Vector3.new(1.2, 1.1, 1.2), Vector3.new(px, deckTop + 0.55, -4.3), POT, Enum.Material.SmoothPlastic)
+		local foliage = P("LoungeFoliage", Vector3.new(2.2, 2.2, 2.2), Vector3.new(px, deckTop + 1.9, -4.3), LEAF, Enum.Material.Grass)
+		foliage.Shape = Enum.PartType.Ball
+		foliage.CanCollide = false
+	end
+
+	-- ---- floor lamps at the front corners (soft warm glow, not blinding) ----
+	for _, lx in ipairs({ -6.6, 6.6 }) do
+		P("LoungeLampPole", Vector3.new(0.25, 6.5, 0.25), Vector3.new(lx, deckTop + 3.25, 4.6), GOLD, Enum.Material.Metal).CanCollide = false
+		local globe = P("LoungeLampGlobe", Vector3.new(0.7, 0.7, 0.7), Vector3.new(lx, deckTop + 6.7, 4.6), NEON_GOLD, Enum.Material.Neon)
+		globe.Shape = Enum.PartType.Ball
+		globe.CanCollide = false
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 220, 150)
+		light.Range = 9
+		light.Brightness = 0.5
+		light.Parent = globe
+	end
+
+	-- ---- velvet-rope entrance (signature VIP touch, decorative / walk-through) ----
+	local ropePosts = { -6, -2.4, 2.4, 6 } -- centre gap = the entrance
+	for i, rx in ipairs(ropePosts) do
+		local post = P("LoungeStanchion" .. i, Vector3.new(0.32, 3, 0.32), Vector3.new(rx, deckTop + 1.5, 5.4), GOLD, Enum.Material.Metal)
+		post.Shape = Enum.PartType.Cylinder
+		post.CFrame = CFrame.new(center + Vector3.new(rx, deckTop + 1.5, 5.4)) * CFrame.Angles(0, 0, math.rad(90))
+		post.CanCollide = false
+		local cap = P("LoungeStanchionCap" .. i, Vector3.new(0.6, 0.6, 0.6), Vector3.new(rx, deckTop + 3.1, 5.4), NEON_GOLD, Enum.Material.Neon)
+		cap.Shape = Enum.PartType.Ball
+		cap.CanCollide = false
+	end
+	-- ropes span the outer two gaps, leaving the middle open to walk in
+	for _, seg in ipairs({ { a = -6, b = -2.4 }, { a = 2.4, b = 6 } }) do
+		local mid = (seg.a + seg.b) / 2
+		local len = math.abs(seg.b - seg.a)
+		local rope = P("LoungeRope", Vector3.new(len, 0.16, 0.16), Vector3.new(mid, deckTop + 2.7, 5.4), ROPE, Enum.Material.Fabric)
+		rope.CanCollide = false
+	end
+
+	-- ---- backlit VIP+ sign with neon-gold trim ----
+	P("LoungeSignPost", Vector3.new(0.4, 6, 0.4), Vector3.new(0, FLOOR_TOP + 3, -5.4), DARK_TRIM_COLOR, Enum.Material.Metal)
+	local sign = P("LoungeSign", Vector3.new(7.5, 2.6, 0.3), Vector3.new(0, FLOOR_TOP + 6.2, -5.4), ACCENT_COLOR, Enum.Material.SmoothPlastic)
 	sign.CanCollide = false
-	local sg = Instance.new("SurfaceGui")
-	sg.Face = Enum.NormalId.Front
-	sg.Parent = sign
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.fromScale(1, 1)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = "\240\159\146\142 VIP+ Lounge"
-	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-	lbl.Font = Enum.Font.FredokaOne
-	lbl.TextScaled = true
-	lbl.Parent = sg
-	-- invisible earning zone
+	-- solid gold frame around the board (a big neon rectangle blows out the scene)
+	for _, f in ipairs({
+		{ n = "T", s = Vector3.new(7.9, 0.22, 0.36), o = Vector3.new(0, FLOOR_TOP + 7.55, -5.4) },
+		{ n = "B", s = Vector3.new(7.9, 0.22, 0.36), o = Vector3.new(0, FLOOR_TOP + 4.85, -5.4) },
+		{ n = "L", s = Vector3.new(0.22, 2.9, 0.36), o = Vector3.new(-3.85, FLOOR_TOP + 6.2, -5.4) },
+		{ n = "R", s = Vector3.new(0.22, 2.9, 0.36), o = Vector3.new(3.85, FLOOR_TOP + 6.2, -5.4) },
+	}) do
+		P("LoungeSignFrame" .. f.n, f.s, f.o, GOLD, Enum.Material.Metal).CanCollide = false
+	end
+	local signLight = Instance.new("PointLight")
+	signLight.Color = Color3.fromRGB(180, 150, 255)
+	signLight.Range = 10
+	signLight.Brightness = 0.5
+	signLight.Parent = sign
+	-- text on BOTH faces so it reads from either side of the sign
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.Parent = sign
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.fromScale(1, 0.62)
+		title.BackgroundTransparency = 1
+		title.Text = "\240\159\146\142 VIP+ Lounge"
+		title.TextColor3 = Color3.fromRGB(255, 255, 255)
+		title.Font = Enum.Font.FredokaOne
+		title.TextScaled = true
+		title.Parent = sg
+		local sub = Instance.new("TextLabel")
+		sub.Position = UDim2.fromScale(0, 0.64)
+		sub.Size = UDim2.fromScale(1, 0.32)
+		sub.BackgroundTransparency = 1
+		sub.Text = "Members earn cash while they relax"
+		sub.TextColor3 = Color3.fromRGB(255, 226, 150)
+		sub.Font = Enum.Font.GothamMedium
+		sub.TextScaled = true
+		sub.Parent = sg
+	end
+
+	-- invisible earning zone (UNCHANGED — server logic depends on this box)
 	local zone = makePart("LoungeZone", Vector3.new(16, 10, 12), center + Vector3.new(0, FLOOR_TOP + 5, 0), Color3.fromRGB(120, 90, 235), Enum.Material.SmoothPlastic, lobbyFolder)
 	zone.Transparency = 1
 	zone.CanCollide = false

@@ -1728,6 +1728,12 @@ function UI.init()
 	end)
 
 	local hasReceivedInitialState = false
+	-- Money sound: the full ATM "brrrt" is reserved for meaningful gains, and
+	-- rate-limited so it can't machine-gun during passive income. Small
+	-- ticks (idle/lounge) get a soft coin blip instead.
+	local BIG_CASH_SOUND = 100      -- gains >= this are worth the bill-counter
+	local BRRRT_COOLDOWN = 2.5      -- seconds; min gap between full brrrts
+	local lastBrrrtClock = 0
 
 	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
 		local cashDelta = data.cash - playerState.cash
@@ -1767,7 +1773,13 @@ function UI.init()
 			if cashDelta > 0 then
 				local c = coin.AbsolutePosition + coin.AbsoluteSize / 2
 				Fx.coinBurst(c.X, c.Y)
-				Sound.play("Cash")
+				local now = os.clock()
+				if cashDelta >= BIG_CASH_SOUND and (now - lastBrrrtClock) >= BRRRT_COOLDOWN then
+					lastBrrrtClock = now
+					Sound.play("Cash")      -- satisfying bill-counter brrrt
+				else
+					Sound.play("CashTick")  -- gentle blip for small/rapid ticks
+				end
 			end
 		end
 	end)

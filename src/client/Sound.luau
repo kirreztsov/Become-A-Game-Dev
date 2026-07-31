@@ -14,7 +14,8 @@ local CUES = {
 	PanelOpen   = { id = "rbxassetid://130029763520057", volume = 0.28 },             -- open pop
 	Error       = { id = "rbxassetid://16903690359", volume = 0.22 },                 -- soft warning beep
 	Teleport    = { id = "rbxassetid://129081570292387", volume = 0.30 },             -- warp
-	Cash        = { id = "rbxassetid://93529351909119", volume = 0.32 },              -- coin pickup
+	Cash        = { id = "rbxassetid://9114350155", volume = 0.45 },                 -- ATM bill-counter "brrrt" (Epson feed, Pro Sound Effects) -- big gains
+	CashTick    = { id = "rbxassetid://93529351909119", volume = 0.14 },             -- soft coin blip for small/passive ticks
 	Purchase    = { id = "rbxassetid://4612374036", volume = 0.32 },                  -- bling
 	Hire        = { id = "rbxassetid://3416831713", volume = 0.32 },                  -- token get
 	DailyReward = { id = "rbxassetid://114558778620362", volume = 0.30 },             -- gentle twinkle

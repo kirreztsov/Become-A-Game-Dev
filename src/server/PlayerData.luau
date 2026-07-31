@@ -65,6 +65,10 @@ local function defaultData()
 		-- has been bought. Passes are re-verified from Roblox on join.
 		passes = {},
 		starterPackBought = false,
+		-- Global-leaderboard "this week" gains (reset on week rollover) and the
+		-- week index they belong to.
+		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
+		weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 },
 	}
 end
 
@@ -108,6 +112,18 @@ function PlayerData.load(player)
 			data.passes = data.passes or {}
 			if data.starterPackBought == nil then
 				data.starterPackBought = false
+			end
+			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
+			if data.weekAnchor == nil then
+				data.weekAnchor = GameDataMod.getWeekIndex(os.time())
+			end
+			if type(data.weekly) ~= "table" then
+				data.weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 }
+			else
+				data.weekly.prestigeLevel = data.weekly.prestigeLevel or 0
+				data.weekly.subscribers = data.weekly.subscribers or 0
+				data.weekly.cash = data.weekly.cash or 0
+				data.weekly.gamesReleased = data.weekly.gamesReleased or 0
 			end
 			-- outfitColor is stored as a DataStore-safe {r,g,b} table (or nil).
 			cache[player.UserId] = data
@@ -155,6 +171,24 @@ end
 function PlayerData.remove(player)
 	cache[player.UserId] = nil
 	failedLoads[player.UserId] = nil
+end
+
+-- Reset this-week gains when a new week has started.
+function PlayerData.rolloverWeekIfNeeded(data, now)
+	local wk = GameData.getWeekIndex(now)
+	if data.weekAnchor ~= wk then
+		data.weekAnchor = wk
+		data.weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 }
+	end
+end
+
+-- Credit a positive gain toward this week's leaderboard tally.
+function PlayerData.addWeekly(data, stat, delta, now)
+	if not data then return end
+	PlayerData.rolloverWeekIfNeeded(data, now)
+	if delta and delta > 0 and data.weekly[stat] ~= nil then
+		data.weekly[stat] += math.floor(delta)
+	end
 end
 
 return PlayerData

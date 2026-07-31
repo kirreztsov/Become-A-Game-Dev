@@ -112,4 +112,20 @@ t:assertEqual(GameData.computeStanding(sRows, 22, 80).value, 80, "standing repor
 t:assertEqual(GameData.computeStanding(sRows, 99, 5).rank, nil, "not in rows -> no rank")
 t:assertEqual(GameData.computeStanding(sRows, 99, 5).value, 5, "not in rows -> falls back to live value")
 
+-- PlayerData weekly accumulator (pure table logic)
+local PlayerData = require(game:GetService("ServerScriptService").Server.PlayerData)
+local wd = { weekAnchor = 0, weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 } }
+PlayerData.addWeekly(wd, "cash", 100, 10)           -- same week (index 0)
+t:assertEqual(wd.weekly.cash, 100, "addWeekly adds a positive gain")
+PlayerData.addWeekly(wd, "cash", -50, 10)           -- negative ignored
+t:assertEqual(wd.weekly.cash, 100, "addWeekly ignores non-positive deltas")
+PlayerData.addWeekly(wd, "subscribers", 5, 10)
+t:assertEqual(wd.weekly.subscribers, 5, "addWeekly tracks each stat independently")
+PlayerData.addWeekly(wd, "cash", 25, 604800 + 1)    -- new week -> reset then add
+t:assertEqual(wd.weekly.cash, 25, "a new week resets the tally before adding")
+t:assertEqual(wd.weekly.subscribers, 0, "new week zeroes every stat")
+t:assertEqual(wd.weekAnchor, 1, "week anchor advances to the new week index")
+PlayerData.addWeekly(wd, "bogusStat", 10, 604800 + 2)  -- unknown stat is a no-op
+t:assertEqual(wd.weekly.cash, 25, "unknown stat does not corrupt the tally")
+
 t:summary()

@@ -14,6 +14,7 @@ local WorkerCaseService = require(script.WorkerCaseService)
 local MonetizationService = require(script.MonetizationService)
 local LoungeService = require(script.LoungeService)
 local TutorialService = require(script.TutorialService)
+local GlobalLeaderboardService = require(script.GlobalLeaderboardService)
 local Lobby = require(script.Lobby)
 
 PlotManager.build()
@@ -26,12 +27,36 @@ HouseService.start()
 PCService.start()
 PlotManager.start()
 DailyRewardService.start()
+GlobalLeaderboardService.start()
 LeaderboardService.start()
 WorkerCaseService.start()
 MonetizationService.start()
 LoungeService.start()
 TutorialService.start()
 Lobby.start()
+
+-- Serve the client Leaderboards panel: answer a stat+period request from the
+-- GlobalLeaderboardService cache (no new DataStore reads per request).
+do
+	local validStat = {}
+	for _, s in ipairs(GameData.LeaderboardStats) do
+		validStat[s.key] = true
+	end
+	Remotes.RequestLeaderboardData.OnServerEvent:Connect(function(player, stat, period)
+		if not validStat[stat] then return end
+		if period ~= "week" and period ~= "all" then return end
+		local rows = GlobalLeaderboardService.getRows(stat, period) -- may be nil (Studio/unavailable)
+		local standing = GlobalLeaderboardService.getSelfStanding(player, stat, period)
+		local safeRows
+		if rows then
+			safeRows = {}
+			for _, r in ipairs(rows) do
+				safeRows[#safeRows + 1] = { name = r.name, value = r.value, userId = r.userId }
+			end
+		end
+		Remotes.LeaderboardData:FireClient(player, stat, period, safeRows, standing)
+	end)
+end
 
 local AUTOSAVE_INTERVAL_SECONDS = 120
 

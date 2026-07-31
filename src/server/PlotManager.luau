@@ -1851,6 +1851,7 @@ end
 -- caller can tell the client to celebrate.
 function PlotManager.grantSubscribers(player, data, amount)
 	data.subscribers = (data.subscribers or 0) + amount
+	PlayerData.addWeekly(data, "subscribers", amount, os.time())
 	local newIndex = GameData.getSubMilestoneIndex(data.subscribers)
 	local reachedNew = 0
 	if newIndex > (data.subMilestone or 0) then
@@ -1925,6 +1926,7 @@ function PlotManager.start()
 			end
 			data.idle[room] = 0
 			data.cash += amount
+			PlayerData.addWeekly(data, "cash", amount, os.time())
 			Remotes.PlayerStateUpdated:FireClient(player, data)
 			local plotFolder = PlotManager.getPlotFolder(plotOfPlayer[player.UserId])
 			if plotFolder then
@@ -2016,6 +2018,7 @@ function PlotManager.start()
 		end
 
 		data.prestigeLevel = (data.prestigeLevel or 0) + 1
+		PlayerData.addWeekly(data, "prestigeLevel", 1, os.time())
 		data.cash = GameData.StartingCash
 		data.gamesReleased = 0
 		data.houseTier = 0
@@ -2069,6 +2072,7 @@ function PlotManager.start()
 							if whole > 0 then
 								data.cash += whole
 								credited = true
+								PlayerData.addWeekly(data, "cash", whole, os.time())
 							end
 						end
 					end
@@ -2082,6 +2086,7 @@ function PlotManager.start()
 						data.subAdAccum -= adWhole
 						data.cash += adWhole
 						credited = true
+						PlayerData.addWeekly(data, "cash", adWhole, os.time())
 					end
 
 					if credited then

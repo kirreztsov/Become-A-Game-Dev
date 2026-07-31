@@ -389,6 +389,8 @@ function DevelopmentService.start()
 
 			data.cash += cash
 			data.gamesReleased += 1
+			PlayerData.addWeekly(data, "cash", cash, os.time())
+			PlayerData.addWeekly(data, "gamesReleased", 1, os.time())
 
 			-- Releasing a game grows your channel: more subscribers for a better
 			-- game, with a big bonus when it matched a trend. This can cross a

@@ -726,4 +726,43 @@ function GameData.pickVariantId(station, lastId, rng)
 	return pool[math.floor(rng() * #pool) + 1]
 end
 
+-- ===== Global leaderboards =====
+local SECONDS_PER_WEEK = 7 * 24 * 60 * 60 -- 604800
+
+function GameData.getWeekIndex(now)
+	return math.floor((now or 0) / SECONDS_PER_WEEK)
+end
+
+local function lbCommas(n)
+	local s = tostring(math.floor(n or 0))
+	return (s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
+end
+
+-- Ordered list; index order == board order on the beach + tab order in the panel.
+GameData.LeaderboardStats = {
+	{ key = "prestigeLevel", title = "\226\173\144 Top Prestige",   accent = Color3.fromRGB(150, 92, 255), format = function(v) return "P" .. lbCommas(v) end },
+	{ key = "subscribers",   title = "\240\159\143\134 Most Subscribers", accent = Color3.fromRGB(224, 72, 96),  format = function(v) return lbCommas(v) end },
+	{ key = "cash",          title = "\240\159\146\176 Richest",     accent = Color3.fromRGB(255, 209, 102), format = function(v) return "$" .. lbCommas(v) end },
+	{ key = "gamesReleased", title = "\240\159\142\174 Most Games",  accent = Color3.fromRGB(140, 200, 120), format = function(v) return lbCommas(v) end },
+}
+
+function GameData.leaderboardStoreName(period, key, weekIndex)
+	if period == "week" then
+		return "LB2_wk_" .. key .. "_" .. tostring(weekIndex)
+	end
+	return "LB2_all_" .. key
+end
+
+-- rows: array of { userId, value, name } already sorted descending.
+-- Returns { rank = n or nil, value = n }. rank is nil when the player is not
+-- present in the (top-100) rows; value then falls back to their live value.
+function GameData.computeStanding(rows, userId, liveValue)
+	for i, row in ipairs(rows or {}) do
+		if row.userId == userId then
+			return { rank = i, value = row.value }
+		end
+	end
+	return { rank = nil, value = liveValue or 0 }
+end
+
 return GameData

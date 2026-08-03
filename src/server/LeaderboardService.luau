@@ -1,14 +1,13 @@
--- In-world leaderboards: three tall boards near the plaza showing the top
--- players by Subscribers, Cash and Games Released. Ranks everyone currently in
--- the server from their live PlayerData and refreshes on a timer.
---
--- (Global cross-server ranking via OrderedDataStore is a future enhancement;
--- it can't run in Studio anyway since DataStore access is disabled there. This
--- version always works and is fully testable.)
+-- In-world leaderboards: physical boards near the beach showing a top-10
+-- teaser for each global stat (Prestige, Subscribers, Cash, Games Released).
+-- Reads from GlobalLeaderboardService's cache and auto-flips the displayed
+-- period between "This Week" and "All-Time" every FLIP_SECONDS. Falls back to
+-- a placeholder message when the cache has no data yet (e.g. in Studio, where
+-- DataStore access is disabled, or before the first successful global read).
 
-local Players = game:GetService("Players")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
-local PlayerData = require(script.Parent.PlayerData)
+local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local GlobalLeaderboardService = require(script.Parent.GlobalLeaderboardService)
 
 local LeaderboardService = {}
 
@@ -17,21 +16,14 @@ local TOP_N = 10
 local ORIGIN = Vector3.new(15, 0, -40) -- world; a rocky outcrop on the beach
 local BOARD_SPACING = 15
 local FLOOR_TOP = 1
+local FLIP_SECONDS = 10
+local PLACEHOLDER = "\240\159\140\141 Global rankings appear in the live game"
 
-local function withCommas(n)
-	local s = tostring(math.floor(n or 0))
-	return (s:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", ""))
-end
-
-local CATEGORIES = {
-	{ key = "prestigeLevel", title = "\226\173\144 Top Prestige", accent = Color3.fromRGB(150, 92, 255), format = function(v) return "P" .. withCommas(v) end },
-	{ key = "subscribers", title = "\240\159\143\134 Most Subscribers", accent = Color3.fromRGB(224, 72, 96), format = function(v) return withCommas(v) end },
-	{ key = "cash", title = "\240\159\146\176 Richest", accent = Color3.fromRGB(255, 209, 102), format = function(v) return "$" .. withCommas(v) end },
-	{ key = "gamesReleased", title = "\240\159\142\174 Most Games", accent = Color3.fromRGB(140, 200, 120), format = function(v) return withCommas(v) end },
-}
-
--- Built once; holds the TextLabel that shows each board's rows.
+-- Built once; holds the TextLabel that shows each board's rows, and the
+-- header TextLabel so it can show which period (This Week / All-Time) is
+-- currently on display.
 local boardListLabels = {}
+local boardTitleLabels = {}
 
 local function part(name, size, position, color, material, parent)
 	local p = Instance.new("Part")
@@ -63,8 +55,8 @@ function LeaderboardService.build()
 		b.CFrame = CFrame.new(b.Position) * CFrame.Angles(0, math.rad((off.X + off.Z) % 90), 0)
 	end
 
-	local n = #CATEGORIES
-	for i, cat in ipairs(CATEGORIES) do
+	local n = #GameData.LeaderboardStats
+	for i, cat in ipairs(GameData.LeaderboardStats) do
 		-- Auto-centre however many boards there are on the rock's midpoint.
 		local x = ORIGIN.X + (i - (n + 1) / 2) * BOARD_SPACING
 		local base = Vector3.new(x, 1, ORIGIN.Z)
@@ -96,6 +88,7 @@ function LeaderboardService.build()
 		title.Font = Enum.Font.FredokaOne
 		title.TextScaled = true
 		title.Parent = sg
+		boardTitleLabels[i] = title
 
 		local list = Instance.new("TextLabel")
 		list.Name = "List"
@@ -115,28 +108,27 @@ function LeaderboardService.build()
 end
 
 local function refresh()
-	-- Gather live data for everyone in the server.
-	local entries = {}
-	for _, plr in ipairs(Players:GetPlayers()) do
-		local data = PlayerData.get(plr)
-		if data then
-			table.insert(entries, { name = plr.DisplayName, data = data })
-		end
-	end
-
-	for i, cat in ipairs(CATEGORIES) do
-		local sorted = table.clone(entries)
-		table.sort(sorted, function(a, b)
-			return (a.data[cat.key] or 0) > (b.data[cat.key] or 0)
-		end)
-		local lines = {}
-		for rank = 1, math.min(TOP_N, #sorted) do
-			local e = sorted[rank]
-			lines[#lines + 1] = ("%d. %s  —  %s"):format(rank, e.name, cat.format(e.data[cat.key] or 0))
+	local period = (math.floor(os.time() / FLIP_SECONDS) % 2 == 0) and "week" or "all"
+	local periodLabel = (period == "week") and "\240\159\151\147\239\184\143 This Week" or "\240\159\143\134 All-Time"
+	for i, stat in ipairs(GameData.LeaderboardStats) do
+		local titleLabel = boardTitleLabels[i]
+		if titleLabel then
+			titleLabel.Text = periodLabel .. " \226\128\148 " .. stat.title
 		end
 		local label = boardListLabels[i]
-		if label then
-			label.Text = (#lines > 0) and table.concat(lines, "\n") or "Waiting for players..."
+		if not label then continue end
+		local rows = GlobalLeaderboardService.getRows(stat.key, period)
+		if not rows then
+			label.Text = PLACEHOLDER
+		elseif #rows == 0 then
+			label.Text = "Be the first on the board!"
+		else
+			local lines = {}
+			for rank = 1, math.min(TOP_N, #rows) do
+				local r = rows[rank]
+				lines[#lines + 1] = ("%d. %s  \226\128\148  %s"):format(rank, r.name, stat.format(r.value))
+			end
+			label.Text = table.concat(lines, "\n")
 		end
 	end
 end

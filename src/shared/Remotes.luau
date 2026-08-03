@@ -39,6 +39,8 @@ local REMOTE_NAMES = {
 	"SetDarkMode",
 	"SetSoundMuted",
 	"RequestSetSkin",
+	"RequestLeaderboardData",
+	"LeaderboardData",
 }
 
 local Remotes = {}

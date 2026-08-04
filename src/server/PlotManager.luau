@@ -797,12 +797,16 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	-- and its roof cap on the top floor. The procedural exterior below is skipped
 	-- (each exterior block is guarded by `not useSkinMesh`).
 	if useSkinMesh then
-		StudioModels.place(skin.floorAsset, parent, CFrame.new(base + Vector3.new(0, slabTop, 0)), {
+		-- Models are authored CENTERED at origin (StudioModels.place pivots a
+		-- model at its bounding-box centre), so the floor module's centre sits at
+		-- mid-wall height and the roof cap just above the walls. Fine-tuned in the
+		-- Studio verify step if the import lands slightly off.
+		StudioModels.place(skin.floorAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT / 2, 0)), {
 			name = prefix .. "SkinFloorMesh",
 			targetWidth = width,
 		})
 		if f == floorCount - 1 and skin.roofAsset and StudioModels.has(skin.roofAsset) then
-			StudioModels.place(skin.roofAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT, 0)), {
+			StudioModels.place(skin.roofAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT + 1.5, 0)), {
 				name = prefix .. "SkinRoofMesh",
 				targetWidth = width,
 			})

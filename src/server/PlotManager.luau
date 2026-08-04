@@ -665,7 +665,7 @@ local function buildFloorMotif(parent, floorBase, prefix, theme)
 	end
 end
 
-local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
+local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	local slabTop = FLOOR_TOP + f * FLOOR_HEIGHT
 	local wallCenterY = slabTop + WALL_HEIGHT / 2
 	local width = BUILDING_HALF_W * 2
@@ -685,10 +685,18 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 	-- meshes are unaffected.) Flip these back to StudioModels.has(...) to retry.
 	local useFacade = false
 	local useRoofCrown = false
+	-- Studio SKIN building kit: when the equipped skin has a synced Blender floor
+	-- module, this floor swaps its WHOLE procedural exterior (walls, glass, door,
+	-- balcony, columns, cornice, facade, roof) for the skin mesh + roof cap; the
+	-- slab, interior, stations, elevators, and floor sign stay. Falls back to the
+	-- procedural exterior when the mesh isn't synced (so nothing breaks pre-import).
+	local skin = skinKey and GameData.StudioSkins[skinKey] or nil
+	local useSkinMesh = skin ~= nil and skin.floorAsset ~= nil and StudioModels.has(skin.floorAsset)
 	-- Blender RoTube front facade, applied to EVERY floor (replaces the plain
 	-- front wall only; door, glass sides, roof, interior stay procedural). More
 	-- floors from upgrades => more detailed windowed facades => richer building.
-	local useStudioFacade = StudioModels.has("StudioFacade")
+	-- Disabled while a skin mesh is in play (the skin owns the whole exterior).
+	local useStudioFacade = (not useSkinMesh) and StudioModels.has("StudioFacade")
 	-- Each upgrade tier restyles the WHOLE studio (RoTube-style glow-up):
 	--   tier 0 = coral+blue starter, 1 = white+blue "shop", 2 = purple luxury.
 	local tier = math.clamp(floorCount - 1, 0, 2)
@@ -785,6 +793,22 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 		makePart(prefix .. "Slab", Vector3.new(width, SLAB_THICKNESS, depth), base + Vector3.new(0, slabTop - SLAB_THICKNESS / 2, 0), theme.slab, theme.slabMat, parent)
 	end
 
+	-- SKIN MESH: drop in this skin's hollow floor module (walls/windows/door),
+	-- and its roof cap on the top floor. The procedural exterior below is skipped
+	-- (each exterior block is guarded by `not useSkinMesh`).
+	if useSkinMesh then
+		StudioModels.place(skin.floorAsset, parent, CFrame.new(base + Vector3.new(0, slabTop, 0)), {
+			name = prefix .. "SkinFloorMesh",
+			targetWidth = width,
+		})
+		if f == floorCount - 1 and skin.roofAsset and StudioModels.has(skin.roofAsset) then
+			StudioModels.place(skin.roofAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT, 0)), {
+				name = prefix .. "SkinRoofMesh",
+				targetWidth = width,
+			})
+		end
+	end
+
 	-- Framed-window strip for the opaque walls so they aren't blank (RoTube-studio
 	-- look). The dark frame sits BEHIND the glass pane (clear gap) so they never
 	-- z-fight. `sign` = +1 faces +Z (back), -1 faces -Z (front).
@@ -807,7 +831,7 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 	-- tier's body/accent colours so the WHOLE studio recolours on each upgrade.
 	local backColor = useStudioFacade and style.body or wallColor
 	local bandColor = useStudioFacade and style.accent or accent
-	if not useFacade then
+	if not useFacade and not useSkinMesh then
 		makePart(prefix .. "WallBack", Vector3.new(width, WALL_HEIGHT, wallThickness), base + Vector3.new(0, wallCenterY, halfD), backColor, theme.wallMat, parent)
 		windowStrip("Back", 0, width, halfD, 1)
 		-- Colour accent band wrapping the building just under the roofline.
@@ -818,8 +842,10 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 		local g = makePart(prefix .. nameKey, size, pos, GLASS_TINT, Enum.Material.Glass, parent)
 		g.Transparency = 0.4
 	end
-	glassWall("WallLeft", Vector3.new(wallThickness, WALL_HEIGHT, depth), base + Vector3.new(-halfW, wallCenterY, 0))
-	glassWall("WallRight", Vector3.new(wallThickness, WALL_HEIGHT, depth), base + Vector3.new(halfW, wallCenterY, 0))
+	if not useSkinMesh then
+		glassWall("WallLeft", Vector3.new(wallThickness, WALL_HEIGHT, depth), base + Vector3.new(-halfW, wallCenterY, 0))
+		glassWall("WallRight", Vector3.new(wallThickness, WALL_HEIGHT, depth), base + Vector3.new(halfW, wallCenterY, 0))
+	end
 
 	-- White window mullions/frames turn the glass into real windows.
 	local topRailY = wallCenterY + WALL_HEIGHT / 2 - 0.25
@@ -845,12 +871,14 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 			end
 		end
 	end
-	if not useFacade then
+	if not useFacade and not useSkinMesh then
 		frameGlass("Left", true, -halfW)
 		frameGlass("Right", true, halfW)
 	end
 
-	if f == 0 then
+	if useSkinMesh then
+		-- skin mesh provides the whole front + door; skip the procedural entrance
+	elseif f == 0 then
 		local sideWallWidth = halfW - DOOR_WIDTH / 2
 		local sideWallCenterX = (halfW + DOOR_WIDTH / 2) / 2
 		local lintelHeight = WALL_HEIGHT - DOOR_HEIGHT
@@ -956,7 +984,7 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 
 	-- White corner columns; a white story band with a thin warm reveal line
 	-- to separate the floors crisply.
-	if not useFacade then
+	if not useFacade and not useSkinMesh then
 		for i, corner in ipairs({ { -halfW, -halfD }, { halfW, -halfD }, { -halfW, halfD }, { halfW, halfD } }) do
 			makePart(prefix .. "Column" .. i, Vector3.new(1.4, WALL_HEIGHT, 1.4), base + Vector3.new(corner[1], wallCenterY, corner[2]), TRIM_WHITE, Enum.Material.SmoothPlastic, parent)
 		end
@@ -965,7 +993,7 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 	end
 
 	-- Wood cornice bands just under the ceiling (thin, warm -- not a big slab).
-	if not useFacade then
+	if not useFacade and not useSkinMesh then
 		local corniceY = slabTop + WALL_HEIGHT - 0.35
 		local corniceBack = makePart(prefix .. "CorniceBack", Vector3.new(width, 0.4, 0.4), base + Vector3.new(0, corniceY, halfD - 0.4), WOOD_COLOR, Enum.Material.WoodPlanks, parent)
 		corniceBack.CanCollide = false
@@ -1045,7 +1073,8 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier)
 
 	-- Rooftop terrace on the top floor: wood deck, glass railing, a pergola,
 	-- planters and warm lamps -- a proper luxury roof, not a bare slab.
-	if f == floorCount - 1 then
+	-- (Skinned buildings use their own roof cap, placed with the floor mesh.)
+	if f == floorCount - 1 and not useSkinMesh then
 		local roofY = slabTop + WALL_HEIGHT + SLAB_THICKNESS / 2
 		if not useRoofCrown then
 			makePart(prefix .. "Roof", Vector3.new(width + 2, SLAB_THICKNESS, depth + 2), base + Vector3.new(0, roofY, 0), wallColor, Enum.Material.Concrete, parent)
@@ -1375,10 +1404,10 @@ function PlotManager.applyRoomOwnership(player)
 	applyRoomVisual(plotFolder, "Merch", owned.Merch)
 end
 
-local function buildStudioBuilding(parent, base, houseTier, pcTier)
+local function buildStudioBuilding(parent, base, houseTier, pcTier, skinKey)
 	local floorCount = houseTier + 1
 	for f = 0, floorCount - 1 do
-		buildOneFloorShell(parent, base, f, floorCount, pcTier)
+		buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	end
 
 	-- Money-earning rooms (bought via tycoon buy-buttons, not floor-gated).
@@ -1392,7 +1421,7 @@ end
 -- Rebuildable wrapper: the whole tower shell lives in a "StudioBuilding"
 -- folder so an upgrade (adding a floor) can rebuild it wholesale without
 -- touching the persistent ground-floor stations/sign the client holds.
-local function buildHouse(plotFolder, origin, houseTier, pcTier)
+local function buildHouse(plotFolder, origin, houseTier, pcTier, skinKey)
 	pcTier = pcTier or 0
 	local existing = plotFolder:FindFirstChild("StudioBuilding")
 	if existing then
@@ -1403,7 +1432,7 @@ local function buildHouse(plotFolder, origin, houseTier, pcTier)
 	buildingFolder.Name = "StudioBuilding"
 	buildingFolder.Parent = plotFolder
 
-	buildStudioBuilding(buildingFolder, origin + HOUSE_LOT_OFFSET, houseTier, pcTier)
+	buildStudioBuilding(buildingFolder, origin + HOUSE_LOT_OFFSET, houseTier, pcTier, skinKey)
 end
 
 -- Persistent yard dressing so the mansion reads as a real home, not a box
@@ -1566,15 +1595,10 @@ end
 -- key from GameData.StudioSkins). Original Wall/Roof colors are remembered
 -- per-part via attributes the first time a skin is applied, so "Default"
 -- restores exactly with no dependency on the current theme.
-function PlotManager.applySkin(player, skinKey)
-	local index = plotOfPlayer[player.UserId]
-	if not index then
-		return
-	end
-	local plotFolder = PlotManager.getPlotFolder(index)
-	if not plotFolder then
-		return
-	end
+-- Recolor the building's wall/roof/trim surfaces to a skin's palette (or
+-- restore originals for Default). With a skin building mesh, this also tints
+-- the mesh's wall/roof pieces so the whole thing reads in-theme, inside + out.
+local function recolorSkin(plotFolder, skinKey)
 	local skin = GameData.StudioSkins[skinKey] -- nil for "Default"
 	for _, d in ipairs(plotFolder:GetDescendants()) do
 		local isDecor = string.find(d.Name, "Bush") or string.find(d.Name, "Lamp") or string.find(d.Name, "Planter") or string.find(d.Name, "Deck")
@@ -1604,6 +1628,16 @@ function PlotManager.applySkin(player, skinKey)
 	end
 end
 
+-- Public: change a player's skin. Sets the active skin, then rebuilds the
+-- studio so the shell swaps (procedural <-> skin building mesh) and re-themes.
+function PlotManager.applySkin(player, skinKey)
+	local data = PlayerData.get(player)
+	if data then
+		data.activeSkin = skinKey or "Default"
+	end
+	PlotManager.rebuildHouseForPlayer(player, (data and data.houseTier) or 0, (data and data.pcTier) or 0)
+end
+
 function PlotManager.rebuildHouseForPlayer(player, tier, pcTier)
 	local index = plotOfPlayer[player.UserId]
 	if not index then
@@ -1615,14 +1649,15 @@ function PlotManager.rebuildHouseForPlayer(player, tier, pcTier)
 		return
 	end
 
-	buildHouse(plotFolder, PLOT_ORIGINS[index], tier, pcTier or 0)
+	local data = PlayerData.get(player)
+	local skinKey = (data and data.activeSkin) or "Default"
+
+	buildHouse(plotFolder, PLOT_ORIGINS[index], tier, pcTier or 0, skinKey)
 	-- Rooms are rebuilt with their buy buttons showing; restore ownership.
 	PlotManager.applyRoomOwnership(player)
 
-	local data = PlayerData.get(player)
-	if data then
-		PlotManager.applySkin(player, data.activeSkin or "Default")
-	end
+	-- Re-theme wall/roof/trim surfaces (and tint the skin mesh) to the palette.
+	recolorSkin(plotFolder, skinKey)
 end
 
 function PlotManager.rebuildPCForPlayer(player, tier)

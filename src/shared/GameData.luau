@@ -254,9 +254,9 @@ end
 -- Cosmetic studio-exterior skins. Default = the studio's normal look.
 GameData.StudioSkins = {
 	Default  = nil,
-	Gold     = { wall = Color3.fromRGB(214, 164, 58), wallMat = Enum.Material.Metal, accent = Color3.fromRGB(244, 212, 120) },
-	Neon     = { wall = Color3.fromRGB(30, 28, 46), wallMat = Enum.Material.SmoothPlastic, accent = Color3.fromRGB(120, 90, 235), accentMat = Enum.Material.Neon },
-	Midnight = { wall = Color3.fromRGB(24, 26, 42), wallMat = Enum.Material.SmoothPlastic, accent = Color3.fromRGB(120, 130, 160) },
+	Gold     = { wall = Color3.fromRGB(214, 164, 58), wallMat = Enum.Material.Metal, accent = Color3.fromRGB(244, 212, 120), floorAsset = "SkinFloorGold" },
+	Neon     = { wall = Color3.fromRGB(30, 28, 46), wallMat = Enum.Material.SmoothPlastic, accent = Color3.fromRGB(120, 90, 235), accentMat = Enum.Material.Neon, floorAsset = "SkinFloorNeon" },
+	Midnight = { wall = Color3.fromRGB(24, 26, 42), wallMat = Enum.Material.SmoothPlastic, accent = Color3.fromRGB(120, 130, 160), floorAsset = "SkinFloorMidnight" },
 }
 
 -- Per-shop catalogs -- each shop sells DIFFERENT items. Shared so the client

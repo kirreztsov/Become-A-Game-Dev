@@ -801,10 +801,18 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 		-- model at its bounding-box centre), so the floor module's centre sits at
 		-- mid-wall height and the roof cap just above the walls. Fine-tuned in the
 		-- Studio verify step if the import lands slightly off.
-		StudioModels.place(skin.floorAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT / 2, 0)), {
+		local skinMesh = StudioModels.place(skin.floorAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT / 2, 0)), {
 			name = prefix .. "SkinFloorMesh",
 			targetWidth = width,
 		})
+		-- Imported meshes come in UN-anchored -> they jitter ("shaky"). Anchor them.
+		if skinMesh then
+			for _, p in ipairs(skinMesh:GetDescendants()) do
+				if p:IsA("BasePart") then
+					p.Anchored = true
+				end
+			end
+		end
 		-- Roof cap as a simple procedural flat slab + a glowing accent rim (named
 		-- Roof/Trim so recolorSkin tints them to the skin's wall/accent). Reliable
 		-- flat roof for every skin -- no per-skin roof mesh needed.

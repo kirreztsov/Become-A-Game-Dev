@@ -1,19 +1,15 @@
 """
-Studio SKIN building kit -- MIDNIGHT.
+Studio SKIN building kit -- MIDNIGHT (DETAILED, distinct ART-DECO design).
 
-Only ONE model now -- the floor module. (Roof caps are built in-game as a
-reliable procedural flat slab, so no roof mesh is needed.)
+A vertical, deco look -- DIFFERENT from Gold (classical) and Neon (horizontal):
+many VERTICAL RIBS/fluting running full height, tall narrow windows between them,
+and layered horizontal banding top + bottom. Detail via many named boxes + bevel
++ subsurf. Colour in-game (recolorSkin): deep midnight-blue walls, silver trim.
+Footprint 48x32x12, centred, door -Y.
 
-Same footprint/pipeline as the other skins: 48 x 32 x 12, centred on origin,
-door on Blender -Y / Roblox -Z front. Colours/materials are applied in-game by
-PlotManager.recolorSkin (Midnight = deep midnight-blue walls + silver trim), so
-this script only needs correct NAMES:
-  SkinFloorMidnightWall  -> midnight-blue walls
-  SkinFloorMidnightTrim  -> silver trim bands
-
-Run in Blender (Scripting -> Open -> Reload -> Run), then Import
-blender/out/SkinFloorMidnight.fbx, rename the Model to SkinFloorMidnight, and
-Save to assets/studio/. (No roof file this time.)
+NAMES: SkinFloorMidnightWall -> blue walls;  SkinFloorMidnightTrim -> silver.
+Run: Scripting -> Open -> Reload -> Run; Import blender/out/SkinFloorMidnight.fbx,
+rename Model SkinFloorMidnight, Save to File -> Downloads. (No roof file.)
 """
 
 import bpy
@@ -24,12 +20,18 @@ OUT = r"/Users/kirill/projects/roblox game/blender/out"
 HALF_W = 24.0
 HALF_D = 16.0
 H = 12.0
-T = 0.6
-DOOR_W = 7.0
-DOOR_H = 9.0
-TRIM_H = 1.2
-WIN_H = 6.5
-WIN_Z0 = -H / 2 + 3.0
+T = 0.7
+DOOR_W = 6.0
+DOOR_H = 9.5
+WIN_W = 4.0
+WIN_H = 7.0
+WIN_Z0 = -H / 2 + 2.5
+
+BEVEL_SEGMENTS = 4
+BEVEL_WIDTH = 0.05
+SUBSURF = 1
+
+PIECES = []
 
 
 def _clear():
@@ -49,32 +51,17 @@ def box(name, cx, cy, cz, sx, sy, sz):
     o.scale = (sx, sy, sz)
     bpy.ops.object.transform_apply(scale=True)
     o.name = name
+    PIECES.append(o)
     return o
-
-
-def join(objs, name):
-    objs = [o for o in objs if o is not None]
-    if not objs:
-        return None
-    bpy.ops.object.select_all(action="DESELECT")
-    for o in objs:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = objs[0]
-    bpy.ops.object.join()
-    j = bpy.context.active_object
-    j.name = name
-    return j
 
 
 def wall_with_openings(prefix, axis, plane, openings):
     span_half = HALF_D if axis == "x" else HALF_W
     z_bot, z_top = -H / 2, H / 2
-    segs = []
     cuts = sorted(openings, key=lambda o: o[0])
     edges = [-span_half]
     for (c, w, z0, zh) in cuts:
-        edges.append(c - w / 2)
-        edges.append(c + w / 2)
+        edges += [c - w / 2, c + w / 2]
     edges.append(span_half)
     i = 0
     while i < len(edges) - 1:
@@ -83,9 +70,9 @@ def wall_with_openings(prefix, axis, plane, openings):
             c = (a + b) / 2.0
             width = b - a
             if axis == "x":
-                segs.append(box(prefix + "Wall", plane, c, 0, T, width, H))
+                box(prefix + "Wall", plane, c, 0, T, width, H)
             else:
-                segs.append(box(prefix + "Wall", c, plane, 0, width, T, H))
+                box(prefix + "Wall", c, plane, 0, width, T, H)
         i += 1
     for (c, w, z0, zh) in cuts:
         below_h = z0 - z_bot
@@ -93,68 +80,110 @@ def wall_with_openings(prefix, axis, plane, openings):
         if below_h > 0.01:
             cz = z_bot + below_h / 2
             if axis == "x":
-                segs.append(box(prefix + "Wall", plane, c, cz, T, w, below_h))
+                box(prefix + "Wall", plane, c, cz, T, w, below_h)
             else:
-                segs.append(box(prefix + "Wall", c, plane, cz, w, T, below_h))
+                box(prefix + "Wall", c, plane, cz, w, T, below_h)
         if above_h > 0.01:
             cz = (z0 + zh) + above_h / 2
             if axis == "x":
-                segs.append(box(prefix + "Wall", plane, c, cz, T, w, above_h))
+                box(prefix + "Wall", plane, c, cz, T, w, above_h)
             else:
-                segs.append(box(prefix + "Wall", c, plane, cz, w, T, above_h))
-    return segs
+                box(prefix + "Wall", c, plane, cz, w, T, above_h)
 
 
-def export(objs, filename):
+def rib(prefix, axis, plane, along):
+    """A vertical fluting rib standing proud of a wall face, full height."""
+    if axis == "y":
+        s = 1 if plane > 0 else -1
+        box(prefix + "Trim", along, plane + s * 0.3, 0, 0.7, 0.6, H - 0.6)
+    else:
+        s = 1 if plane > 0 else -1
+        box(prefix + "Trim", plane + s * 0.3, along, 0, 0.6, 0.7, H - 0.6)
+
+
+def build():
+    _clear()
+    P = "SkinFloorMidnight"
+    back = [(x, WIN_W, WIN_Z0, WIN_H) for x in (-18, -6, 6, 18)]
+    left = [(y, WIN_W, WIN_Z0, WIN_H) for y in (-8, 8)]
+    right = left
+    front = [(-15, WIN_W, WIN_Z0, WIN_H), (0, DOOR_W, -H / 2, DOOR_H), (15, WIN_W, WIN_Z0, WIN_H)]
+
+    wall_with_openings(P, "y", HALF_D, back)
+    wall_with_openings(P, "x", -HALF_W, left)
+    wall_with_openings(P, "x", HALF_W, right)
+    wall_with_openings(P, "y", -HALF_D, front)
+
+    # Vertical ribs across every face (deco fluting) -- between + around windows.
+    for x in range(-21, 22, 3):
+        rib(P, "y", HALF_D, x)
+        rib(P, "y", -HALF_D, x)
+    for y in range(-13, 14, 3):
+        rib(P, "x", -HALF_W, y)
+        rib(P, "x", HALF_W, y)
+
+    # Layered horizontal banding: a strong base + a stepped top crown band.
+    box(P + "Trim", 0, HALF_D + 0.3, -H / 2 + 0.7, HALF_W * 2 + 1.8, 0.8, 1.6)
+    box(P + "Trim", 0, -HALF_D - 0.3, -H / 2 + 0.7, HALF_W * 2 + 1.8, 0.8, 1.6)
+    box(P + "Trim", -HALF_W - 0.3, 0, -H / 2 + 0.7, 0.8, HALF_D * 2 + 1.8, 1.6)
+    box(P + "Trim", HALF_W + 0.3, 0, -H / 2 + 0.7, 0.8, HALF_D * 2 + 1.8, 1.6)
+    for k, grow in enumerate((0.5, 1.1)):
+        z = H / 2 - 0.4 - k * 0.7
+        box(P + "Trim", 0, HALF_D + grow, z, HALF_W * 2 + grow * 2 + 1, 0.5, 0.7)
+        box(P + "Trim", 0, -HALF_D - grow, z, HALF_W * 2 + grow * 2 + 1, 0.5, 0.7)
+        box(P + "Trim", -HALF_W - grow, 0, z, 0.5, HALF_D * 2 + grow * 2 + 1, 0.7)
+        box(P + "Trim", HALF_W + grow, 0, z, 0.5, HALF_D * 2 + grow * 2 + 1, 0.7)
+
+    # A tall deco entrance frame around the door.
+    box(P + "Trim", -DOOR_W / 2 - 0.6, -HALF_D - 0.4, -H / 2 + DOOR_H / 2, 1.2, T, DOOR_H + 1)
+    box(P + "Trim", DOOR_W / 2 + 0.6, -HALF_D - 0.4, -H / 2 + DOOR_H / 2, 1.2, T, DOOR_H + 1)
+    box(P + "Trim", 0, -HALF_D - 0.5, -H / 2 + DOOR_H + 1.2, DOOR_W + 3, T, 2.2)
+
+    for o in PIECES:
+        bpy.context.view_layer.objects.active = o
+        bev = o.modifiers.new("Bevel", "BEVEL")
+        bev.segments = BEVEL_SEGMENTS
+        bev.width = BEVEL_WIDTH
+        if SUBSURF > 0:
+            sub = o.modifiers.new("Subsurf", "SUBSURF")
+            sub.levels = SUBSURF
+            sub.render_levels = SUBSURF
+        for m in list(o.modifiers):
+            try:
+                bpy.ops.object.modifier_apply(modifier=m.name)
+            except Exception:
+                pass
+
+    def join(objs, name):
+        objs = [o for o in objs if o and o.name in bpy.data.objects]
+        if not objs:
+            return None
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in objs:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = objs[0]
+        bpy.ops.object.join()
+        j = bpy.context.active_object
+        j.name = name
+        return j
+
+    # build both lists BEFORE joining (joining consumes objects; touching a
+    # consumed object's .name afterwards throws StructRNA-removed).
+    wall_objs = [o for o in PIECES if o.name.startswith(P + "Wall")]
+    trim_objs = [o for o in PIECES if o.name.startswith(P + "Trim")]
+    wall = join(wall_objs, P + "Wall")
+    trim = join(trim_objs, P + "Trim")
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
-    for o in objs:
-        if o is not None:
+    for o in (wall, trim):
+        if o:
             o.select_set(True)
-    if objs and objs[0] is not None:
-        bpy.context.view_layer.objects.active = objs[0]
-    path = os.path.join(OUT, filename)
-    bpy.ops.export_scene.fbx(
-        filepath=path,
-        use_selection=True,
-        apply_unit_scale=True,
-        object_types={"MESH"},
-        mesh_smooth_type="FACE",
-    )
+    bpy.context.view_layer.objects.active = wall or trim
+    path = os.path.join(OUT, "SkinFloorMidnight.fbx")
+    bpy.ops.export_scene.fbx(filepath=path, use_selection=True, apply_unit_scale=True,
+                             object_types={"MESH"}, mesh_smooth_type="FACE")
     print("Exported", path)
 
 
-def build_floor():
-    _clear()
-    P = "SkinFloorMidnight"
-    walls = []
-    trims = []
-    # Back wall (+Y): two wide windows.
-    walls += wall_with_openings(P, "y", HALF_D, [
-        (-HALF_W * 0.5, 12, WIN_Z0, WIN_H),
-        (HALF_W * 0.5, 12, WIN_Z0, WIN_H),
-    ])
-    # Side walls (±X): one wide window each.
-    for plane in (-HALF_W, HALF_W):
-        walls += wall_with_openings(P, "x", plane, [(0, 14, WIN_Z0, WIN_H)])
-    # Front wall (-Y): door + two flanking windows.
-    walls += wall_with_openings(P, "y", -HALF_D, [
-        (-HALF_W * 0.6, 7, WIN_Z0, WIN_H),
-        (0, DOOR_W, -H / 2, DOOR_H),
-        (HALF_W * 0.6, 7, WIN_Z0, WIN_H),
-    ])
-
-    # A single silver trim band near the top edge (sleeker than Neon's two).
-    tz = H / 2 - TRIM_H / 2
-    trims.append(box(P + "Trim", 0, HALF_D + 0.15, tz, HALF_W * 2 + 0.6, 0.3, TRIM_H))
-    trims.append(box(P + "Trim", 0, -HALF_D - 0.15, tz, HALF_W * 2 + 0.6, 0.3, TRIM_H))
-    trims.append(box(P + "Trim", -HALF_W - 0.15, 0, tz, 0.3, HALF_D * 2 + 0.6, TRIM_H))
-    trims.append(box(P + "Trim", HALF_W + 0.15, 0, tz, 0.3, HALF_D * 2 + 0.6, TRIM_H))
-
-    wall = join(walls, P + "Wall")
-    trim = join(trims, P + "Trim")
-    export([wall, trim], "SkinFloorMidnight.fbx")
-
-
-build_floor()
-print("Midnight skin kit done. Import SkinFloorMidnight.fbx (floor only, no roof).")
+build()
+print("Detailed art-deco Midnight done. Import blender/out/SkinFloorMidnight.fbx.")

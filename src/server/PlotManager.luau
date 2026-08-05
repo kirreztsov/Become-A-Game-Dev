@@ -805,11 +805,18 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 			name = prefix .. "SkinFloorMesh",
 			targetWidth = width,
 		})
-		if f == floorCount - 1 and skin.roofAsset and StudioModels.has(skin.roofAsset) then
-			StudioModels.place(skin.roofAsset, parent, CFrame.new(base + Vector3.new(0, slabTop + WALL_HEIGHT + 1.5, 0)), {
-				name = prefix .. "SkinRoofMesh",
-				targetWidth = width,
-			})
+		-- Roof cap as a simple procedural flat slab + a glowing accent rim (named
+		-- Roof/Trim so recolorSkin tints them to the skin's wall/accent). Reliable
+		-- flat roof for every skin -- no per-skin roof mesh needed.
+		if f == floorCount - 1 then
+			local roofY = slabTop + WALL_HEIGHT + SLAB_THICKNESS / 2
+			makePart(prefix .. "SkinRoof", Vector3.new(width + 1.5, SLAB_THICKNESS + 0.4, depth + 1.5), base + Vector3.new(0, roofY, 0), wallColor, Enum.Material.SmoothPlastic, parent)
+			local rimY = roofY + 0.55
+			local rimT = 0.45
+			makePart(prefix .. "SkinRoofTrimN", Vector3.new(width + 2.2, 0.5, rimT), base + Vector3.new(0, rimY, -halfD - 0.8), accent, Enum.Material.SmoothPlastic, parent).CanCollide = false
+			makePart(prefix .. "SkinRoofTrimS", Vector3.new(width + 2.2, 0.5, rimT), base + Vector3.new(0, rimY, halfD + 0.8), accent, Enum.Material.SmoothPlastic, parent).CanCollide = false
+			makePart(prefix .. "SkinRoofTrimW", Vector3.new(rimT, 0.5, depth + 2.2), base + Vector3.new(-halfW - 0.8, rimY, 0), accent, Enum.Material.SmoothPlastic, parent).CanCollide = false
+			makePart(prefix .. "SkinRoofTrimE", Vector3.new(rimT, 0.5, depth + 2.2), base + Vector3.new(halfW + 0.8, rimY, 0), accent, Enum.Material.SmoothPlastic, parent).CanCollide = false
 		end
 	end
 
@@ -1606,7 +1613,7 @@ local function recolorSkin(plotFolder, skinKey)
 	local skin = GameData.StudioSkins[skinKey] -- nil for "Default"
 	for _, d in ipairs(plotFolder:GetDescendants()) do
 		local isDecor = string.find(d.Name, "Bush") or string.find(d.Name, "Lamp") or string.find(d.Name, "Planter") or string.find(d.Name, "Deck")
-		if d:IsA("BasePart") and not isDecor and (string.find(d.Name, "Wall") or string.find(d.Name, "Roof")) then
+		if d:IsA("BasePart") and not isDecor and (string.find(d.Name, "Wall") or string.find(d.Name, "Roof") or string.find(d.Name, "Skin")) then
 			-- remember the original look once
 			if d:GetAttribute("SkinBaseColor") == nil then
 				d:SetAttribute("SkinBaseColor", d.Color)

@@ -1,5 +1,8 @@
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local DecorBuilder = require(game.ReplicatedStorage.Shared.DecorBuilder)
@@ -572,24 +575,21 @@ local WARM_LIGHT = Color3.fromRGB(255, 240, 210)
 local STONE_COLOR = Color3.fromRGB(226, 222, 214)
 
 -- Each floor is a visually distinct storey rather than a repeated box:
--- its own wall colour + material, accent colour, floor finish and a
--- signature prop. Floor 1 = cozy warm home, Floor 2 = a warmer beige
--- creative loft, Floor 3 = a bright marble penthouse.
+-- its own wall colour + material, accent colour and floor finish. Floor 1 =
+-- cozy warm home, Floor 2 = a warmer beige creative loft, Floor 3 = a bright
+-- marble penthouse. The interiors stay bare apart from the work stations.
 local FLOOR_THEMES = {
 	[1] = {
 		wall = Color3.fromRGB(247, 244, 238), wallMat = Enum.Material.SmoothPlastic,
 		accent = Color3.fromRGB(226, 190, 122), slab = Color3.fromRGB(156, 116, 78), slabMat = Enum.Material.WoodPlanks,
-		motif = "hearth",
 	},
 	[2] = {
 		wall = Color3.fromRGB(228, 221, 204), wallMat = Enum.Material.SmoothPlastic,
 		accent = Color3.fromRGB(203, 128, 92), slab = Color3.fromRGB(122, 88, 58), slabMat = Enum.Material.WoodPlanks,
-		motif = "garden",
 	},
 	[3] = {
 		wall = Color3.fromRGB(240, 238, 233), wallMat = Enum.Material.Marble,
 		accent = Color3.fromRGB(230, 198, 132), slab = Color3.fromRGB(224, 220, 212), slabMat = Enum.Material.Marble,
-		motif = "penthouse",
 	},
 }
 
@@ -634,37 +634,6 @@ end
 -- fireplace lounge (floor 1), an indoor garden (floor 2), or a marble
 -- penthouse bar (floor 3). Tucked against the back wall, clear of the
 -- work stations and elevator corners.
-local function buildFloorMotif(parent, floorBase, prefix, theme)
-	local hx, hz = -4, BUILDING_HALF_D - 4
-	local function putM(name, size, dx, dy, dz, color, mat)
-		local p = makePart(prefix .. name, size, floorBase + Vector3.new(hx + dx, FLOOR_TOP + dy, hz + dz), color, mat, parent)
-		p.CanCollide = false
-		return p
-	end
-
-	if theme.motif == "hearth" then
-		putM("HearthSurround", Vector3.new(5, 4.5, 1), 0, 2.25, 0, STONE_COLOR, Enum.Material.Marble)
-		putM("HearthMantel", Vector3.new(5.6, 0.5, 1.4), 0, 4, -0.1, WOOD_DARK, Enum.Material.Wood)
-		local fire = putM("HearthFire", Vector3.new(2.4, 1.8, 0.3), 0, 1.4, -0.5, Color3.fromRGB(255, 150, 70), Enum.Material.Neon)
-		fire.Transparency = 0.1
-		local rug = putM("HearthRug", Vector3.new(6, 0.1, 5), 0, 0.05, -4, theme.accent, Enum.Material.Fabric)
-		rug.Transparency = 0.1
-	elseif theme.motif == "garden" then
-		for i = -1, 1 do
-			putM("GardenPlanter" .. (i + 2), Vector3.new(1.6, 1, 1.6), i * 2.4, 0.5, 0, WOOD_DARK, Enum.Material.WoodPlanks)
-			local plant = putM("GardenPlant" .. (i + 2), Vector3.new(1.4, 3, 1.4), i * 2.4, 2.4, 0, Color3.fromRGB(74, 132, 84), Enum.Material.Grass)
-			plant.Shape = Enum.PartType.Ball
-		end
-		putM("GardenBench", Vector3.new(5, 0.5, 1.4), 0, 1, -3.5, WOOD_COLOR, Enum.Material.WoodPlanks)
-	elseif theme.motif == "penthouse" then
-		putM("BarCounter", Vector3.new(6, 1.7, 1.6), 0, 0.85, 0, STONE_COLOR, Enum.Material.Marble)
-		putM("BarShelf", Vector3.new(6, 3, 0.4), 0, 3, 0.6, WOOD_DARK, Enum.Material.Wood)
-		for i, sx in ipairs({ -2, 0, 2 }) do
-			putM("BarStool" .. i, Vector3.new(0.9, 1.4, 0.9), sx, 0.7, -1.8, theme.accent, Enum.Material.Metal)
-		end
-	end
-end
-
 local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	local slabTop = FLOOR_TOP + f * FLOOR_HEIGHT
 	local wallCenterY = slabTop + WALL_HEIGHT / 2
@@ -926,6 +895,17 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 		local doorMull = makePart(prefix .. "DoorCenterMull", Vector3.new(0.2, DOOR_HEIGHT - 0.2, 0.25), base + Vector3.new(0, FLOOR_TOP + (DOOR_HEIGHT - 0.2) / 2, -halfD - 0.08), WOOD_DARK, Enum.Material.Wood, parent)
 		doorMull.CanCollide = false
 
+		-- Automatic sliding door: tag the leaf + mullion so the door manager
+		-- (PlotManager.start) slides them aside when a player walks up. ClosedX is
+		-- the resting X; OpenX tucks the door DOOR_WIDTH studs to the left, behind
+		-- the front-left wall, clearing the opening. Only the ground-floor
+		-- procedural door animates -- skin-mesh buildings bake their own door in.
+		for _, panel in ipairs({ doorLeaf, doorMull }) do
+			panel:SetAttribute("ClosedX", panel.Position.X)
+			panel:SetAttribute("OpenX", panel.Position.X - DOOR_WIDTH)
+			CollectionService:AddTag(panel, "AutoDoor")
+		end
+
 		-- Detailed Blender entrance canopy + glowing sign, if the model is synced;
 		-- otherwise the original procedural canopy/posts/lamps (fallback).
 		if StudioModels.has("EntranceSign") then
@@ -1165,9 +1145,6 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 		buildStudioStations(parent, floorBase, stationPrefix, pcTier)
 		buildTrendsSign(parent, floorBase, stationPrefix)
 	end
-
-	-- Each floor's signature prop (fireplace / garden / penthouse bar).
-	buildFloorMotif(parent, floorBase, prefix, theme)
 
 	-- Elevator pads: up on every floor but the top, down on every floor but
 	-- the ground.
@@ -1959,6 +1936,49 @@ local function refreshRoomDisplay(plotFolder, room, amount)
 end
 
 function PlotManager.start()
+	-- Automatic sliding front doors. One throttled loop drives every plot's door:
+	-- when any player's root part is within OPEN_RADIUS (flat X/Z distance) of a
+	-- tagged door panel's resting spot, slide it to its OpenX; otherwise slide it
+	-- back to ClosedX. Panels destroyed on a studio rebuild drop out of the tagged
+	-- set and out of this weak-keyed state table, so stale references never leak.
+	local OPEN_RADIUS = 12
+	local doorState = setmetatable({}, { __mode = "k" })
+	local doorTween = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local sinceDoorCheck = 0
+	RunService.Heartbeat:Connect(function(dt)
+		sinceDoorCheck += dt
+		if sinceDoorCheck < 0.15 then
+			return
+		end
+		sinceDoorCheck = 0
+		for _, panel in ipairs(CollectionService:GetTagged("AutoDoor")) do
+			local closedX = panel:GetAttribute("ClosedX")
+			local openX = panel:GetAttribute("OpenX")
+			if closedX and openX and panel.Parent then
+				local restPos = Vector3.new(closedX, panel.Position.Y, panel.Position.Z)
+				local wantOpen = false
+				for _, plr in ipairs(Players:GetPlayers()) do
+					local char = plr.Character
+					local root = char and char:FindFirstChild("HumanoidRootPart")
+					if root then
+						local d = root.Position - restPos
+						if (d.X * d.X + d.Z * d.Z) <= OPEN_RADIUS * OPEN_RADIUS then
+							wantOpen = true
+							break
+						end
+					end
+				end
+				if doorState[panel] ~= wantOpen then
+					doorState[panel] = wantOpen
+					local targetX = wantOpen and openX or closedX
+					TweenService:Create(panel, doorTween, {
+						CFrame = CFrame.new(targetX, panel.Position.Y, panel.Position.Z),
+					}):Play()
+				end
+			end
+		end
+	end)
+
 	ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
 		-- Every prompt handled below lives inside a player's PRIVATE plot
 		-- (elevator, collect, buy-room, PC/House/Workers upgrades). Only the

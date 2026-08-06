@@ -152,18 +152,26 @@ function HomeService.build()
 	homesFolder = Instance.new("Folder"); homesFolder.Name = "Homes"; homesFolder.Parent = Workspace
 	for index = 1, 4 do
 		buildRoom(index)
-		-- Home pad at the studio entrance for this plot.
+		-- Home portal standing UPRIGHT in the studio doorway for this plot.
 		local origin = PlotManager.getPlotOrigin(index)
 		if origin then
-			-- Right in the studio doorway (front wall is at origin.z + 29). The
-			-- leave-landing spot is 6 studs in front (origin + (0,4,23)), so it
-			-- doesn't sit on the pad; the 2s leftRecently debounce is the backstop.
-			local padPos = origin + Vector3.new(0, 1.2, 29)
-			local pad = part("HomePad" .. index, Vector3.new(6, 0.4, 6), padPos, Color3.fromRGB(245, 245, 250), Enum.Material.Neon, Workspace)
+			-- A vertical glowing pane filling the doorway opening (front wall is at
+			-- origin.z + 29; the door is ~4 wide x 6 tall). Sat just in front of the
+			-- glass door so it reads clearly even with the studio interior visible
+			-- behind it. Walk into it to enter your room. The leave-landing spot is
+			-- ~5 studs in front (origin + (0,4,23)); the 2s leftRecently debounce is
+			-- the backstop against an instant re-trigger.
+			local portalPos = origin + Vector3.new(0, 4, 28.4)
+			local pad = part("HomePad" .. index, Vector3.new(3.6, 6, 0.4), portalPos, ACCENT, Enum.Material.Neon, Workspace)
 			pad.CanCollide = false
-			local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Top; sg.Parent = pad
-			local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.fromScale(1,1); lbl.BackgroundTransparency = 1
-			lbl.Text = "\240\159\143\160 My Home"; lbl.TextColor3 = ACCENT; lbl.Font = Enum.Font.FredokaOne; lbl.TextScaled = true; lbl.Parent = sg
+			pad.Transparency = 0.35
+			-- Label on BOTH faces so it reads walking in and looking back out.
+			for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+				local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.Parent = pad
+				local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.fromScale(1, 1); lbl.BackgroundTransparency = 1
+				lbl.Text = "\240\159\143\160\nMy Home"; lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+				lbl.Font = Enum.Font.FredokaOne; lbl.TextScaled = true; lbl.Parent = sg
+			end
 			pad:SetAttribute("plotIndex", index)
 			pad.Touched:Connect(function(hit)
 				local plr = Players:GetPlayerFromCharacter(hit.Parent)

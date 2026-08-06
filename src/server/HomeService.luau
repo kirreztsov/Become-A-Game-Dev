@@ -132,6 +132,10 @@ function HomeService.rebuildHome(player)
 	local folder = buildRoom(index, tier)
 	PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, tier), tier, data.pcTier or 0)
 	PlotManager.refreshWorkerNPCs(player)
+	-- Show/hide the Arcade + Merch fixtures (buy button vs. earning state) to
+	-- match what this player has already bought (Task 5: they live in the Home
+	-- room now, so this must re-apply on every rebuild, same as worker NPCs).
+	PlotManager.applyRoomOwnership(player)
 
 	local furn = folder:FindFirstChild("Furniture")
 	if furn then

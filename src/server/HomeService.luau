@@ -130,6 +130,10 @@ local function enter(player)
 	if not index or not roomSpawn[index] then return end
 	HomeService.rebuildHome(player)
 	if player.Character then player.Character:PivotTo(roomSpawn[index]) end
+	-- Seed the client with the current layout so its ghost overlap-check is
+	-- correct for returning players (before they make any change).
+	local data = PlayerData.get(player)
+	if data then Remotes.HomeStateUpdated:FireClient(player, data.homeItems) end
 end
 
 function HomeService.build()

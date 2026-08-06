@@ -113,6 +113,12 @@ local function buildItem(furn, index, entry)
 	return model
 end
 
+-- FULL rebuild: tears down and rebuilds the entire room shell (walls,
+-- stations, trends board, workers desk, worker NPCs) plus furniture. Only
+-- for cases that actually need the shell to change size/contents -- entering
+-- the room (and, later, join/upgrade). Furniture-only changes should call
+-- HomeService.refreshFurniture instead, or every placement causes a
+-- full-room flicker.
 function HomeService.rebuildHome(player)
 	local index = PlotManager.getPlayerPlotIndex(player)
 	if not index then return end
@@ -125,12 +131,34 @@ function HomeService.rebuildHome(player)
 	if old then old:Destroy() end
 	local folder = buildRoom(index, tier)
 	PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, tier), tier, data.pcTier or 0)
+	PlotManager.refreshWorkerNPCs(player)
 
 	local furn = folder:FindFirstChild("Furniture")
 	if furn then
 		for _, entry in ipairs(data.homeItems) do
 			pcall(buildItem, furn, index, entry)
 		end
+	end
+end
+
+-- Furniture-only refresh: clears + rebuilds just the `Furniture` subfolder of
+-- the player's ALREADY-BUILT room. Does not touch the shell/stations/trends/
+-- workers, so placing/moving/removing an item doesn't flicker the whole room.
+-- No-ops safely if the room or its Furniture subfolder doesn't exist yet.
+function HomeService.refreshFurniture(player)
+	local index = PlotManager.getPlayerPlotIndex(player)
+	if not index then return end
+	local data = PlayerData.get(player)
+	if not data then return end
+
+	local folder = homesFolder:FindFirstChild("Home" .. index)
+	if not folder then return end
+	local furn = folder:FindFirstChild("Furniture")
+	if not furn then return end
+
+	furn:ClearAllChildren()
+	for _, entry in ipairs(data.homeItems) do
+		pcall(buildItem, furn, index, entry)
 	end
 end
 
@@ -176,7 +204,7 @@ function HomeService.start()
 		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, nil) then return end
 		table.insert(data.homeItems, { id = id, gx = gx, gz = gz, yaw = yaw })
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 
@@ -193,7 +221,7 @@ function HomeService.start()
 		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, i) then return end
 		entry.gx, entry.gz, entry.yaw = gx, gz, yaw
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 
@@ -203,7 +231,7 @@ function HomeService.start()
 		i = math.floor(tonumber(i) or -1)
 		if not data.homeItems[i] then return end
 		table.remove(data.homeItems, i)
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 end

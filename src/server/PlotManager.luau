@@ -395,6 +395,17 @@ local function buildStudioStations(parent, base, namePrefix, monitorTier)
 	end
 end
 
+-- Home-room fixture layout, local offsets from the back-wall point:
+-- 4 dev stations spread along X at z=+6 (facing the player as they enter).
+-- Declared here (ahead of refreshWorkerNPCs below) so both it and
+-- populateHomeInterior (further down the file) can share the same layout.
+local HOME_STATION_LAYOUT = {
+	{ name = "NewProject",  x = -12, z = 6 },
+	{ name = "Coding",      x = -4,  z = 6 },
+	{ name = "MapBuilding", x = 4,   z = 6 },
+	{ name = "Testing",     x = 12,  z = 6 },
+}
+
 -- A visible worker NPC SEATED on the chair facing the monitor (+Z), with a
 -- keyboard in front, shirt-coloured by rarity and a floating "<Rarity> <Role>"
 -- tag. `seatPos` is the world point at the seat base (Y = FLOOR_TOP). Arms are
@@ -441,34 +452,32 @@ local function buildWorkerNPC(parent, prefix, seatPos, shirtColor, rarityName, r
 end
 
 -- Rebuild the visible worker NPCs for a player from their hired workers.
+-- Workers now live in the player's private Home room (alongside the dev
+-- stations they're paired with), not the studio plot.
 function PlotManager.refreshWorkerNPCs(player)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
 	local data = PlayerData.get(player)
-	if not (plotFolder and data) then
+	if not (homeFolder and data) then
 		return
 	end
-	local folder = plotFolder:FindFirstChild("WorkerNPCs")
+	local folder = homeFolder:FindFirstChild("WorkerNPCs")
 	if folder then
 		folder:Destroy()
 	end
 	folder = Instance.new("Folder")
 	folder.Name = "WorkerNPCs"
-	folder.Parent = plotFolder
-	local base = PLOT_ORIGINS[index] + HOUSE_LOT_OFFSET
-	-- Workers sit at their station on EVERY floor the studio has, not just the
-	-- ground floor -- so a hired worker is visible wherever you are.
-	local floorCount = (data.houseTier or 0) + 1
-	for f = 0, floorCount - 1 do
-		local floorBase = base + Vector3.new(0, f * FLOOR_HEIGHT, 0)
-		for _, entry in ipairs(STUDIO_LAYOUT) do
-			local worker = data.workers[entry.name]
-			if worker and worker.hired then
-				local info = GameData.getRarityInfo(worker.rarity)
-				-- seat is 3 studs in front of the station desk (matches buildStation).
-				local seatPos = floorBase + Vector3.new(entry.x, FLOOR_TOP, entry.z - 3)
-				buildWorkerNPC(folder, ("%sWorkerF%d"):format(entry.name, f), seatPos, info.color, worker.rarity or "Common", entry.name)
-			end
+	folder.Parent = homeFolder
+	local base = PlotManager.getHomeBackWallPoint(index, data.houseTier or 0)
+	-- The Home room is a single floor (unlike the multi-floor studio), so
+	-- workers sit once each, at their station in the room.
+	for _, entry in ipairs(HOME_STATION_LAYOUT) do
+		local worker = data.workers[entry.name]
+		if worker and worker.hired then
+			local info = GameData.getRarityInfo(worker.rarity)
+			-- seat is 3 studs in front of the station desk (matches buildStation).
+			local seatPos = base + Vector3.new(entry.x, FLOOR_TOP, entry.z - 3)
+			buildWorkerNPC(folder, ("%sWorkerF0"):format(entry.name), seatPos, info.color, worker.rarity or "Common", entry.name)
 		end
 	end
 end
@@ -477,12 +486,13 @@ end
 -- are typing on the keyboard while auto-completing their phase.
 function PlotManager.playWorkerTyping(player, role, duration)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
-	local folder = plotFolder and plotFolder:FindFirstChild("WorkerNPCs")
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
+	local folder = homeFolder and homeFolder:FindFirstChild("WorkerNPCs")
 	if not folder then
 		return
 	end
-	-- This role's worker sits on every floor now, so bob ALL of its copies.
+	-- Workers live in the Home room now (a single floor), but keep scanning a
+	-- small range of "F%d" suffixes since refreshWorkerNPCs only ever builds F0.
 	local arms = {}
 	for f = 0, 8 do
 		local prefix = ("%sWorkerF%d"):format(role, f)
@@ -1612,15 +1622,6 @@ function PlotManager.getHomeBackWallPoint(index, tier)
 	return Vector3.new(0, H.skyY, centreZ - dims.roomD / 2)
 end
 
--- Home-room fixture layout, local offsets from the back-wall point:
--- 4 dev stations spread along X at z=+6 (facing the player as they enter).
-local HOME_STATION_LAYOUT = {
-	{ name = "NewProject",  x = -12, z = 6 },
-	{ name = "Coding",      x = -4,  z = 6 },
-	{ name = "MapBuilding", x = 4,   z = 6 },
-	{ name = "Testing",     x = 12,  z = 6 },
-}
-
 -- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
 function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	for _, entry in ipairs(HOME_STATION_LAYOUT) do
@@ -1638,6 +1639,9 @@ function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	-- (0.4 studs, matching the studio's inward offset) to sit the sign flush
 	-- against the wall instead of BUILDING_HALF_D studs into the room.
 	buildTrendsSign(roomFolder, base + Vector3.new(0, 0, 0.8 - BUILDING_HALF_D), "")
+	-- Workers desk sits further into the room (away from the back wall) so
+	-- hired-worker NPCs at the dev stations aren't crowded by it.
+	buildWorkersDesk(roomFolder, base, 0, 11, "")
 end
 
 -- Recolor a player's studio exterior to the given skin key ("Default" or a
@@ -2018,12 +2022,15 @@ function PlotManager.start()
 	end)
 
 	ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-		-- Every prompt handled below lives inside a player's PRIVATE plot
-		-- (elevator, collect, buy-room, PC/House/Workers upgrades). Only the
-		-- plot's OWNER may use them -- otherwise you could stand in someone
-		-- else's studio and open their menus / manage their things.
+		-- Every prompt handled below lives inside a player's PRIVATE plot or
+		-- their private Home room (elevator, collect, buy-room, PC/House/
+		-- Workers upgrades). Only the OWNER may use them -- otherwise you
+		-- could stand in someone else's studio/home and open their menus.
 		local ownPlot = PlotManager.getPlotFolder(plotOfPlayer[player.UserId])
-		if not ownPlot or not prompt:IsDescendantOf(ownPlot) then
+		local ownHome = workspace.Homes:FindFirstChild("Home" .. tostring(plotOfPlayer[player.UserId]))
+		local inOwn = (ownPlot and prompt:IsDescendantOf(ownPlot))
+			or (ownHome and prompt:IsDescendantOf(ownHome))
+		if not inOwn then
 			return
 		end
 

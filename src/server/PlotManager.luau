@@ -1509,12 +1509,10 @@ local function buildPlot(index)
 	buildPlotFloor(plotFolder, origin)
 	buildPlotSpawn(plotFolder, origin)
 	buildLandscaping(plotFolder, origin)
-	-- Persistent ground-floor trends sign lives directly under the plot
-	-- folder (unprefixed) because the client resolves it there and holds a
-	-- live reference, so it must survive tower rebuilds. Task 4: the dev
-	-- stations moved into the private Home room (PlotManager.populateHomeInterior)
-	-- -- the studio no longer builds them at all.
-	buildTrendsSign(plotFolder, origin + HOUSE_LOT_OFFSET, "")
+	-- The Trends board + dev stations now live in the player's private Home
+	-- room (PlotManager.populateHomeInterior); the studio is a bare walk-in
+	-- exterior, so it no longer builds a Trends sign (that left a dead
+	-- "Loading..." board inside the empty studio).
 	buildHouse(plotFolder, origin, 0, 0)
 	buildDecorKiosk(plotFolder, origin)
 

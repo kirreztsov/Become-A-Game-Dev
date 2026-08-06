@@ -1311,9 +1311,19 @@ local function buildInteractiveRoom(parent, base, roomKey, centerX, activity)
 		lbl.Parent = g
 	end
 
-	-- (No collect prompt: once bought, the room AUTO-earns cash straight into
-	-- your wallet every few seconds -- the idle loop credits it.)
-	local _ = promptParent
+	-- Collect prompt: the idle loop auto-credits most of the pool straight to
+	-- your wallet each tick, but this lets a player grab it on demand (and is
+	-- what PlotManager.start's PromptTriggered / refreshRoomDisplay expect to
+	-- find by name + Room attribute -- same pattern as BuyRoomPrompt above).
+	local collectPrompt = Instance.new("ProximityPrompt")
+	collectPrompt.Name = "CollectPrompt"
+	collectPrompt.ActionText = "Collect $0"
+	collectPrompt.ObjectText = activity.title
+	collectPrompt.HoldDuration = 0.2
+	collectPrompt.MaxActivationDistance = 10
+	collectPrompt.RequiresLineOfSight = false
+	collectPrompt:SetAttribute("Room", activity.room)
+	collectPrompt.Parent = promptParent
 
 	-- Tycoon-style BUY BUTTON in front of the room: a bright pad + a sign
 	-- showing the price and earnings, with a prompt to purchase. Removed once
@@ -1366,19 +1376,6 @@ end
 local ROOM_COSTS = { Arcade = 1500, Merch = 15000 }
 local ROOM_PER_TICK = { Arcade = 30, Merch = 220 }
 
-local function buildSideExpansion(parent, base)
-	-- Both money rooms sit in a row extending left. Each shows a tycoon buy
-	-- button until purchased.
-	buildInteractiveRoom(parent, base, "ArcadeRoom", -BUILDING_HALF_W - WING_W / 2 - 1, {
-		kind = "arcade", title = "\240\159\149\185\239\184\143 Arcade", room = "Arcade",
-		buyCost = ROOM_COSTS.Arcade, perTick = ROOM_PER_TICK.Arcade,
-	})
-	buildInteractiveRoom(parent, base, "MerchRoom", -BUILDING_HALF_W - WING_W * 1.5 - 3, {
-		kind = "merch", title = "\240\159\155\141\239\184\143 Merch Shop", room = "Merch",
-		buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
-	})
-end
-
 -- Reflect room ownership: once bought, remove the buy button and flip the
 -- tally sign to show it's actively earning. (Recursive find because the buy
 -- button lives under the rebuildable StudioBuilding folder, not the plot root.)
@@ -1400,14 +1397,16 @@ end
 
 function PlotManager.applyRoomOwnership(player)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
+	-- The Arcade/Merch fixtures live in the private Home room now (Task 5),
+	-- not the studio plot -- same lookup pattern as refreshWorkerNPCs.
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
 	local data = PlayerData.get(player)
-	if not (plotFolder and data) then
+	if not (homeFolder and data) then
 		return
 	end
 	local owned = data.roomsOwned or {}
-	applyRoomVisual(plotFolder, "Arcade", owned.Arcade)
-	applyRoomVisual(plotFolder, "Merch", owned.Merch)
+	applyRoomVisual(homeFolder, "Arcade", owned.Arcade)
+	applyRoomVisual(homeFolder, "Merch", owned.Merch)
 end
 
 -- Task 4: the studio is now a single, always-ground-floor empty shell.
@@ -1618,6 +1617,18 @@ function PlotManager.getHomeBackWallPoint(index, tier)
 	return Vector3.new(0, H.skyY, centreZ - dims.roomD / 2)
 end
 
+-- Task 5: the Arcade + Merch idle-income zones, folded into the Home room
+-- (recovered verbatim from the pre-Task-4 studio's buildSideExpansion calls,
+-- which built these into the studio building before it became a bare shell).
+local ARCADE_ACTIVITY = {
+	kind = "arcade", title = "\240\159\149\185\239\184\143 Arcade", room = "Arcade",
+	buyCost = ROOM_COSTS.Arcade, perTick = ROOM_PER_TICK.Arcade,
+}
+local MERCH_ACTIVITY = {
+	kind = "merch", title = "\240\159\155\141\239\184\143 Merch Shop", room = "Merch",
+	buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
+}
+
 -- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
 function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	for _, entry in ipairs(HOME_STATION_LAYOUT) do
@@ -1649,6 +1660,26 @@ function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	if tier < GameData.HouseTierCount - 1 then
 		buildUpgradeNPC(roomFolder, base + Vector3.new(0, 0, BUILDING_HALF_D + 6))
 	end
+
+	-- Task 5: Arcade + Merch idle zones, in the two BACK corners (their footprint
+	-- is meant to hug the back wall, in the furniture-free `workRows` band).
+	-- buildInteractiveRoom's internal Z math (`centerZ = -BUILDING_HALF_D +
+	-- WING_D/2`, its buy pad a further 4.5 + 3(half pad depth) out beyond that)
+	-- was written for the studio's "base = building centre" convention, where
+	-- the wing's floor sits BEHIND `base` and its buy pad further behind still.
+	-- Here `base` is the room's back wall (positive Z INTO the room), so a
+	-- naive pass-through would build the whole wing behind the wall, outside
+	-- the room. Nudging `base` forward by 25 studs lands the buy pad ~1.5 studs
+	-- clear of the actual wall (no clipping through it) with the booth's floor
+	-- spanning roughly 9-25 studs into the room -- flush-ish to the back wall,
+	-- but its solid far wall spills ~9 studs past the 16-stud workRows band
+	-- into the living zone (WING_D=16 alone would fit the band exactly, but
+	-- the buy pad needs extra clearance in front of it). Same nudge for both;
+	-- only centerX differs, placing them in the left/right back corners.
+	local idleZoneBase = base + Vector3.new(0, 0, 25)
+	local dims = GameData.homeDims(tier)
+	buildInteractiveRoom(roomFolder, idleZoneBase, "ArcadeRoom", -(dims.roomW / 2) + 9, ARCADE_ACTIVITY)
+	buildInteractiveRoom(roomFolder, idleZoneBase, "MerchRoom", (dims.roomW / 2) - 9, MERCH_ACTIVITY)
 end
 
 -- Recolor a player's studio exterior to the given skin key ("Default" or a
@@ -2069,9 +2100,10 @@ function PlotManager.start()
 			data.cash += amount
 			PlayerData.addWeekly(data, "cash", amount, os.time())
 			Remotes.PlayerStateUpdated:FireClient(player, data)
-			local plotFolder = PlotManager.getPlotFolder(plotOfPlayer[player.UserId])
-			if plotFolder then
-				refreshRoomDisplay(plotFolder, room, 0)
+			-- Arcade/Merch fixtures live in the Home room (Task 5) -- ownHome was
+			-- already resolved above (and is what the ownership check passed on).
+			if ownHome then
+				refreshRoomDisplay(ownHome, room, 0)
 			end
 		elseif prompt.Name == "BuyRoomPrompt" then
 			-- Tycoon buy button: purchase a money room.
@@ -2092,9 +2124,10 @@ function PlotManager.start()
 			data.cash -= cost
 			data.roomsOwned = data.roomsOwned or {}
 			data.roomsOwned[room] = true
-			local plotFolder = PlotManager.getPlotFolder(index)
-			if plotFolder then
-				applyRoomVisual(plotFolder, room, true)
+			-- Arcade/Merch fixtures live in the Home room (Task 5), not the
+			-- studio plot -- ownHome was already resolved above.
+			if ownHome then
+				applyRoomVisual(ownHome, room, true)
 			end
 			Remotes.PlayerStateUpdated:FireClient(player, data)
 		end

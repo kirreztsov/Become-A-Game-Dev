@@ -116,15 +116,21 @@ end
 function HomeService.rebuildHome(player)
 	local index = PlotManager.getPlayerPlotIndex(player)
 	if not index then return end
-	local folder = homesFolder:FindFirstChild("Home" .. index)
-	if not folder then return end
-	local furn = folder:FindFirstChild("Furniture")
-	if not furn then return end
-	furn:ClearAllChildren()
 	local data = PlayerData.get(player)
 	if not data then return end
-	for _, entry in ipairs(data.homeItems) do
-		pcall(buildItem, furn, index, entry)
+	local tier = data.houseTier or 0
+
+	-- Rebuild the shell at the player's current tier size, then the interior.
+	local old = homesFolder:FindFirstChild("Home" .. index)
+	if old then old:Destroy() end
+	local folder = buildRoom(index, tier)
+	PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, tier), tier, data.pcTier or 0)
+
+	local furn = folder:FindFirstChild("Furniture")
+	if furn then
+		for _, entry in ipairs(data.homeItems) do
+			pcall(buildItem, furn, index, entry)
+		end
 	end
 end
 
@@ -167,7 +173,7 @@ function HomeService.start()
 		gx, gz, yaw = math.floor(tonumber(gx) or -1), math.floor(tonumber(gz) or -1), tonumber(yaw) or 0
 		if yaw ~= 0 and yaw ~= 90 and yaw ~= 180 and yaw ~= 270 then return end
 		local w, d = GameData.homeFootprint(id, yaw)
-		if not GameData.homeInBounds(gx, gz, w, d) then return end
+		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, nil) then return end
 		table.insert(data.homeItems, { id = id, gx = gx, gz = gz, yaw = yaw })
 		HomeService.rebuildHome(player)
@@ -184,7 +190,7 @@ function HomeService.start()
 		gx, gz, yaw = math.floor(tonumber(gx) or -1), math.floor(tonumber(gz) or -1), tonumber(yaw) or 0
 		if yaw ~= 0 and yaw ~= 90 and yaw ~= 180 and yaw ~= 270 then return end
 		local w, d = GameData.homeFootprint(entry.id, yaw)
-		if not GameData.homeInBounds(gx, gz, w, d) then return end
+		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, i) then return end
 		entry.gx, entry.gz, entry.yaw = gx, gz, yaw
 		HomeService.rebuildHome(player)

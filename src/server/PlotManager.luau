@@ -1602,6 +1602,44 @@ function PlotManager.getStudioEntranceCFrame(index)
 	return CFrame.new(pos, pos + Vector3.new(0, 0, 1))
 end
 
+-- Floor point at the centre of a Home room's back (-Z) wall, for the current
+-- room size (tier). Fixtures are placed relative to this so they stay pinned to
+-- the back wall when the room grows.
+function PlotManager.getHomeBackWallPoint(index, tier)
+	local H = GameData.Home
+	local dims = GameData.homeDims(tier)
+	local centreZ = index * H.spacing
+	return Vector3.new(0, H.skyY, centreZ - dims.roomD / 2)
+end
+
+-- Home-room fixture layout, local offsets from the back-wall point:
+-- 4 dev stations spread along X at z=+6 (facing the player as they enter).
+local HOME_STATION_LAYOUT = {
+	{ name = "NewProject",  x = -12, z = 6 },
+	{ name = "Coding",      x = -4,  z = 6 },
+	{ name = "MapBuilding", x = 4,   z = 6 },
+	{ name = "Testing",     x = 12,  z = 6 },
+}
+
+-- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
+function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
+	for _, entry in ipairs(HOME_STATION_LAYOUT) do
+		for _, config in ipairs(STATION_CONFIGS) do
+			if config.name == entry.name then
+				buildStation(roomFolder, base, config, entry.x, entry.z, "", pcTier or 0)
+				break
+			end
+		end
+	end
+	-- buildTrendsSign mounts the board `BUILDING_HALF_D - 0.4` studs in the +Z
+	-- direction from the base it's given (the studio convention: base = near
+	-- entrance, wall far in +Z). Here `base` IS the back wall itself (-Z side),
+	-- so that offset is cancelled out and replaced with a small +Z nudge
+	-- (0.4 studs, matching the studio's inward offset) to sit the sign flush
+	-- against the wall instead of BUILDING_HALF_D studs into the room.
+	buildTrendsSign(roomFolder, base + Vector3.new(0, 0, 0.8 - BUILDING_HALF_D), "")
+end
+
 -- Recolor a player's studio exterior to the given skin key ("Default" or a
 -- key from GameData.StudioSkins). Original Wall/Roof colors are remembered
 -- per-part via attributes the first time a skin is applied, so "Default"

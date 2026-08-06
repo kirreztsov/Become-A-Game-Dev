@@ -47,11 +47,13 @@ local function startPlacing(id, yaw, fromIndex)
 	clearGhost()
 	hideMenu()
 	selectedId, curYaw, movingIndex, placing = id, yaw or 0, fromIndex, true
-	local w, d = GameData.homeFootprint(id, curYaw)
+	local it = GameData.getHomeItem(id)
 	ghost = Instance.new("Part")
 	ghost.Anchored = true; ghost.CanCollide = false; ghost.Transparency = 0.5
 	ghost.Color = Color3.fromRGB(120, 220, 140)
-	ghost.Size = Vector3.new(w * H.cell - 0.4, 1, d * H.cell - 0.4)
+	-- Size from NATIVE cells; the CFrame rotation handles yaw (same as the
+	-- server's buildItem) -- sizing from the swapped footprint would double it.
+	ghost.Size = Vector3.new(it.cells[1] * H.cell - 0.4, 1, it.cells[2] * H.cell - 0.4)
 	ghost.Parent = workspace
 end
 
@@ -76,7 +78,7 @@ local function updateGhost()
 	local w, d = GameData.homeFootprint(selectedId, curYaw)
 	local gx = math.clamp(math.floor((hit.Position.X - corner.X) / H.cell), 0, H.cols - w)
 	local gz = math.clamp(math.floor((hit.Position.Z - corner.Z) / H.cell), 0, H.rows - d)
-	ghost.Size = Vector3.new(w * H.cell - 0.4, 1, d * H.cell - 0.4)
+	-- (ghost.Size is set from native cells in startPlacing; rotation is via CFrame)
 	local wc = GameData.homeCellToWorld(corner.X, corner.Z, H.skyY + 0.6, gx, gz, w, d)
 	ghost.CFrame = CFrame.new(wc) * CFrame.Angles(0, math.rad(curYaw), 0)
 	local free = not GameData.homeOverlaps(myItems or {}, gx, gz, w, d, movingIndex)

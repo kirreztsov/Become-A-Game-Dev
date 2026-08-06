@@ -128,4 +128,35 @@ t:assertEqual(wd.weekAnchor, 1, "week anchor advances to the new week index")
 PlayerData.addWeekly(wd, "bogusStat", 10, 604800 + 2)  -- unknown stat is a no-op
 t:assertEqual(wd.weekly.cash, 25, "unknown stat does not corrupt the tally")
 
+-- Home room: config + catalog
+t:assertEqual(GameData.Home.cols, 16, "home grid is 16 columns wide")
+t:assertEqual(GameData.Home.rows, 12, "home grid is 12 rows deep")
+t:assertEqual(GameData.getHomeItem("Rug") ~= nil, true, "Rug is in the catalog")
+t:assertEqual(GameData.getHomeItem("nope"), nil, "unknown id returns nil")
+
+-- footprint rotates with yaw (90/270 swap w/d)
+local fpw, fpd = GameData.homeFootprint("Bed", 0)
+local rpw, rpd = GameData.homeFootprint("Bed", 90)
+t:assertEqual(rpw, fpd, "yaw 90 swaps width->depth")
+t:assertEqual(rpd, fpw, "yaw 90 swaps depth->width")
+
+-- bounds
+t:assertEqual(GameData.homeInBounds(0, 0, 2, 2), true, "footprint at origin is in bounds")
+t:assertEqual(GameData.homeInBounds(15, 11, 1, 1), true, "single cell at far corner in bounds")
+t:assertEqual(GameData.homeInBounds(15, 0, 2, 1), false, "overhanging the right edge is out of bounds")
+t:assertEqual(GameData.homeInBounds(-1, 0, 1, 1), false, "negative cell is out of bounds")
+
+-- overlap
+local items = { { id = "Rug", gx = 4, gz = 4, yaw = 0 } } -- Rug is 2x3 cells
+t:assertEqual(GameData.homeOverlaps(items, 5, 5, 1, 1, nil), true, "a cell inside the rug overlaps")
+t:assertEqual(GameData.homeOverlaps(items, 0, 0, 2, 2, nil), false, "a footprint clear of the rug does not overlap")
+t:assertEqual(GameData.homeOverlaps(items, 4, 4, 2, 3, 1), false, "ignoreIndex lets an item overlap its own old cells")
+
+-- cell -> world (corner at 0,0, floor y=0): cell (0,0) with 1x1 footprint centres at (CELL/2, y, CELL/2)
+local wc = GameData.homeCellToWorld(0, 0, 0, 0, 0, 1, 1)
+t:assertEqual(wc.X, 2, "cell 0 centre x = CELL/2")
+t:assertEqual(wc.Z, 2, "cell 0 centre z = CELL/2")
+local wc2 = GameData.homeCellToWorld(0, 0, 0, 2, 0, 2, 1)
+t:assertEqual(wc2.X, 12, "cell gx=2 w=2 centre x = 2*4 + 2*4/2 = 12")
+
 t:summary()

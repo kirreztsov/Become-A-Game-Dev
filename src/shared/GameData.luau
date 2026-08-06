@@ -765,4 +765,67 @@ function GameData.computeStanding(rows, userId, liveValue)
 	return { rank = nil, value = liveValue or 0 }
 end
 
+-- ===== Personal Home room (Round 1) =====
+GameData.Home = {
+	roomW = 64, roomD = 48, cell = 4, wallH = 20,
+	cols = 16, rows = 12,          -- roomW/cell, roomD/cell
+	skyY = 10000, spacing = 400,   -- rooms stacked far up, offset per plot index on Z
+}
+
+-- Each item: id, name, icon, cells {w,d} footprint, and EITHER asset (a
+-- StudioModels/assets name) OR build (a procedural kind handled by HomeService).
+GameData.HomeCatalog = {
+	{ id = "Desk",       name = "Desk",        icon = "\240\159\150\165\239\184\143", cells = {2, 1}, asset = "Desk" },
+	{ id = "Chair",      name = "Chair",       icon = "\240\159\170\145", cells = {1, 1}, asset = "Chair" },
+	{ id = "LoungeChair",name = "Lounge Chair",icon = "\240\159\155\139", cells = {1, 1}, asset = "LoungeChair" },
+	{ id = "Table",      name = "Table",       icon = "\240\159\143\147", cells = {2, 2}, asset = "PicnicTable" },
+	{ id = "Umbrella",   name = "Umbrella",    icon = "\226\155\177\239\184\143", cells = {2, 2}, asset = "Umbrella" },
+	{ id = "Bench",      name = "Bench",       icon = "\240\159\170\145", cells = {2, 1}, asset = "Bench" },
+	{ id = "TrashCan",   name = "Trash Can",   icon = "\240\159\151\145\239\184\143", cells = {1, 1}, asset = "TrashCan" },
+	{ id = "Rug",        name = "Rug",         icon = "\240\159\159\165", cells = {2, 3}, build = "rug" },
+	{ id = "TV",         name = "TV",          icon = "\240\159\147\186", cells = {2, 1}, build = "tv" },
+	{ id = "Bookshelf",  name = "Bookshelf",   icon = "\240\159\147\154", cells = {2, 1}, build = "bookshelf" },
+	{ id = "Bed",        name = "Bed",         icon = "\240\159\155\143\239\184\143", cells = {2, 3}, build = "bed" },
+	{ id = "PC",         name = "PC",          icon = "\240\159\150\165\239\184\143", cells = {1, 1}, build = "pc" },
+}
+
+local _homeById = {}
+for _, it in ipairs(GameData.HomeCatalog) do _homeById[it.id] = it end
+function GameData.getHomeItem(id) return _homeById[id] end
+
+-- Footprint in cells, rotated: a 90/270 yaw swaps width<->depth.
+function GameData.homeFootprint(id, yaw)
+	local it = _homeById[id]
+	if not it then return 1, 1 end
+	local w, d = it.cells[1], it.cells[2]
+	if yaw == 90 or yaw == 270 then
+		return d, w
+	end
+	return w, d
+end
+
+function GameData.homeInBounds(gx, gz, w, d)
+	return gx >= 0 and gz >= 0 and (gx + w) <= GameData.Home.cols and (gz + d) <= GameData.Home.rows
+end
+
+-- True if the footprint (gx,gz,w,d) overlaps any placed item except items[ignoreIndex].
+function GameData.homeOverlaps(items, gx, gz, w, d, ignoreIndex)
+	for i, other in ipairs(items) do
+		if i ~= ignoreIndex then
+			local ow, od = GameData.homeFootprint(other.id, other.yaw)
+			if gx < other.gx + ow and gx + w > other.gx and gz < other.gz + od and gz + d > other.gz then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- World centre of a footprint anchored at cell (gx,gz), given the room's -X,-Z
+-- corner and floor Y. Footprint (w,d) is in cells.
+function GameData.homeCellToWorld(cornerX, cornerZ, floorY, gx, gz, w, d)
+	local c = GameData.Home.cell
+	return Vector3.new(cornerX + gx * c + w * c / 2, floorY, cornerZ + gz * c + d * c / 2)
+end
+
 return GameData

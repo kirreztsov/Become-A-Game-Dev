@@ -1610,6 +1610,21 @@ function PlotManager.getPlotFolder(index)
 	return workspace.Plots:FindFirstChild("Plot" .. index)
 end
 
+function PlotManager.getPlotOrigin(index)
+	return PLOT_ORIGINS[index]
+end
+
+-- The studio entrance apron spot (matches PlotSpawnPoint) -- where players
+-- land when leaving the Home, facing into the studio (+Z).
+function PlotManager.getStudioEntranceCFrame(index)
+	local origin = PLOT_ORIGINS[index]
+	if not origin then
+		return nil
+	end
+	local pos = origin + HOUSE_LOT_OFFSET + Vector3.new(0, FLOOR_TOP + 3, -BUILDING_HALF_D - 6)
+	return CFrame.new(pos, pos + Vector3.new(0, 0, 1))
+end
+
 -- Recolor a player's studio exterior to the given skin key ("Default" or a
 -- key from GameData.StudioSkins). Original Wall/Roof colors are remembered
 -- per-part via attributes the first time a skin is applied, so "Default"

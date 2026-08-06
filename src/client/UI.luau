@@ -258,6 +258,7 @@ function UI.init()
 	local DarkMode = require(script.Parent.DarkMode)
 	local MobileScale = require(script.Parent.MobileScale)
 	local LeaderboardPanel = require(script.Parent.LeaderboardPanel)
+	local HomePanel = require(script.Parent.HomePanel)
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "GameDevTycoonUI"
@@ -1861,6 +1862,7 @@ function UI.init()
 	StorePanel.init(player, Theme, playerState)
 	VIPChat.setup()
 	LeaderboardPanel.init(player)
+	HomePanel.init(player)
 
 	-- M6 polish: give every button in every panel a springy hover/press feel.
 	juiceAllButtons(player:WaitForChild("PlayerGui"))

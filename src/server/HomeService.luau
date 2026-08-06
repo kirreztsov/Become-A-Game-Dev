@@ -30,22 +30,6 @@ local roomDims = {}    -- [index] = the dims table the room was last built at
 local recentDoorEntry = {}
 local DOOR_ENTRY_DEBOUNCE = 1.5
 
--- Find the ground floor's fixed door-entry trigger (tagged HomeEntryDoor by
--- PlotManager, NOT the sliding glass door leaf itself -- that one tucks
--- sideways as soon as a player gets close, so it isn't reliably touched by
--- someone walking straight through the opening). Skin-mesh buildings bake
--- their whole exterior (door included) as one mesh with no such trigger, so
--- this returns nil for them -- those players just use the My Home button.
-local function findHomeDoorTrigger(plot)
-	if not plot then return nil end
-	for _, inst in ipairs(plot:GetDescendants()) do
-		if inst:GetAttribute("HomeEntryDoor") then
-			return inst
-		end
-	end
-	return nil
-end
-
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
 	p.Name, p.Size, p.Position = name, size, pos
@@ -55,13 +39,21 @@ local function part(name, size, pos, color, mat, parent)
 	return p
 end
 
--- Build the empty room shell for a plot index. Returns the room folder.
+-- Build the empty room shell for a plot index. Returns the room folder. The
+-- folder INSTANCE is created once and reused on every later call -- only its
+-- children are cleared + rebuilt -- so external references to it (the
+-- client's captured homeFolder, its WaitForChild/DescendantAdded hooks)
+-- survive every rebuild instead of pointing at a dead, destroyed folder.
 local function buildRoom(index, tier)
 	local center = Vector3.new(0, H.skyY, index * H.spacing)
 	local floorTop = center.Y
-	local folder = Instance.new("Folder")
-	folder.Name = "Home" .. index
-	folder.Parent = homesFolder
+	local folder = homesFolder:FindFirstChild("Home" .. index)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Home" .. index
+		folder.Parent = homesFolder
+	end
+	folder:ClearAllChildren()
 
 	local dims = GameData.homeDims(tier)
 	local w, d, wh = dims.roomW, dims.roomD, H.wallH
@@ -150,8 +142,9 @@ function HomeService.rebuildHome(player)
 	local tier = data.houseTier or 0
 
 	-- Rebuild the shell at the player's current tier size, then the interior.
-	local old = homesFolder:FindFirstChild("Home" .. index)
-	if old then old:Destroy() end
+	-- buildRoom reuses the existing Home<i> folder instance in place (Fix A),
+	-- it does NOT destroy + recreate it -- so external references (the
+	-- client's captured homeFolder / DescendantAdded seat-tracking) survive.
 	local folder = buildRoom(index, tier)
 	PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, tier), tier, data.pcTier or 0)
 	PlotManager.refreshWorkerNPCs(player)
@@ -216,14 +209,20 @@ function HomeService.build()
 		-- stalling until the owning player's join-time rebuildHome runs.
 		PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, 0), 0, 0)
 
-		-- Wire the studio's ground-floor door to enter the Home room. Skin-mesh
-		-- buildings bake their whole exterior (door included), so there's no
-		-- trigger to find there -- this only fires for the procedural door;
-		-- those players still have the My Home button as a fallback.
-		local plot = PlotManager.getPlotFolder(index)
-		local door = findHomeDoorTrigger(plot)
-		if door then
-			door.Touched:Connect(function(hit)
+		-- Own our OWN persistent door-entry trigger, parented to homesFolder (NOT
+		-- inside Home<index>, which gets ClearAllChildren()'d on every rebuild,
+		-- and NOT inside the StudioBuilding, which PlotManager destroys + rebuilds
+		-- on join/prestige/skin-change). homesFolder itself is only ever
+		-- (re)created here at boot, so this trigger -- and the Touched wiring
+		-- below -- lives for the whole server session.
+		local cf = PlotManager.getStudioEntranceCFrame(index)
+		if cf then
+			local pos = cf.Position + cf.LookVector * 5
+			local trigger = part("HomeDoorTrigger" .. index, Vector3.new(8, 8, 3), pos, Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, homesFolder)
+			trigger.CanCollide = false
+			trigger.CanQuery = false
+			trigger.Transparency = 1
+			trigger.Touched:Connect(function(hit)
 				local plr = Players:GetPlayerFromCharacter(hit.Parent)
 				if plr and PlotManager.getPlayerPlotIndex(plr) == index then
 					local now = os.clock()

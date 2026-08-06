@@ -902,20 +902,6 @@ local function buildOneFloorShell(parent, base, f, floorCount, skinKey, styleTie
 			CollectionService:AddTag(panel, "AutoDoor")
 		end
 
-		-- Task 6: a fixed (non-sliding) invisible trigger spanning the doorway
-		-- opening, tagged so HomeService can find it and enter the player's Home
-		-- room when they walk through. NOT the doorLeaf itself -- that part is
-		-- tagged "AutoDoor" and tucks sideways behind WallFrontLeft as soon as a
-		-- player gets within OPEN_RADIUS (12 studs), so by the time someone
-		-- actually walks through the opening the leaf isn't there to touch.
-		-- This trigger straddles the doorway plane and never moves. Named with
-		-- the floor `prefix` like every other part here, so it's found by
-		-- attribute, not by exact name.
-		local doorTrigger = makePart(prefix .. "HomeDoorTrigger", Vector3.new(DOOR_WIDTH - 0.4, DOOR_HEIGHT - 0.2, 1.4), base + Vector3.new(0, FLOOR_TOP + (DOOR_HEIGHT - 0.2) / 2, -halfD), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, parent)
-		doorTrigger.CanCollide = false
-		doorTrigger.Transparency = 1
-		doorTrigger:SetAttribute("HomeEntryDoor", true)
-
 		-- Detailed Blender entrance canopy + glowing sign, if the model is synced;
 		-- otherwise the original procedural canopy/posts/lamps (fallback).
 		if StudioModels.has("EntranceSign") then

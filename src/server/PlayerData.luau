@@ -69,6 +69,8 @@ local function defaultData()
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
 		weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 },
+		-- Placed furniture in the player's private Home room.
+		homeItems = {},
 	}
 end
 
@@ -124,6 +126,9 @@ function PlayerData.load(player)
 				data.weekly.subscribers = data.weekly.subscribers or 0
 				data.weekly.cash = data.weekly.cash or 0
 				data.weekly.gamesReleased = data.weekly.gamesReleased or 0
+			end
+			if type(data.homeItems) ~= "table" then
+				data.homeItems = {}
 			end
 			-- outfitColor is stored as a DataStore-safe {r,g,b} table (or nil).
 			cache[player.UserId] = data

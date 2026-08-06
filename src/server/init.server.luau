@@ -89,10 +89,14 @@ local function onPlayerJoined(player)
 
 	local data = PlayerData.load(player)
 	PlotManager.rebuildHouseForPlayer(player, data.houseTier, data.pcTier)
-	PlotManager.rebuildPCForPlayer(player, data.pcTier)
 	PlotManager.rebuildDecorForPlayer(player, data.decorations)
-	PlotManager.refreshWorkerNPCs(player)
 	PlotManager.rebuildPlayButtons(player, data.subMilestone)
+	-- Populate the player's private Home room (stations, Trends, PC, workers
+	-- desk + NPCs) at their saved tier. This also covers what the removed
+	-- PlotManager.rebuildPCForPlayer/refreshWorkerNPCs join-time calls used to
+	-- do -- those targeted the studio, which no longer has stations/PC/workers
+	-- (they all moved into the room in this task).
+	HomeService.rebuildHome(player)
 
 	Remotes.PlayerStateUpdated:FireClient(player, data)
 	TrendsService.sendCurrentTo(player)

@@ -1,7 +1,6 @@
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
-local PlotManager = require(script.Parent.PlotManager)
 
 local PCService = {}
 
@@ -26,7 +25,12 @@ function PCService.start()
 		data.cash -= cost
 		data.pcTier += 1
 
-		PlotManager.rebuildPCForPlayer(player, data.pcTier)
+		-- The PC/monitor now lives in the private Home room, not the studio --
+		-- rebuild the room instead of the (now station-less) studio shell.
+		-- Local require avoids a load-order cycle with PlotManager/HomeService
+		-- at boot.
+		local HomeService = require(script.Parent.HomeService)
+		HomeService.rebuildHome(player)
 
 		Remotes.PCActionResult:FireClient(player, true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)

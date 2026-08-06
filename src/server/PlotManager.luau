@@ -644,7 +644,7 @@ end
 -- fireplace lounge (floor 1), an indoor garden (floor 2), or a marble
 -- penthouse bar (floor 3). Tucked against the back wall, clear of the
 -- work stations and elevator corners.
-local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
+local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey, styleTier)
 	local slabTop = FLOOR_TOP + f * FLOOR_HEIGHT
 	local wallCenterY = slabTop + WALL_HEIGHT / 2
 	local width = BUILDING_HALF_W * 2
@@ -678,7 +678,10 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	local useStudioFacade = (not useSkinMesh) and StudioModels.has("StudioFacade")
 	-- Each upgrade tier restyles the WHOLE studio (RoTube-style glow-up):
 	--   tier 0 = coral+blue starter, 1 = white+blue "shop", 2 = purple luxury.
-	local tier = math.clamp(floorCount - 1, 0, 2)
+	-- Task 4: the studio is a single-floor shell, so `floorCount` no longer
+	-- tracks houseTier (it's always 1) -- the caller passes the real
+	-- houseTier separately as `styleTier` so the exterior still glows up.
+	local tier = math.clamp(styleTier or (floorCount - 1), 0, 2)
 	local TIER_STYLE = {
 		[0] = { body = Color3.fromRGB(203, 198, 188), accent = Color3.fromRGB(158, 148, 132), trim = Color3.fromRGB(228, 226, 220), win = Color3.fromRGB(150, 182, 205), winGlow = false }, -- humble: muted beige/grey
 		[1] = { body = Color3.fromRGB(244, 246, 250), accent = Color3.fromRGB(66, 138, 210), trim = Color3.fromRGB(250, 250, 252), win = Color3.fromRGB(255, 226, 150), winGlow = true },
@@ -1148,13 +1151,10 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 		end
 	end
 
-	-- Furnish upper floors (ground floor's stations are persistent, built in
-	-- buildPlot).
-	local floorBase = base + Vector3.new(0, f * FLOOR_HEIGHT, 0)
-	if f > 0 then
-		buildStudioStations(parent, floorBase, stationPrefix, pcTier)
-		buildTrendsSign(parent, floorBase, stationPrefix)
-	end
+	-- Task 4: stations/Trends no longer live in the studio at all -- they're
+	-- built into the private Home room (PlotManager.populateHomeInterior).
+	-- The studio is a single always-ground floor, so this used to be dead
+	-- code anyway (only ever fired for f > 0).
 
 	-- Elevator pads: up on every floor but the top, down on every floor but
 	-- the ground.
@@ -1410,18 +1410,13 @@ function PlotManager.applyRoomOwnership(player)
 	applyRoomVisual(plotFolder, "Merch", owned.Merch)
 end
 
+-- Task 4: the studio is now a single, always-ground-floor empty shell.
+-- Stations, the upgrade NPC, and the Arcade/Merch rooms all moved into the
+-- private Home room (see PlotManager.populateHomeInterior + HomeService).
+-- `houseTier` is still threaded through as the cosmetic style tier so the
+-- exterior (wall color/facade/crown) keeps glowing up with room upgrades.
 local function buildStudioBuilding(parent, base, houseTier, pcTier, skinKey)
-	local floorCount = houseTier + 1
-	for f = 0, floorCount - 1 do
-		buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
-	end
-
-	-- Money-earning rooms (bought via tycoon buy-buttons, not floor-gated).
-	buildSideExpansion(parent, base)
-
-	if houseTier < GameData.HouseTierCount - 1 then
-		buildUpgradeNPC(parent, base)
-	end
+	buildOneFloorShell(parent, base, 0, 1, pcTier, skinKey, houseTier)
 end
 
 -- Rebuildable wrapper: the whole tower shell lives in a "StudioBuilding"
@@ -1524,10 +1519,11 @@ local function buildPlot(index)
 	buildPlotFloor(plotFolder, origin)
 	buildPlotSpawn(plotFolder, origin)
 	buildLandscaping(plotFolder, origin)
-	-- Persistent ground-floor studio: stations + trends sign live directly
-	-- under the plot folder (unprefixed) because the client resolves them
-	-- there and holds live references, so they must survive tower rebuilds.
-	buildStudioStations(plotFolder, origin + HOUSE_LOT_OFFSET, "", 0)
+	-- Persistent ground-floor trends sign lives directly under the plot
+	-- folder (unprefixed) because the client resolves it there and holds a
+	-- live reference, so it must survive tower rebuilds. Task 4: the dev
+	-- stations moved into the private Home room (PlotManager.populateHomeInterior)
+	-- -- the studio no longer builds them at all.
 	buildTrendsSign(plotFolder, origin + HOUSE_LOT_OFFSET, "")
 	buildHouse(plotFolder, origin, 0, 0)
 	buildDecorKiosk(plotFolder, origin)
@@ -1642,6 +1638,17 @@ function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	-- Workers desk sits further into the room (away from the back wall) so
 	-- hired-worker NPCs at the dev stations aren't crowded by it.
 	buildWorkersDesk(roomFolder, base, 0, 11, "")
+	-- Task 4 fold-in: the room-upgrade NPC now lives in the room itself (was
+	-- studio-only). buildUpgradeNPC's internal offsets (x = BUILDING_HALF_W -
+	-- 5, z = -BUILDING_HALF_D + 5) assume `base` is a studio-style building
+	-- reference where positive Z is deeper into the building; here `base` is
+	-- the room's back wall with positive Z going INTO the room, so nudge the
+	-- base +Z by BUILDING_HALF_D + 6 to land the NPC ~11 studs into the room
+	-- (level with the Workers desk) instead of behind the wall. x = 19 already
+	-- clears the station row (x in [-12, 12]) with no adjustment needed.
+	if tier < GameData.HouseTierCount - 1 then
+		buildUpgradeNPC(roomFolder, base + Vector3.new(0, 0, BUILDING_HALF_D + 6))
+	end
 end
 
 -- Recolor a player's studio exterior to the given skin key ("Default" or a

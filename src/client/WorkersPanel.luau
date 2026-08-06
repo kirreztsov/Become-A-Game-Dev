@@ -2,6 +2,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Sound = require(script.Parent.Sound)
+local Fx = require(script.Parent.Fx)
 
 local WorkersPanel = {}
 
@@ -243,6 +244,7 @@ function WorkersPanel.init(player, theme, playerState)
 		screenGui.Enabled = true
 		statusLabel.Text = ""
 		refresh()
+		Fx.popIn(frame)
 	end
 end
 

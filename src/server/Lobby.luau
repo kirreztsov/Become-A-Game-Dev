@@ -550,13 +550,15 @@ local function buildAtmosphere()
 		end
 	end
 
+	-- Lighter haze = crisper distances; punchier grade + a touch more bloom =
+	-- a richer, more vibrant look across the WHOLE game (every screen).
 	ensure("Atmosphere", "TownAtmosphere", {
-		Density = 0.34, Offset = 0.1, Haze = 1.8, Glare = 0.2,
+		Density = 0.28, Offset = 0.1, Haze = 1.1, Glare = 0.2,
 		Color = Color3.fromRGB(210, 218, 230), Decay = Color3.fromRGB(96, 110, 140),
 	})
-	ensure("BloomEffect", "TownBloom", { Intensity = 0.45, Size = 24, Threshold = 1.1 })
+	ensure("BloomEffect", "TownBloom", { Intensity = 0.6, Size = 24, Threshold = 1.05 })
 	ensure("ColorCorrectionEffect", "TownGrade", {
-		Saturation = 0.12, Contrast = 0.06, Brightness = 0, TintColor = Color3.fromRGB(255, 252, 245),
+		Saturation = 0.2, Contrast = 0.1, Brightness = 0, TintColor = Color3.fromRGB(255, 252, 245),
 	})
 	ensure("SunRaysEffect", "TownSunRays", { Intensity = 0.06, Spread = 0.9 })
 end

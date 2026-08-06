@@ -1732,24 +1732,33 @@ function UI.init()
 
 	Remotes.DevelopmentComplete.OnClientEvent:Connect(function(cash, wasCopy, hitBonus)
 		Sound.play("Shipped")
-		if hitBonus then
-			Sound.play("TrendHit")
-		end
 		developing = false
 		hideAllMiniGames()
 		currentPhase = nil
 		hideInstruction()
 
 		if wasCopy then
+			-- A copy earns nothing -- no celebration, just the sad news.
 			statusToast.Text = "That was a copy! Earned $0."
 			statusToast.TextColor3 = Theme.Danger
+			Sound.play("Wrong")
 		elseif hitBonus then
+			-- Trendy hit: the big payoff -- extra confetti + a coin burst.
+			Sound.play("TrendHit")
 			statusToast.Text = ("\240\159\148\165 TRENDY HIT! Earned $%d!"):format(cash)
 			statusToast.TextColor3 = Theme.Success
-			Fx.celebrate("\240\159\148\165 TRENDY HIT!", Theme.Success)
+			Fx.celebrate(("\240\159\148\165 TRENDY HIT!  +$%d"):format(cash), Theme.Success)
+			Fx.confetti(48)
+			local vp = workspace.CurrentCamera.ViewportSize
+			Fx.coinBurst(vp.X * 0.5, vp.Y * 0.5, 12)
 		else
+			-- EVERY successful release now celebrates -- releasing a game is the
+			-- core payoff moment and should always feel rewarding.
 			statusToast.Text = ("Released! Earned $%d."):format(cash)
 			statusToast.TextColor3 = Theme.Gold
+			Fx.celebrate(("\240\159\142\137 GAME RELEASED!  +$%d"):format(cash), Theme.Gold)
+			local vp = workspace.CurrentCamera.ViewportSize
+			Fx.coinBurst(vp.X * 0.5, vp.Y * 0.5, 8)
 		end
 	end)
 

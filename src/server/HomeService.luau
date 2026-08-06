@@ -67,6 +67,31 @@ local function buildRoom(index, tier)
 	local win = part("Window", Vector3.new(1.2, wh * 0.5, d * 0.6), center + Vector3.new(w / 2, wh * 0.55, 0), Color3.fromRGB(150, 195, 215), Enum.Material.Glass, folder)
 	win.Transparency = 0.5
 
+	-- ---- ambiance: warm interior lighting + accent glow, so the enclosed sky
+	-- room reads bright, cosy + polished instead of a flat grey box ----
+	-- Glowing accent strip down the ceiling centre (Neon = accent purple only,
+	-- per the project rule); Bloom makes it pop.
+	local strip = part("CeilingStrip", Vector3.new(w * 0.55, 0.3, 1.4), center + Vector3.new(0, wh - 0.15, 0), ACCENT, Enum.Material.Neon, folder)
+	strip.CanCollide = false
+	local stripLight = Instance.new("PointLight"); stripLight.Color = ACCENT; stripLight.Brightness = 0.5; stripLight.Range = 16; stripLight.Parent = strip
+	-- Warm ceiling fill: subtle invisible PointLight sources on plain light
+	-- panels (NOT Neon -- that material is reserved for the accent colour). The
+	-- room is already ambient-lit, so these just add gentle warmth.
+	for i, dx in ipairs({ -w / 4, w / 4 }) do
+		local fixture = part("LightFixture" .. i, Vector3.new(5, 0.4, 5), center + Vector3.new(dx, wh - 0.15, 0), Color3.fromRGB(245, 240, 230), Enum.Material.SmoothPlastic, folder)
+		fixture.CanCollide = false
+		local pl = Instance.new("PointLight"); pl.Color = Color3.fromRGB(255, 240, 214); pl.Brightness = 0.8; pl.Range = 20; pl.Parent = fixture
+	end
+	-- Accent baseboard around the floor edge for a finished, framed look.
+	local bh, bt = 0.9, 0.4
+	local function baseboard(name, size, pos)
+		local p = part(name, size, pos, ACCENT, Enum.Material.SmoothPlastic, folder); p.CanCollide = false
+	end
+	baseboard("BaseN", Vector3.new(w, bh, bt), center + Vector3.new(0, bh / 2, -d / 2 + 0.6))
+	baseboard("BaseS", Vector3.new(w, bh, bt), center + Vector3.new(0, bh / 2, d / 2 - 0.6))
+	baseboard("BaseW", Vector3.new(bt, bh, d), center + Vector3.new(-w / 2 + 0.6, bh / 2, 0))
+	baseboard("BaseE", Vector3.new(bt, bh, d), center + Vector3.new(w / 2 - 0.6, bh / 2, 0))
+
 	-- Leave pad near the -Z,-X corner.
 	local leave = part("LeavePad", Vector3.new(6, 0.4, 6), center + Vector3.new(-w / 2 + 5, 0.2, -d / 2 + 5), ACCENT, Enum.Material.Neon, folder)
 	leave.CanCollide = false

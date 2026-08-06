@@ -21,6 +21,7 @@ local ACCENT = Color3.fromRGB(140, 92, 255)
 local homesFolder
 local roomCorner = {}  -- [index] = Vector3 of the room's -X,-Z floor corner
 local roomSpawn = {}   -- [index] = CFrame to drop the player at
+local roomDims = {}    -- [index] = the dims table the room was last built at
 
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
@@ -32,14 +33,15 @@ local function part(name, size, pos, color, mat, parent)
 end
 
 -- Build the empty room shell for a plot index. Returns the room folder.
-local function buildRoom(index)
+local function buildRoom(index, tier)
 	local center = Vector3.new(0, H.skyY, index * H.spacing)
 	local floorTop = center.Y
 	local folder = Instance.new("Folder")
 	folder.Name = "Home" .. index
 	folder.Parent = homesFolder
 
-	local w, d, wh = H.roomW, H.roomD, H.wallH
+	local dims = GameData.homeDims(tier)
+	local w, d, wh = dims.roomW, dims.roomD, H.wallH
 	part("Floor", Vector3.new(w, 1, d), center + Vector3.new(0, -0.5, 0), NEUTRAL_FLOOR, Enum.Material.WoodPlanks, folder)
 	part("Ceiling", Vector3.new(w, 1, d), center + Vector3.new(0, wh + 0.5, 0), NEUTRAL_WALL, Enum.Material.SmoothPlastic, folder)
 	part("WallN", Vector3.new(w, wh, 1), center + Vector3.new(0, wh / 2, -d / 2), NEUTRAL_WALL, nil, folder)
@@ -63,6 +65,7 @@ local function buildRoom(index)
 	roomCorner[index] = center + Vector3.new(-w / 2, 0, -d / 2)  -- floor corner, y = floorTop
 	roomCorner[index] = Vector3.new(roomCorner[index].X, floorTop, roomCorner[index].Z)
 	roomSpawn[index] = CFrame.new(center + Vector3.new(0, 4, d / 2 - 6), center + Vector3.new(0, 4, 0))
+	roomDims[index] = dims
 
 	-- Leave pad -> teleport back to studio entrance.
 	leave.Touched:Connect(function(hit)

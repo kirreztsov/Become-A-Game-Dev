@@ -1600,11 +1600,16 @@ function UI.init()
 		end,
 	})
 
-	-- Ensure the interior is populated before scanning.
-	homeFolder:WaitForChild("NewProjectSeat")
+	-- Work stations are placeable EQUIPMENT the player positions themselves, so
+	-- the room can legitimately start with no station seats. Do NOT block on a
+	-- specific seat (that would stall init forever on an empty room, and placed
+	-- seats are nested inside furniture models, not direct children anyway).
+	-- Wait only for the Furniture folder, then rely on the scan + DescendantAdded
+	-- below to pick up whatever stations exist now or get placed later.
+	homeFolder:WaitForChild("Furniture", 10)
 
 	-- Track every station seat currently in the Home room, and any added later
-	-- when the room is rebuilt (tier upgrade, furniture change).
+	-- when a station is placed/moved or the room is rebuilt.
 	for _, inst in ipairs(homeFolder:GetDescendants()) do
 		trackSeat(inst)
 	end

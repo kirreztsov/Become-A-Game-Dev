@@ -801,6 +801,15 @@ GameData.HomeCatalog = {
 	{ id = "Bookshelf",  name = "Bookshelf",   icon = "\240\159\147\154", cells = {2, 1}, build = "bookshelf" },
 	{ id = "Bed",        name = "Bed",         icon = "\240\159\155\143\239\184\143", cells = {2, 3}, build = "bed" },
 	{ id = "PC",         name = "PC",          icon = "\240\159\150\165\239\184\143", cells = {1, 1}, build = "pc" },
+	-- Work stations = placeable "equipment" (station=<name>). They build as
+	-- FUNCTIONAL stations (real seat + prompts) via PlotManager.buildHomeStation,
+	-- so players arrange their own studio. Always available + free (equipment),
+	-- so deleting one is never permanent -- you just re-place it.
+	{ id = "NewProjectStation", name = "New Project PC", icon = "\240\159\134\149",             cells = {2, 2}, station = "NewProject",  equipment = true },
+	{ id = "CodingStation",     name = "Coding PC",      icon = "\226\154\161",                 cells = {2, 2}, station = "Coding",      equipment = true },
+	{ id = "MapStation",        name = "Map PC",         icon = "\240\159\151\186\239\184\143", cells = {2, 2}, station = "MapBuilding", equipment = true },
+	{ id = "TestingStation",    name = "Testing PC",     icon = "\226\156\168",                 cells = {2, 2}, station = "Testing",     equipment = true },
+	{ id = "WorkersStation",    name = "Workers Desk",   icon = "\240\159\145\183",             cells = {2, 2}, station = "Workers",     equipment = true },
 }
 
 local _homeById = {}

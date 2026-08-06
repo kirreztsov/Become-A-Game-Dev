@@ -3127,7 +3127,10 @@ function Lobby.build()
 	-- baseplate, whose top sits exactly at FLOOR_TOP so nothing floats.)
 
 	buildWelcomeSign(lobbyFolder)
-	-- (fountain "Go to Studio" kiosk removed -- replaced by an on-screen button)
+	-- Walk-up Studio Kiosk (press E) is how players travel to their studio --
+	-- the on-screen "To Studio" button was removed, so this is the way in, and
+	-- it matches the welcome sign's "Head to the kiosk to visit your studio!".
+	buildStudioKiosk(lobbyFolder)
 	buildLandscaping(lobbyFolder)
 	buildRoads(lobbyFolder)
 	buildStreetlamps(lobbyFolder)

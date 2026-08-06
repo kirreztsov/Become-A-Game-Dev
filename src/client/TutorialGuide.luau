@@ -9,7 +9,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local TutorialGuide = {}
 
 local STEP_TEXT = {
-	"Step 1 of 6 — Head to your studio! 🏠",
+	"Step 1 of 6 — Head to the Studio Kiosk and press E! 🏠",
 	"Step 2 of 6 — Sit at the New Project computer! 💻",
 	"Step 3 of 6 — Pick a Genre + Topic that matches a Trend, then hit Start! 🎯",
 	"Step 4 of 6 — Play the mini-games to build your game! 🎮",
@@ -24,7 +24,6 @@ function TutorialGuide.init(player, theme, playerState, hooks)
 	local baseline = { games = 0, houseTier = 0, pcTier = 0, workersHired = 0 }
 	local beacon = nil
 	local beaconGen = 0
-	local pulseGen = 0
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "TutorialGui"
@@ -90,33 +89,7 @@ function TutorialGuide.init(player, theme, playerState, hooks)
 	rc.CornerRadius = UDim.new(1, 0)
 	rc.Parent = replay
 
-	-- ---- pointing helpers (pulse + beacon) --------------------------------
-	local function stopPulse()
-		pulseGen += 1 -- invalidates any running pulse loop; it restores state itself
-	end
-
-	local function startPulse(button)
-		if not button then
-			return
-		end
-		pulseGen += 1
-		local myGen = pulseGen
-		local orig = button.BackgroundTransparency
-		task.spawn(function()
-			while myGen == pulseGen and button.Parent do
-				for _, t in ipairs({ 0, 0.4, 0 }) do
-					if myGen ~= pulseGen then
-						break
-					end
-					button.BackgroundTransparency = t
-					task.wait(0.35)
-				end
-			end
-			if button.Parent then
-				button.BackgroundTransparency = orig
-			end
-		end)
-	end
+	-- ---- pointing helper (beacon) -----------------------------------------
 
 	local function hideBeacon()
 		beaconGen += 1
@@ -222,7 +195,6 @@ function TutorialGuide.init(player, theme, playerState, hooks)
 
 	local function finish(showFinale)
 		currentStep = 0
-		stopPulse()
 		hideBeacon()
 		if showFinale then
 			bannerText.Text = FINALE_TEXT
@@ -244,14 +216,16 @@ function TutorialGuide.init(player, theme, playerState, hooks)
 
 	local function setStep(n)
 		currentStep = n
-		stopPulse()
 		hideBeacon()
 		captureBaseline()
 		bannerText.Text = STEP_TEXT[n]
 		skip.Visible = true
 		banner.Visible = true
 		if n == 1 then
-			startPulse(hooks.toStudioButton)
+			local prompt = hooks.getStudioKioskPrompt and hooks.getStudioKioskPrompt()
+			if prompt and prompt.Parent then
+				showBeacon(prompt.Parent, "Press E!")
+			end
 		elseif n == 2 then
 			showBeacon(plotPart("NewProjectSeat"), "Sit here!")
 		elseif n == 5 then
@@ -282,10 +256,29 @@ function TutorialGuide.init(player, theme, playerState, hooks)
 		startTutorial()
 	end)
 
-	if hooks.toStudioButton then
-		hooks.toStudioButton.MouseButton1Click:Connect(function()
-			if currentStep == 1 then
-				advance()
+	-- Advance step 1 when the player triggers the lobby Studio Kiosk. The prompt
+	-- replicates with the lobby, so wait for it (via the getter) then connect.
+	if hooks.getStudioKioskPrompt then
+		task.spawn(function()
+			local prompt
+			for _ = 1, 100 do
+				prompt = hooks.getStudioKioskPrompt()
+				if prompt then
+					break
+				end
+				task.wait(0.2)
+			end
+			if prompt then
+				prompt.Triggered:Connect(function()
+					if currentStep == 1 then
+						advance()
+					end
+				end)
+				-- If step 1 started before the prompt replicated, its beacon was
+				-- skipped -- show it now that we have the kiosk.
+				if currentStep == 1 and prompt.Parent then
+					showBeacon(prompt.Parent, "Press E!")
+				end
 			end
 		end)
 	end

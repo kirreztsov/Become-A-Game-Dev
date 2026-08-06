@@ -870,33 +870,14 @@ function UI.init()
 	-- (Old static Goals checklist removed -- the dynamic onboarding tutorial is
 	-- being rebuilt as roadmap milestone M2.)
 
-	-- Navigation buttons: "To Studio" (top) + "Go to Leaderboards" (right).
-	local toStudioBtn = Instance.new("TextButton")
-	toStudioBtn.Name = "ToStudioButton"
-	toStudioBtn.Size = UDim2.fromOffset(170, 38)
-	toStudioBtn.AnchorPoint = Vector2.new(0.5, 0)
-	toStudioBtn.Position = UDim2.new(0.5, 0, 0, 12)
-	toStudioBtn.BackgroundColor3 = Theme.Accent
-	toStudioBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	toStudioBtn.Font = Enum.Font.FredokaOne
-	toStudioBtn.TextSize = 18
-	toStudioBtn.Text = "\240\159\143\160 To Studio"
-	toStudioBtn.AutoButtonColor = true
-	toStudioBtn.Parent = screenGui
-	addCorner(toStudioBtn, 12)
-	addStroke(toStudioBtn, Color3.fromRGB(255, 255, 255), 1, 0.7)
-	toStudioBtn.MouseButton1Click:Connect(function()
-		Sound.play("Teleport")
-		Remotes.RequestGoToStudio:FireServer()
-	end)
-
-	-- "My Home" teleports the player into their private Home room (server checks
-	-- plot ownership). Sits just under "To Studio" so the two travel buttons pair.
+	-- Navigation buttons: "My Home" (top) + "Go to Leaderboards" (right).
+	-- (Studio travel is the lobby Studio Kiosk -- walk up + press E -- so there's
+	-- no on-screen "To Studio" button.)
 	local myHomeBtn = Instance.new("TextButton")
 	myHomeBtn.Name = "MyHomeButton"
 	myHomeBtn.Size = UDim2.fromOffset(170, 38)
 	myHomeBtn.AnchorPoint = Vector2.new(0.5, 0)
-	myHomeBtn.Position = UDim2.new(0.5, 0, 0, 58)
+	myHomeBtn.Position = UDim2.new(0.5, 0, 0, 12)
 	myHomeBtn.BackgroundColor3 = Theme.Accent
 	myHomeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	myHomeBtn.Font = Enum.Font.FredokaOne
@@ -1465,7 +1446,7 @@ function UI.init()
 		cashShadow.Visible = show
 		subsPill.Visible = show
 		subsShadow.Visible = show
-		toStudioBtn.Visible = show
+		myHomeBtn.Visible = show
 		leaderboardBtn.Visible = show
 		if statusToast then
 			statusToast.Visible = show
@@ -1585,10 +1566,30 @@ function UI.init()
 
 	local plotFolder = workspace:WaitForChild("Plots"):WaitForChild("Plot" .. plotIndex)
 
+	-- Resolve the lobby Studio Kiosk prompt (players press E there to travel to
+	-- their studio). The tutorial's first step points at it. Replicated with the
+	-- lobby, so look it up asynchronously and hand the tutorial a getter.
+	local studioKioskPrompt
+	task.spawn(function()
+		local lobby = workspace:WaitForChild("Lobby", 15)
+		if not lobby then
+			return
+		end
+		for _ = 1, 60 do
+			studioKioskPrompt = lobby:FindFirstChild("GoToStudioPrompt", true)
+			if studioKioskPrompt then
+				break
+			end
+			task.wait(0.2)
+		end
+	end)
+
 	-- Start onboarding BEFORE the (possibly slow) seat wait below, so its
 	-- listeners connect and it can appear promptly instead of after the stall.
 	TutorialGuide.init(player, Theme, playerState, {
-		toStudioButton = toStudioBtn,
+		getStudioKioskPrompt = function()
+			return studioKioskPrompt
+		end,
 		onSeatedStationChanged = function(cb)
 			table.insert(seatedStationListeners, cb)
 		end,

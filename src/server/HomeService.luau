@@ -21,6 +21,16 @@ local ACCENT = Color3.fromRGB(140, 92, 255)
 local homesFolder
 local roomCorner = {}  -- [index] = Vector3 of the room's -X,-Z floor corner
 local roomSpawn = {}   -- [index] = CFrame to drop the player at
+local recentlyLeft = {} -- [userId] = os.clock() when they last left, to stop the
+                        -- Home pad from instantly re-triggering as they land.
+
+local function markLeft(player)
+	recentlyLeft[player.UserId] = os.clock()
+end
+local function leftRecently(player)
+	local t = recentlyLeft[player.UserId]
+	return t ~= nil and (os.clock() - t) < 2
+end
 
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
@@ -69,7 +79,7 @@ local function buildRoom(index)
 		local plr = Players:GetPlayerFromCharacter(hit.Parent)
 		if plr and PlotManager.getPlayerPlotIndex(plr) == index then
 			local cf = PlotManager.getStudioEntranceCFrame(index)
-			if cf and plr.Character then plr.Character:PivotTo(cf) end
+			if cf and plr.Character then markLeft(plr); plr.Character:PivotTo(cf) end
 		end
 	end)
 	return folder
@@ -145,7 +155,9 @@ function HomeService.build()
 		-- Home pad at the studio entrance for this plot.
 		local origin = PlotManager.getPlotOrigin(index)
 		if origin then
-			local padPos = origin + Vector3.new(0, 1.2, 45 - 16 - 9) -- near studio entrance apron
+			-- Beside the studio entrance apron, clear of the leave-landing spot
+			-- (origin + (0,4,23)) so leaving doesn't land on the pad + loop.
+			local padPos = origin + Vector3.new(11, 1.2, 23)
 			local pad = part("HomePad" .. index, Vector3.new(6, 0.4, 6), padPos, Color3.fromRGB(245, 245, 250), Enum.Material.Neon, Workspace)
 			pad.CanCollide = false
 			local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Top; sg.Parent = pad
@@ -154,7 +166,7 @@ function HomeService.build()
 			pad:SetAttribute("plotIndex", index)
 			pad.Touched:Connect(function(hit)
 				local plr = Players:GetPlayerFromCharacter(hit.Parent)
-				if plr and PlotManager.getPlayerPlotIndex(plr) == index then
+				if plr and not leftRecently(plr) and PlotManager.getPlayerPlotIndex(plr) == index then
 					enter(plr)
 				end
 			end)
@@ -167,7 +179,7 @@ function HomeService.start()
 	Remotes.RequestLeaveHome.OnServerEvent:Connect(function(player)
 		local index = PlotManager.getPlayerPlotIndex(player)
 		local cf = index and PlotManager.getStudioEntranceCFrame(index)
-		if cf and player.Character then player.Character:PivotTo(cf) end
+		if cf and player.Character then markLeft(player); player.Character:PivotTo(cf) end
 	end)
 
 	Remotes.RequestPlaceHomeItem.OnServerEvent:Connect(function(player, id, gx, gz, yaw)

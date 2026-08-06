@@ -41,6 +41,12 @@ local REMOTE_NAMES = {
 	"RequestSetSkin",
 	"RequestLeaderboardData",
 	"LeaderboardData",
+	"RequestEnterHome",
+	"RequestLeaveHome",
+	"RequestPlaceHomeItem",
+	"RequestMoveHomeItem",
+	"RequestRemoveHomeItem",
+	"HomeStateUpdated",
 }
 
 local Remotes = {}

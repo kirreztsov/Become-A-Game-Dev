@@ -155,9 +155,10 @@ function HomeService.build()
 		-- Home pad at the studio entrance for this plot.
 		local origin = PlotManager.getPlotOrigin(index)
 		if origin then
-			-- Beside the studio entrance apron, clear of the leave-landing spot
-			-- (origin + (0,4,23)) so leaving doesn't land on the pad + loop.
-			local padPos = origin + Vector3.new(11, 1.2, 23)
+			-- Right in the studio doorway (front wall is at origin.z + 29). The
+			-- leave-landing spot is 6 studs in front (origin + (0,4,23)), so it
+			-- doesn't sit on the pad; the 2s leftRecently debounce is the backstop.
+			local padPos = origin + Vector3.new(0, 1.2, 29)
 			local pad = part("HomePad" .. index, Vector3.new(6, 0.4, 6), padPos, Color3.fromRGB(245, 245, 250), Enum.Material.Neon, Workspace)
 			pad.CanCollide = false
 			local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Top; sg.Parent = pad

@@ -770,7 +770,9 @@ GameData.Home = {
 	roomW = 64, roomD = 48, cell = 4, wallH = 20,
 	cols = 16, rows = 12,          -- tier-0 defaults (roomW/cell, roomD/cell)
 	skyY = 10000, spacing = 400,   -- rooms stacked far up, offset per plot index on Z
-	workRows = 4,                  -- back rows reserved for the work zone (no furniture)
+	workRows = 7,                  -- back rows reserved for the work zone (no furniture) -- big
+	                                -- enough to also clear the Arcade/Merch idle-zone footprints,
+	                                -- which spill a few rows past the dev-station row alone
 	tiers = {
 		[0] = { roomW = 64, roomD = 48, cols = 16, rows = 12 },
 		[1] = { roomW = 80, roomD = 56, cols = 20, rows = 14 },

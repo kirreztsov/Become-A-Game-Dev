@@ -23,6 +23,29 @@ local roomCorner = {}  -- [index] = Vector3 of the room's -X,-Z floor corner
 local roomSpawn = {}   -- [index] = CFrame to drop the player at
 local roomDims = {}    -- [index] = the dims table the room was last built at
 
+-- Debounce for the studio door's Touched entry trigger, keyed by UserId. The
+-- Leave pad drops a player OUTSIDE the studio door (getStudioEntranceCFrame,
+-- z=23 vs the door at z~29), so there's no natural re-trigger loop, but this
+-- guards against any stray double-fire from the Touched event.
+local recentDoorEntry = {}
+local DOOR_ENTRY_DEBOUNCE = 1.5
+
+-- Find the ground floor's fixed door-entry trigger (tagged HomeEntryDoor by
+-- PlotManager, NOT the sliding glass door leaf itself -- that one tucks
+-- sideways as soon as a player gets close, so it isn't reliably touched by
+-- someone walking straight through the opening). Skin-mesh buildings bake
+-- their whole exterior (door included) as one mesh with no such trigger, so
+-- this returns nil for them -- those players just use the My Home button.
+local function findHomeDoorTrigger(plot)
+	if not plot then return nil end
+	for _, inst in ipairs(plot:GetDescendants()) do
+		if inst:GetAttribute("HomeEntryDoor") then
+			return inst
+		end
+	end
+	return nil
+end
+
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
 	p.Name, p.Size, p.Position = name, size, pos
@@ -182,10 +205,36 @@ function HomeService.build()
 	if homesFolder then homesFolder:Destroy() end
 	homesFolder = Instance.new("Folder"); homesFolder.Name = "Homes"; homesFolder.Parent = Workspace
 	-- Entering your Home is a HUD button ("My Home", client UI.luau) that fires
-	-- RequestEnterHome -- no doorway pad, so the studio entrance stays clear for
-	-- walking in to the work stations.
+	-- RequestEnterHome. The studio is now an empty shell (Task 4/6), so its
+	-- front door ALSO enters the room -- walking in feels natural since there's
+	-- nothing else inside.
 	for index = 1, 4 do
-		buildRoom(index)
+		local folder = buildRoom(index)
+		-- Populate the interior at tier 0 immediately at server start (not just
+		-- on player join/rebuild) so the stations already exist -- the client's
+		-- homeFolder:WaitForChild("NewProjectSeat") resolves promptly instead of
+		-- stalling until the owning player's join-time rebuildHome runs.
+		PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, 0), 0, 0)
+
+		-- Wire the studio's ground-floor door to enter the Home room. Skin-mesh
+		-- buildings bake their whole exterior (door included), so there's no
+		-- trigger to find there -- this only fires for the procedural door;
+		-- those players still have the My Home button as a fallback.
+		local plot = PlotManager.getPlotFolder(index)
+		local door = findHomeDoorTrigger(plot)
+		if door then
+			door.Touched:Connect(function(hit)
+				local plr = Players:GetPlayerFromCharacter(hit.Parent)
+				if plr and PlotManager.getPlayerPlotIndex(plr) == index then
+					local now = os.clock()
+					if (recentDoorEntry[plr.UserId] or 0) + DOOR_ENTRY_DEBOUNCE > now then
+						return
+					end
+					recentDoorEntry[plr.UserId] = now
+					enter(plr)
+				end
+			end)
+		end
 	end
 end
 

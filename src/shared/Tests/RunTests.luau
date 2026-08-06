@@ -141,7 +141,7 @@ t:assertEqual(rpw, fpd, "yaw 90 swaps width->depth")
 t:assertEqual(rpd, fpw, "yaw 90 swaps depth->width")
 
 -- bounds
-t:assertEqual(GameData.homeInBounds(0, 0, 2, 2), true, "footprint at origin is in bounds")
+t:assertEqual(GameData.homeInBounds(0, GameData.Home.workRows, 2, 2, GameData.homeDims(0)), true, "footprint in living zone is in bounds")
 t:assertEqual(GameData.homeInBounds(15, 11, 1, 1), true, "single cell at far corner in bounds")
 t:assertEqual(GameData.homeInBounds(15, 0, 2, 1), false, "overhanging the right edge is out of bounds")
 t:assertEqual(GameData.homeInBounds(-1, 0, 1, 1), false, "negative cell is out of bounds")

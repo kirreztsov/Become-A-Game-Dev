@@ -379,22 +379,6 @@ local STUDIO_LAYOUT = {
 	{ name = "Workers", x = 3.5, z = -2 },
 }
 
-local function buildStudioStations(parent, base, namePrefix, monitorTier)
-	namePrefix = namePrefix or ""
-	for _, entry in ipairs(STUDIO_LAYOUT) do
-		if entry.name == "Workers" then
-			buildWorkersDesk(parent, base, entry.x, entry.z, namePrefix)
-		else
-			for _, config in ipairs(STATION_CONFIGS) do
-				if config.name == entry.name then
-					buildStation(parent, base, config, entry.x, entry.z, namePrefix, monitorTier)
-					break
-				end
-			end
-		end
-	end
-end
-
 -- Home-room fixture layout, local offsets from the back-wall point:
 -- 4 dev stations spread along X at z=+6 (facing the player as they enter).
 -- Declared here (ahead of refreshWorkerNPCs below) so both it and
@@ -644,7 +628,7 @@ end
 -- fireplace lounge (floor 1), an indoor garden (floor 2), or a marble
 -- penthouse bar (floor 3). Tucked against the back wall, clear of the
 -- work stations and elevator corners.
-local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey, styleTier)
+local function buildOneFloorShell(parent, base, f, floorCount, skinKey, styleTier)
 	local slabTop = FLOOR_TOP + f * FLOOR_HEIGHT
 	local wallCenterY = slabTop + WALL_HEIGHT / 2
 	local width = BUILDING_HALF_W * 2
@@ -656,7 +640,6 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey, 
 	local wallColor = theme.wall
 	local accent = theme.accent
 	local prefix = "Floor" .. (f + 1) .. "_"
-	local stationPrefix = (f == 0) and "" or ("F" .. (f + 1) .. "_")
 
 	-- M7: the Blender facade/roof meshes are DISABLED -- on these boxy walls they
 	-- looked worse than the clean procedural walls (floating frames, gaps). The
@@ -918,6 +901,20 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey, 
 			panel:SetAttribute("OpenX", panel.Position.X - DOOR_WIDTH)
 			CollectionService:AddTag(panel, "AutoDoor")
 		end
+
+		-- Task 6: a fixed (non-sliding) invisible trigger spanning the doorway
+		-- opening, tagged so HomeService can find it and enter the player's Home
+		-- room when they walk through. NOT the doorLeaf itself -- that part is
+		-- tagged "AutoDoor" and tucks sideways behind WallFrontLeft as soon as a
+		-- player gets within OPEN_RADIUS (12 studs), so by the time someone
+		-- actually walks through the opening the leaf isn't there to touch.
+		-- This trigger straddles the doorway plane and never moves. Named with
+		-- the floor `prefix` like every other part here, so it's found by
+		-- attribute, not by exact name.
+		local doorTrigger = makePart(prefix .. "HomeDoorTrigger", Vector3.new(DOOR_WIDTH - 0.4, DOOR_HEIGHT - 0.2, 1.4), base + Vector3.new(0, FLOOR_TOP + (DOOR_HEIGHT - 0.2) / 2, -halfD), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, parent)
+		doorTrigger.CanCollide = false
+		doorTrigger.Transparency = 1
+		doorTrigger:SetAttribute("HomeEntryDoor", true)
 
 		-- Detailed Blender entrance canopy + glowing sign, if the model is synced;
 		-- otherwise the original procedural canopy/posts/lamps (fallback).
@@ -1188,7 +1185,15 @@ end
 -- to. The prompt keeps the name HouseUpgradePrompt so the client panel is
 -- unchanged.
 local function buildUpgradeNPC(parent, base)
-	local x = BUILDING_HALF_W - 5
+	-- x = BUILDING_HALF_W - 5 (near the studio's front-right corner) was fine
+	-- for the old studio-entrance placement, but this NPC's only caller now is
+	-- populateHomeInterior (Task 4 fold-in), where that x lands inside the
+	-- Merch idle zone at room tier 0 (Merch hugs the room's +X back corner,
+	-- and its near edge sits closer to centre at the smallest room size). x = 8
+	-- clears the Merch zone at every tier (its nearest edge is furthest out at
+	-- tier 0, ~15.5 studs from centre) while staying clear of the Workers desk
+	-- (centred at x = 0, ~3 studs half-width) just past it.
+	local x = 8
 	local z = -BUILDING_HALF_D + 5
 	local skin = Color3.fromRGB(240, 205, 165)
 	local shirt = Color3.fromRGB(70, 120, 200)
@@ -1415,7 +1420,7 @@ end
 -- `houseTier` is still threaded through as the cosmetic style tier so the
 -- exterior (wall color/facade/crown) keeps glowing up with room upgrades.
 local function buildStudioBuilding(parent, base, houseTier, pcTier, skinKey)
-	buildOneFloorShell(parent, base, 0, 1, pcTier, skinKey, houseTier)
+	buildOneFloorShell(parent, base, 0, 1, skinKey, houseTier)
 end
 
 -- Rebuildable wrapper: the whole tower shell lives in a "StudioBuilding"
@@ -1650,13 +1655,13 @@ function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	-- hired-worker NPCs at the dev stations aren't crowded by it.
 	buildWorkersDesk(roomFolder, base, 0, 11, "")
 	-- Task 4 fold-in: the room-upgrade NPC now lives in the room itself (was
-	-- studio-only). buildUpgradeNPC's internal offsets (x = BUILDING_HALF_W -
-	-- 5, z = -BUILDING_HALF_D + 5) assume `base` is a studio-style building
-	-- reference where positive Z is deeper into the building; here `base` is
-	-- the room's back wall with positive Z going INTO the room, so nudge the
-	-- base +Z by BUILDING_HALF_D + 6 to land the NPC ~11 studs into the room
-	-- (level with the Workers desk) instead of behind the wall. x = 19 already
-	-- clears the station row (x in [-12, 12]) with no adjustment needed.
+	-- studio-only). buildUpgradeNPC's internal offsets (x = 8, z =
+	-- -BUILDING_HALF_D + 5) assume `base` is a studio-style building reference
+	-- where positive Z is deeper into the building; here `base` is the room's
+	-- back wall with positive Z going INTO the room, so nudge the base +Z by
+	-- BUILDING_HALF_D + 6 to land the NPC ~11 studs into the room (level with
+	-- the Workers desk) instead of behind the wall. x = 8 (Task 6) clears the
+	-- Merch idle zone at every room tier -- see buildUpgradeNPC's comment.
 	if tier < GameData.HouseTierCount - 1 then
 		buildUpgradeNPC(roomFolder, base + Vector3.new(0, 0, BUILDING_HALF_D + 6))
 	end
@@ -2211,9 +2216,14 @@ function PlotManager.start()
 		-- Rebuild the world to the fresh state (tier 0 studio, no rooms/trophies,
 		-- but keep their decorations).
 		PlotManager.rebuildHouseForPlayer(player, 0, 0)
-		PlotManager.rebuildPCForPlayer(player, 0)
 		PlotManager.rebuildPlayButtons(player, 0)
 		PlotManager.rebuildDecorForPlayer(player, data.decorations)
+		-- The dev stations/PC/workers/Arcade+Merch now live in the private Home
+		-- room (Task 4/5), not the studio -- rebuild it too so a prestige reset
+		-- actually resets what the player sees. Local require avoids a load
+		-- cycle (HomeService already requires PlotManager at the top).
+		local HomeService = require(script.Parent.HomeService)
+		HomeService.rebuildHome(player)
 
 		Remotes.PlayerStateUpdated:FireClient(player, data)
 		Remotes.PrestigeResult:FireClient(player, data.prestigeLevel)

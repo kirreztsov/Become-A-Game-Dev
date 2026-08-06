@@ -1564,8 +1564,6 @@ function UI.init()
 		return
 	end
 
-	local plotFolder = workspace:WaitForChild("Plots"):WaitForChild("Plot" .. plotIndex)
-
 	-- Gameplay fixtures (seats, prompts, trends board) now live in the player's
 	-- private Home room, not the studio building on the plot.
 	local homeFolder = workspace:WaitForChild("Homes"):WaitForChild("Home" .. plotIndex)

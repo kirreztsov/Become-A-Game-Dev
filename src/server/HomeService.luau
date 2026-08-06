@@ -79,23 +79,28 @@ end
 local function buildItem(furn, index, entry)
 	local it = GameData.getHomeItem(entry.id)
 	if not it then return end
+	-- Swapped footprint (w,d) is for positioning + the reserved grid cells.
 	local w, d = GameData.homeFootprint(entry.id, entry.yaw)
+	-- Geometry is sized from the item's NATIVE cells; the yaw rotation in `cf`
+	-- re-projects it into the swapped world footprint. (Sizing from the swapped
+	-- pair AND rotating would double-apply the swap -> wrong size on 90/270.)
+	local nativeX = it.cells[1] * H.cell
+	local nativeZ = it.cells[2] * H.cell
 	local corner = roomCorner[index]
-	local worldW = w * H.cell
 	local pos = GameData.homeCellToWorld(corner.X, corner.Z, corner.Y, entry.gx, entry.gz, w, d)
 	local cf = CFrame.new(pos) * CFrame.Angles(0, math.rad(entry.yaw or 0), 0)
 	local model
 	if it.asset and StudioModels.has(it.asset) then
-		model = StudioModels.place(it.asset, furn, cf, { name = "HomeItem", targetWidth = worldW - 0.5 })
+		model = StudioModels.place(it.asset, furn, cf, { name = "HomeItem", targetWidth = nativeX - 0.5 })
 		if model then
 			for _, p in ipairs(model:GetDescendants()) do
 				if p:IsA("BasePart") then p.Anchored = true end
 			end
 		end
 	else
-		-- procedural fallback: a simple labelled block sized to the footprint.
+		-- procedural fallback: a simple block at the item's native size, rotated by cf.
 		local m = Instance.new("Model"); m.Name = "HomeItem"; m.Parent = furn
-		local body = part("Body", Vector3.new(worldW - 0.6, 2.5, d * H.cell - 0.6), pos + Vector3.new(0, 1.25, 0), Color3.fromRGB(150, 150, 165), nil, m)
+		local body = part("Body", Vector3.new(nativeX - 0.6, 2.5, nativeZ - 0.6), pos, Color3.fromRGB(150, 150, 165), nil, m)
 		body.CFrame = cf * CFrame.new(0, 1.25, 0)
 		model = m
 	end

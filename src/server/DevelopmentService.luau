@@ -29,15 +29,14 @@ local STATION_SEAT_NAMES = {
 
 local SEAT_WAIT_TIMEOUT_SECONDS = 30
 
--- A player is "seated at" a station if they occupy ANY seat of that type in
--- their plot -- ground floor or any upper floor. Upper-floor seats are named
--- with a floor prefix (e.g. "F2_CodingSeat") and live inside the building
--- folder, so we scan all descendants and match by the seat-name suffix. This
--- is what lets you develop games on any floor, not just the ground floor.
+-- A player is "seated at" a station if they occupy that station's seat. The
+-- work stations now live in the player's private Home room
+-- (workspace.Homes.Home<i>), not the studio plot, so we scan that folder.
 local function isPlayerSeatedAt(player, seatName)
 	local plotIndex = PlotManager.getPlayerPlotIndex(player)
-	local plotFolder = PlotManager.getPlotFolder(plotIndex)
-	if not plotFolder then
+	local homes = workspace:FindFirstChild("Homes")
+	local roomFolder = plotIndex and homes and homes:FindFirstChild("Home" .. plotIndex)
+	if not roomFolder then
 		return false
 	end
 
@@ -45,7 +44,7 @@ local function isPlayerSeatedAt(player, seatName)
 		return false
 	end
 
-	for _, inst in ipairs(plotFolder:GetDescendants()) do
+	for _, inst in ipairs(roomFolder:GetDescendants()) do
 		if inst:IsA("Seat") and (inst.Name == seatName or inst.Name:sub(-#seatName) == seatName) then
 			if inst.Occupant ~= nil and inst.Occupant.Parent == player.Character then
 				return true

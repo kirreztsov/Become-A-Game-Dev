@@ -21,6 +21,14 @@ local ACCENT = Color3.fromRGB(140, 92, 255)
 local homesFolder
 local roomCorner = {}  -- [index] = Vector3 of the room's -X,-Z floor corner
 local roomSpawn = {}   -- [index] = CFrame to drop the player at
+local roomDims = {}    -- [index] = the dims table the room was last built at
+
+-- Debounce for the studio door's Touched entry trigger, keyed by UserId. The
+-- Leave pad drops a player OUTSIDE the studio door (getStudioEntranceCFrame,
+-- z=23 vs the door at z~29), so there's no natural re-trigger loop, but this
+-- guards against any stray double-fire from the Touched event.
+local recentDoorEntry = {}
+local DOOR_ENTRY_DEBOUNCE = 1.5
 
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
@@ -31,15 +39,24 @@ local function part(name, size, pos, color, mat, parent)
 	return p
 end
 
--- Build the empty room shell for a plot index. Returns the room folder.
-local function buildRoom(index)
+-- Build the empty room shell for a plot index. Returns the room folder. The
+-- folder INSTANCE is created once and reused on every later call -- only its
+-- children are cleared + rebuilt -- so external references to it (the
+-- client's captured homeFolder, its WaitForChild/DescendantAdded hooks)
+-- survive every rebuild instead of pointing at a dead, destroyed folder.
+local function buildRoom(index, tier)
 	local center = Vector3.new(0, H.skyY, index * H.spacing)
 	local floorTop = center.Y
-	local folder = Instance.new("Folder")
-	folder.Name = "Home" .. index
-	folder.Parent = homesFolder
+	local folder = homesFolder:FindFirstChild("Home" .. index)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Home" .. index
+		folder.Parent = homesFolder
+	end
+	folder:ClearAllChildren()
 
-	local w, d, wh = H.roomW, H.roomD, H.wallH
+	local dims = GameData.homeDims(tier)
+	local w, d, wh = dims.roomW, dims.roomD, H.wallH
 	part("Floor", Vector3.new(w, 1, d), center + Vector3.new(0, -0.5, 0), NEUTRAL_FLOOR, Enum.Material.WoodPlanks, folder)
 	part("Ceiling", Vector3.new(w, 1, d), center + Vector3.new(0, wh + 0.5, 0), NEUTRAL_WALL, Enum.Material.SmoothPlastic, folder)
 	part("WallN", Vector3.new(w, wh, 1), center + Vector3.new(0, wh / 2, -d / 2), NEUTRAL_WALL, nil, folder)
@@ -63,6 +80,7 @@ local function buildRoom(index)
 	roomCorner[index] = center + Vector3.new(-w / 2, 0, -d / 2)  -- floor corner, y = floorTop
 	roomCorner[index] = Vector3.new(roomCorner[index].X, floorTop, roomCorner[index].Z)
 	roomSpawn[index] = CFrame.new(center + Vector3.new(0, 4, d / 2 - 6), center + Vector3.new(0, 4, 0))
+	roomDims[index] = dims
 
 	-- Leave pad -> teleport back to studio entrance.
 	leave.Touched:Connect(function(hit)
@@ -110,16 +128,55 @@ local function buildItem(furn, index, entry)
 	return model
 end
 
+-- FULL rebuild: tears down and rebuilds the entire room shell (walls,
+-- stations, trends board, workers desk, worker NPCs) plus furniture. Only
+-- for cases that actually need the shell to change size/contents -- entering
+-- the room (and, later, join/upgrade). Furniture-only changes should call
+-- HomeService.refreshFurniture instead, or every placement causes a
+-- full-room flicker.
 function HomeService.rebuildHome(player)
 	local index = PlotManager.getPlayerPlotIndex(player)
 	if not index then return end
+	local data = PlayerData.get(player)
+	if not data then return end
+	local tier = data.houseTier or 0
+
+	-- Rebuild the shell at the player's current tier size, then the interior.
+	-- buildRoom reuses the existing Home<i> folder instance in place (Fix A),
+	-- it does NOT destroy + recreate it -- so external references (the
+	-- client's captured homeFolder / DescendantAdded seat-tracking) survive.
+	local folder = buildRoom(index, tier)
+	PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, tier), tier, data.pcTier or 0)
+	PlotManager.refreshWorkerNPCs(player)
+	-- Show/hide the Arcade + Merch fixtures (buy button vs. earning state) to
+	-- match what this player has already bought (Task 5: they live in the Home
+	-- room now, so this must re-apply on every rebuild, same as worker NPCs).
+	PlotManager.applyRoomOwnership(player)
+
+	local furn = folder:FindFirstChild("Furniture")
+	if furn then
+		for _, entry in ipairs(data.homeItems) do
+			pcall(buildItem, furn, index, entry)
+		end
+	end
+end
+
+-- Furniture-only refresh: clears + rebuilds just the `Furniture` subfolder of
+-- the player's ALREADY-BUILT room. Does not touch the shell/stations/trends/
+-- workers, so placing/moving/removing an item doesn't flicker the whole room.
+-- No-ops safely if the room or its Furniture subfolder doesn't exist yet.
+function HomeService.refreshFurniture(player)
+	local index = PlotManager.getPlayerPlotIndex(player)
+	if not index then return end
+	local data = PlayerData.get(player)
+	if not data then return end
+
 	local folder = homesFolder:FindFirstChild("Home" .. index)
 	if not folder then return end
 	local furn = folder:FindFirstChild("Furniture")
 	if not furn then return end
+
 	furn:ClearAllChildren()
-	local data = PlayerData.get(player)
-	if not data then return end
 	for _, entry in ipairs(data.homeItems) do
 		pcall(buildItem, furn, index, entry)
 	end
@@ -141,10 +198,42 @@ function HomeService.build()
 	if homesFolder then homesFolder:Destroy() end
 	homesFolder = Instance.new("Folder"); homesFolder.Name = "Homes"; homesFolder.Parent = Workspace
 	-- Entering your Home is a HUD button ("My Home", client UI.luau) that fires
-	-- RequestEnterHome -- no doorway pad, so the studio entrance stays clear for
-	-- walking in to the work stations.
+	-- RequestEnterHome. The studio is now an empty shell (Task 4/6), so its
+	-- front door ALSO enters the room -- walking in feels natural since there's
+	-- nothing else inside.
 	for index = 1, 4 do
-		buildRoom(index)
+		local folder = buildRoom(index)
+		-- Populate the interior at tier 0 immediately at server start (not just
+		-- on player join/rebuild) so the stations already exist -- the client's
+		-- homeFolder:WaitForChild("NewProjectSeat") resolves promptly instead of
+		-- stalling until the owning player's join-time rebuildHome runs.
+		PlotManager.populateHomeInterior(folder, PlotManager.getHomeBackWallPoint(index, 0), 0, 0)
+
+		-- Own our OWN persistent door-entry trigger, parented to homesFolder (NOT
+		-- inside Home<index>, which gets ClearAllChildren()'d on every rebuild,
+		-- and NOT inside the StudioBuilding, which PlotManager destroys + rebuilds
+		-- on join/prestige/skin-change). homesFolder itself is only ever
+		-- (re)created here at boot, so this trigger -- and the Touched wiring
+		-- below -- lives for the whole server session.
+		local cf = PlotManager.getStudioEntranceCFrame(index)
+		if cf then
+			local pos = cf.Position + cf.LookVector * 5
+			local trigger = part("HomeDoorTrigger" .. index, Vector3.new(8, 8, 3), pos, Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, homesFolder)
+			trigger.CanCollide = false
+			trigger.CanQuery = false
+			trigger.Transparency = 1
+			trigger.Touched:Connect(function(hit)
+				local plr = Players:GetPlayerFromCharacter(hit.Parent)
+				if plr and PlotManager.getPlayerPlotIndex(plr) == index then
+					local now = os.clock()
+					if (recentDoorEntry[plr.UserId] or 0) + DOOR_ENTRY_DEBOUNCE > now then
+						return
+					end
+					recentDoorEntry[plr.UserId] = now
+					enter(plr)
+				end
+			end)
+		end
 	end
 end
 
@@ -164,10 +253,10 @@ function HomeService.start()
 		gx, gz, yaw = math.floor(tonumber(gx) or -1), math.floor(tonumber(gz) or -1), tonumber(yaw) or 0
 		if yaw ~= 0 and yaw ~= 90 and yaw ~= 180 and yaw ~= 270 then return end
 		local w, d = GameData.homeFootprint(id, yaw)
-		if not GameData.homeInBounds(gx, gz, w, d) then return end
+		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, nil) then return end
 		table.insert(data.homeItems, { id = id, gx = gx, gz = gz, yaw = yaw })
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 
@@ -181,10 +270,10 @@ function HomeService.start()
 		gx, gz, yaw = math.floor(tonumber(gx) or -1), math.floor(tonumber(gz) or -1), tonumber(yaw) or 0
 		if yaw ~= 0 and yaw ~= 90 and yaw ~= 180 and yaw ~= 270 then return end
 		local w, d = GameData.homeFootprint(entry.id, yaw)
-		if not GameData.homeInBounds(gx, gz, w, d) then return end
+		if not GameData.homeInBounds(gx, gz, w, d, GameData.homeDims(data.houseTier or 0)) then return end
 		if GameData.homeOverlaps(data.homeItems, gx, gz, w, d, i) then return end
 		entry.gx, entry.gz, entry.yaw = gx, gz, yaw
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 
@@ -194,7 +283,7 @@ function HomeService.start()
 		i = math.floor(tonumber(i) or -1)
 		if not data.homeItems[i] then return end
 		table.remove(data.homeItems, i)
-		HomeService.rebuildHome(player)
+		HomeService.refreshFurniture(player)
 		Remotes.HomeStateUpdated:FireClient(player, data.homeItems)
 	end)
 end

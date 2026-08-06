@@ -768,9 +768,23 @@ end
 -- ===== Personal Home room (Round 1) =====
 GameData.Home = {
 	roomW = 64, roomD = 48, cell = 4, wallH = 20,
-	cols = 16, rows = 12,          -- roomW/cell, roomD/cell
+	cols = 16, rows = 12,          -- tier-0 defaults (roomW/cell, roomD/cell)
 	skyY = 10000, spacing = 400,   -- rooms stacked far up, offset per plot index on Z
+	workRows = 7,                  -- back rows reserved for the work zone (no furniture) -- big
+	                                -- enough to also clear the Arcade/Merch idle-zone footprints,
+	                                -- which spill a few rows past the dev-station row alone
+	tiers = {
+		[0] = { roomW = 64, roomD = 48, cols = 16, rows = 12 },
+		[1] = { roomW = 80, roomD = 56, cols = 20, rows = 14 },
+		[2] = { roomW = 96, roomD = 64, cols = 24, rows = 16 },
+	},
 }
+
+-- Room dimensions for a house/room tier (clamped to the valid tier range).
+function GameData.homeDims(tier)
+	tier = math.clamp(math.floor(tier or 0), 0, GameData.HouseTierCount - 1)
+	return GameData.Home.tiers[tier] or GameData.Home.tiers[0]
+end
 
 -- Each item: id, name, icon, cells {w,d} footprint, and EITHER asset (a
 -- StudioModels/assets name) OR build (a procedural kind handled by HomeService).
@@ -804,8 +818,15 @@ function GameData.homeFootprint(id, yaw)
 	return w, d
 end
 
-function GameData.homeInBounds(gx, gz, w, d)
-	return gx >= 0 and gz >= 0 and (gx + w) <= GameData.Home.cols and (gz + d) <= GameData.Home.rows
+-- In-bounds for FURNITURE: inside the grid AND in the living zone (furniture may
+-- not sit in the back `workRows` band, which holds the work stations). `dims`
+-- comes from GameData.homeDims(tier).
+function GameData.homeInBounds(gx, gz, w, d, dims)
+	dims = dims or GameData.Home.tiers[0]
+	return gx >= 0
+		and gz >= GameData.Home.workRows
+		and (gx + w) <= dims.cols
+		and (gz + d) <= dims.rows
 end
 
 -- True if the footprint (gx,gz,w,d) overlaps any placed item except items[ignoreIndex].

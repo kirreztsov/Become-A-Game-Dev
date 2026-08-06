@@ -1564,7 +1564,9 @@ function UI.init()
 		return
 	end
 
-	local plotFolder = workspace:WaitForChild("Plots"):WaitForChild("Plot" .. plotIndex)
+	-- Gameplay fixtures (seats, prompts, trends board) now live in the player's
+	-- private Home room, not the studio building on the plot.
+	local homeFolder = workspace:WaitForChild("Homes"):WaitForChild("Home" .. plotIndex)
 
 	-- Resolve the lobby Studio Kiosk prompt (players press E there to travel to
 	-- their studio). The tutorial's first step points at it. Replicated with the
@@ -1594,23 +1596,23 @@ function UI.init()
 			table.insert(seatedStationListeners, cb)
 		end,
 		getPlotFolder = function()
-			return plotFolder
+			return homeFolder
 		end,
 	})
 
-	-- Ensure the ground floor is populated before scanning.
-	plotFolder:WaitForChild("NewProjectSeat")
+	-- Ensure the interior is populated before scanning.
+	homeFolder:WaitForChild("NewProjectSeat")
 
-	-- Track every station seat currently in the plot, and any added later when
-	-- floors are built on upgrade.
-	for _, inst in ipairs(plotFolder:GetDescendants()) do
+	-- Track every station seat currently in the Home room, and any added later
+	-- when the room is rebuilt (tier upgrade, furniture change).
+	for _, inst in ipairs(homeFolder:GetDescendants()) do
 		trackSeat(inst)
 	end
-	-- Remembered so a trend board on a floor built later (on upgrade) shows
-	-- the current trend right away instead of sitting on "Loading...".
+	-- Remembered so a trend board rebuilt later (on upgrade) shows the current
+	-- trend right away instead of sitting on "Loading...".
 	local latestTrendText = nil
 
-	plotFolder.DescendantAdded:Connect(function(inst)
+	homeFolder.DescendantAdded:Connect(function(inst)
 		trackSeat(inst)
 		if inst:IsA("Seat") then
 			updateSeatedStation()
@@ -1631,7 +1633,7 @@ function UI.init()
 	-- board in the house shows the same current trend). Update them all.
 	local function updateTrendsSigns(text)
 		latestTrendText = text
-		for _, inst in ipairs(plotFolder:GetDescendants()) do
+		for _, inst in ipairs(homeFolder:GetDescendants()) do
 			if inst.Name == "TrendsText" and inst:IsA("TextLabel") then
 				inst.Text = text
 			end

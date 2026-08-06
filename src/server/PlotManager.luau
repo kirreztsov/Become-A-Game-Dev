@@ -379,21 +379,16 @@ local STUDIO_LAYOUT = {
 	{ name = "Workers", x = 3.5, z = -2 },
 }
 
-local function buildStudioStations(parent, base, namePrefix, monitorTier)
-	namePrefix = namePrefix or ""
-	for _, entry in ipairs(STUDIO_LAYOUT) do
-		if entry.name == "Workers" then
-			buildWorkersDesk(parent, base, entry.x, entry.z, namePrefix)
-		else
-			for _, config in ipairs(STATION_CONFIGS) do
-				if config.name == entry.name then
-					buildStation(parent, base, config, entry.x, entry.z, namePrefix, monitorTier)
-					break
-				end
-			end
-		end
-	end
-end
+-- Home-room fixture layout, local offsets from the back-wall point:
+-- 4 dev stations spread along X at z=+6 (facing the player as they enter).
+-- Declared here (ahead of refreshWorkerNPCs below) so both it and
+-- populateHomeInterior (further down the file) can share the same layout.
+local HOME_STATION_LAYOUT = {
+	{ name = "NewProject",  x = -12, z = 6 },
+	{ name = "Coding",      x = -4,  z = 6 },
+	{ name = "MapBuilding", x = 4,   z = 6 },
+	{ name = "Testing",     x = 12,  z = 6 },
+}
 
 -- A visible worker NPC SEATED on the chair facing the monitor (+Z), with a
 -- keyboard in front, shirt-coloured by rarity and a floating "<Rarity> <Role>"
@@ -441,34 +436,32 @@ local function buildWorkerNPC(parent, prefix, seatPos, shirtColor, rarityName, r
 end
 
 -- Rebuild the visible worker NPCs for a player from their hired workers.
+-- Workers now live in the player's private Home room (alongside the dev
+-- stations they're paired with), not the studio plot.
 function PlotManager.refreshWorkerNPCs(player)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
 	local data = PlayerData.get(player)
-	if not (plotFolder and data) then
+	if not (homeFolder and data) then
 		return
 	end
-	local folder = plotFolder:FindFirstChild("WorkerNPCs")
+	local folder = homeFolder:FindFirstChild("WorkerNPCs")
 	if folder then
 		folder:Destroy()
 	end
 	folder = Instance.new("Folder")
 	folder.Name = "WorkerNPCs"
-	folder.Parent = plotFolder
-	local base = PLOT_ORIGINS[index] + HOUSE_LOT_OFFSET
-	-- Workers sit at their station on EVERY floor the studio has, not just the
-	-- ground floor -- so a hired worker is visible wherever you are.
-	local floorCount = (data.houseTier or 0) + 1
-	for f = 0, floorCount - 1 do
-		local floorBase = base + Vector3.new(0, f * FLOOR_HEIGHT, 0)
-		for _, entry in ipairs(STUDIO_LAYOUT) do
-			local worker = data.workers[entry.name]
-			if worker and worker.hired then
-				local info = GameData.getRarityInfo(worker.rarity)
-				-- seat is 3 studs in front of the station desk (matches buildStation).
-				local seatPos = floorBase + Vector3.new(entry.x, FLOOR_TOP, entry.z - 3)
-				buildWorkerNPC(folder, ("%sWorkerF%d"):format(entry.name, f), seatPos, info.color, worker.rarity or "Common", entry.name)
-			end
+	folder.Parent = homeFolder
+	local base = PlotManager.getHomeBackWallPoint(index, data.houseTier or 0)
+	-- The Home room is a single floor (unlike the multi-floor studio), so
+	-- workers sit once each, at their station in the room.
+	for _, entry in ipairs(HOME_STATION_LAYOUT) do
+		local worker = data.workers[entry.name]
+		if worker and worker.hired then
+			local info = GameData.getRarityInfo(worker.rarity)
+			-- seat is 3 studs in front of the station desk (matches buildStation).
+			local seatPos = base + Vector3.new(entry.x, FLOOR_TOP, entry.z - 3)
+			buildWorkerNPC(folder, ("%sWorkerF0"):format(entry.name), seatPos, info.color, worker.rarity or "Common", entry.name)
 		end
 	end
 end
@@ -477,12 +470,13 @@ end
 -- are typing on the keyboard while auto-completing their phase.
 function PlotManager.playWorkerTyping(player, role, duration)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
-	local folder = plotFolder and plotFolder:FindFirstChild("WorkerNPCs")
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
+	local folder = homeFolder and homeFolder:FindFirstChild("WorkerNPCs")
 	if not folder then
 		return
 	end
-	-- This role's worker sits on every floor now, so bob ALL of its copies.
+	-- Workers live in the Home room now (a single floor), but keep scanning a
+	-- small range of "F%d" suffixes since refreshWorkerNPCs only ever builds F0.
 	local arms = {}
 	for f = 0, 8 do
 		local prefix = ("%sWorkerF%d"):format(role, f)
@@ -634,7 +628,7 @@ end
 -- fireplace lounge (floor 1), an indoor garden (floor 2), or a marble
 -- penthouse bar (floor 3). Tucked against the back wall, clear of the
 -- work stations and elevator corners.
-local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
+local function buildOneFloorShell(parent, base, f, floorCount, skinKey, styleTier)
 	local slabTop = FLOOR_TOP + f * FLOOR_HEIGHT
 	local wallCenterY = slabTop + WALL_HEIGHT / 2
 	local width = BUILDING_HALF_W * 2
@@ -646,7 +640,6 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	local wallColor = theme.wall
 	local accent = theme.accent
 	local prefix = "Floor" .. (f + 1) .. "_"
-	local stationPrefix = (f == 0) and "" or ("F" .. (f + 1) .. "_")
 
 	-- M7: the Blender facade/roof meshes are DISABLED -- on these boxy walls they
 	-- looked worse than the clean procedural walls (floating frames, gaps). The
@@ -668,7 +661,10 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 	local useStudioFacade = (not useSkinMesh) and StudioModels.has("StudioFacade")
 	-- Each upgrade tier restyles the WHOLE studio (RoTube-style glow-up):
 	--   tier 0 = coral+blue starter, 1 = white+blue "shop", 2 = purple luxury.
-	local tier = math.clamp(floorCount - 1, 0, 2)
+	-- Task 4: the studio is a single-floor shell, so `floorCount` no longer
+	-- tracks houseTier (it's always 1) -- the caller passes the real
+	-- houseTier separately as `styleTier` so the exterior still glows up.
+	local tier = math.clamp(styleTier or (floorCount - 1), 0, 2)
 	local TIER_STYLE = {
 		[0] = { body = Color3.fromRGB(203, 198, 188), accent = Color3.fromRGB(158, 148, 132), trim = Color3.fromRGB(228, 226, 220), win = Color3.fromRGB(150, 182, 205), winGlow = false }, -- humble: muted beige/grey
 		[1] = { body = Color3.fromRGB(244, 246, 250), accent = Color3.fromRGB(66, 138, 210), trim = Color3.fromRGB(250, 250, 252), win = Color3.fromRGB(255, 226, 150), winGlow = true },
@@ -1138,13 +1134,10 @@ local function buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
 		end
 	end
 
-	-- Furnish upper floors (ground floor's stations are persistent, built in
-	-- buildPlot).
-	local floorBase = base + Vector3.new(0, f * FLOOR_HEIGHT, 0)
-	if f > 0 then
-		buildStudioStations(parent, floorBase, stationPrefix, pcTier)
-		buildTrendsSign(parent, floorBase, stationPrefix)
-	end
+	-- Task 4: stations/Trends no longer live in the studio at all -- they're
+	-- built into the private Home room (PlotManager.populateHomeInterior).
+	-- The studio is a single always-ground floor, so this used to be dead
+	-- code anyway (only ever fired for f > 0).
 
 	-- Elevator pads: up on every floor but the top, down on every floor but
 	-- the ground.
@@ -1178,7 +1171,15 @@ end
 -- to. The prompt keeps the name HouseUpgradePrompt so the client panel is
 -- unchanged.
 local function buildUpgradeNPC(parent, base)
-	local x = BUILDING_HALF_W - 5
+	-- x = BUILDING_HALF_W - 5 (near the studio's front-right corner) was fine
+	-- for the old studio-entrance placement, but this NPC's only caller now is
+	-- populateHomeInterior (Task 4 fold-in), where that x lands inside the
+	-- Merch idle zone at room tier 0 (Merch hugs the room's +X back corner,
+	-- and its near edge sits closer to centre at the smallest room size). x = 8
+	-- clears the Merch zone at every tier (its nearest edge is furthest out at
+	-- tier 0, ~15.5 studs from centre) while staying clear of the Workers desk
+	-- (centred at x = 0, ~3 studs half-width) just past it.
+	local x = 8
 	local z = -BUILDING_HALF_D + 5
 	local skin = Color3.fromRGB(240, 205, 165)
 	local shirt = Color3.fromRGB(70, 120, 200)
@@ -1301,9 +1302,19 @@ local function buildInteractiveRoom(parent, base, roomKey, centerX, activity)
 		lbl.Parent = g
 	end
 
-	-- (No collect prompt: once bought, the room AUTO-earns cash straight into
-	-- your wallet every few seconds -- the idle loop credits it.)
-	local _ = promptParent
+	-- Collect prompt: the idle loop auto-credits most of the pool straight to
+	-- your wallet each tick, but this lets a player grab it on demand (and is
+	-- what PlotManager.start's PromptTriggered / refreshRoomDisplay expect to
+	-- find by name + Room attribute -- same pattern as BuyRoomPrompt above).
+	local collectPrompt = Instance.new("ProximityPrompt")
+	collectPrompt.Name = "CollectPrompt"
+	collectPrompt.ActionText = "Collect $0"
+	collectPrompt.ObjectText = activity.title
+	collectPrompt.HoldDuration = 0.2
+	collectPrompt.MaxActivationDistance = 10
+	collectPrompt.RequiresLineOfSight = false
+	collectPrompt:SetAttribute("Room", activity.room)
+	collectPrompt.Parent = promptParent
 
 	-- Tycoon-style BUY BUTTON in front of the room: a bright pad + a sign
 	-- showing the price and earnings, with a prompt to purchase. Removed once
@@ -1356,19 +1367,6 @@ end
 local ROOM_COSTS = { Arcade = 1500, Merch = 15000 }
 local ROOM_PER_TICK = { Arcade = 30, Merch = 220 }
 
-local function buildSideExpansion(parent, base)
-	-- Both money rooms sit in a row extending left. Each shows a tycoon buy
-	-- button until purchased.
-	buildInteractiveRoom(parent, base, "ArcadeRoom", -BUILDING_HALF_W - WING_W / 2 - 1, {
-		kind = "arcade", title = "\240\159\149\185\239\184\143 Arcade", room = "Arcade",
-		buyCost = ROOM_COSTS.Arcade, perTick = ROOM_PER_TICK.Arcade,
-	})
-	buildInteractiveRoom(parent, base, "MerchRoom", -BUILDING_HALF_W - WING_W * 1.5 - 3, {
-		kind = "merch", title = "\240\159\155\141\239\184\143 Merch Shop", room = "Merch",
-		buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
-	})
-end
-
 -- Reflect room ownership: once bought, remove the buy button and flip the
 -- tally sign to show it's actively earning. (Recursive find because the buy
 -- button lives under the rebuildable StudioBuilding folder, not the plot root.)
@@ -1390,28 +1388,25 @@ end
 
 function PlotManager.applyRoomOwnership(player)
 	local index = plotOfPlayer[player.UserId]
-	local plotFolder = index and PlotManager.getPlotFolder(index)
+	-- The Arcade/Merch fixtures live in the private Home room now (Task 5),
+	-- not the studio plot -- same lookup pattern as refreshWorkerNPCs.
+	local homeFolder = index and workspace.Homes:FindFirstChild("Home" .. index)
 	local data = PlayerData.get(player)
-	if not (plotFolder and data) then
+	if not (homeFolder and data) then
 		return
 	end
 	local owned = data.roomsOwned or {}
-	applyRoomVisual(plotFolder, "Arcade", owned.Arcade)
-	applyRoomVisual(plotFolder, "Merch", owned.Merch)
+	applyRoomVisual(homeFolder, "Arcade", owned.Arcade)
+	applyRoomVisual(homeFolder, "Merch", owned.Merch)
 end
 
+-- Task 4: the studio is now a single, always-ground-floor empty shell.
+-- Stations, the upgrade NPC, and the Arcade/Merch rooms all moved into the
+-- private Home room (see PlotManager.populateHomeInterior + HomeService).
+-- `houseTier` is still threaded through as the cosmetic style tier so the
+-- exterior (wall color/facade/crown) keeps glowing up with room upgrades.
 local function buildStudioBuilding(parent, base, houseTier, pcTier, skinKey)
-	local floorCount = houseTier + 1
-	for f = 0, floorCount - 1 do
-		buildOneFloorShell(parent, base, f, floorCount, pcTier, skinKey)
-	end
-
-	-- Money-earning rooms (bought via tycoon buy-buttons, not floor-gated).
-	buildSideExpansion(parent, base)
-
-	if houseTier < GameData.HouseTierCount - 1 then
-		buildUpgradeNPC(parent, base)
-	end
+	buildOneFloorShell(parent, base, 0, 1, skinKey, houseTier)
 end
 
 -- Rebuildable wrapper: the whole tower shell lives in a "StudioBuilding"
@@ -1514,11 +1509,10 @@ local function buildPlot(index)
 	buildPlotFloor(plotFolder, origin)
 	buildPlotSpawn(plotFolder, origin)
 	buildLandscaping(plotFolder, origin)
-	-- Persistent ground-floor studio: stations + trends sign live directly
-	-- under the plot folder (unprefixed) because the client resolves them
-	-- there and holds live references, so they must survive tower rebuilds.
-	buildStudioStations(plotFolder, origin + HOUSE_LOT_OFFSET, "", 0)
-	buildTrendsSign(plotFolder, origin + HOUSE_LOT_OFFSET, "")
+	-- The Trends board + dev stations now live in the player's private Home
+	-- room (PlotManager.populateHomeInterior); the studio is a bare walk-in
+	-- exterior, so it no longer builds a Trends sign (that left a dead
+	-- "Loading..." board inside the empty studio).
 	buildHouse(plotFolder, origin, 0, 0)
 	buildDecorKiosk(plotFolder, origin)
 
@@ -1600,6 +1594,81 @@ function PlotManager.getStudioEntranceCFrame(index)
 	end
 	local pos = origin + HOUSE_LOT_OFFSET + Vector3.new(0, FLOOR_TOP + 3, -BUILDING_HALF_D - 6)
 	return CFrame.new(pos, pos + Vector3.new(0, 0, 1))
+end
+
+-- Floor point at the centre of a Home room's back (-Z) wall, for the current
+-- room size (tier). Fixtures are placed relative to this so they stay pinned to
+-- the back wall when the room grows.
+function PlotManager.getHomeBackWallPoint(index, tier)
+	local H = GameData.Home
+	local dims = GameData.homeDims(tier)
+	local centreZ = index * H.spacing
+	return Vector3.new(0, H.skyY, centreZ - dims.roomD / 2)
+end
+
+-- Task 5: the Arcade + Merch idle-income zones, folded into the Home room
+-- (recovered verbatim from the pre-Task-4 studio's buildSideExpansion calls,
+-- which built these into the studio building before it became a bare shell).
+local ARCADE_ACTIVITY = {
+	kind = "arcade", title = "\240\159\149\185\239\184\143 Arcade", room = "Arcade",
+	buyCost = ROOM_COSTS.Arcade, perTick = ROOM_PER_TICK.Arcade,
+}
+local MERCH_ACTIVITY = {
+	kind = "merch", title = "\240\159\155\141\239\184\143 Merch Shop", room = "Merch",
+	buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
+}
+
+-- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
+function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
+	for _, entry in ipairs(HOME_STATION_LAYOUT) do
+		for _, config in ipairs(STATION_CONFIGS) do
+			if config.name == entry.name then
+				buildStation(roomFolder, base, config, entry.x, entry.z, "", pcTier or 0)
+				break
+			end
+		end
+	end
+	-- buildTrendsSign mounts the board `BUILDING_HALF_D - 0.4` studs in the +Z
+	-- direction from the base it's given (the studio convention: base = near
+	-- entrance, wall far in +Z). Here `base` IS the back wall itself (-Z side),
+	-- so that offset is cancelled out and replaced with a small +Z nudge
+	-- (0.4 studs, matching the studio's inward offset) to sit the sign flush
+	-- against the wall instead of BUILDING_HALF_D studs into the room.
+	buildTrendsSign(roomFolder, base + Vector3.new(0, 0, 0.8 - BUILDING_HALF_D), "")
+	-- Workers desk sits further into the room (away from the back wall) so
+	-- hired-worker NPCs at the dev stations aren't crowded by it.
+	buildWorkersDesk(roomFolder, base, 0, 11, "")
+	-- Task 4 fold-in: the room-upgrade NPC now lives in the room itself (was
+	-- studio-only). buildUpgradeNPC's internal offsets (x = 8, z =
+	-- -BUILDING_HALF_D + 5) assume `base` is a studio-style building reference
+	-- where positive Z is deeper into the building; here `base` is the room's
+	-- back wall with positive Z going INTO the room, so nudge the base +Z by
+	-- BUILDING_HALF_D + 6 to land the NPC ~11 studs into the room (level with
+	-- the Workers desk) instead of behind the wall. x = 8 (Task 6) clears the
+	-- Merch idle zone at every room tier -- see buildUpgradeNPC's comment.
+	if tier < GameData.HouseTierCount - 1 then
+		buildUpgradeNPC(roomFolder, base + Vector3.new(0, 0, BUILDING_HALF_D + 6))
+	end
+
+	-- Task 5: Arcade + Merch idle zones, in the two BACK corners (their footprint
+	-- is meant to hug the back wall, in the furniture-free `workRows` band).
+	-- buildInteractiveRoom's internal Z math (`centerZ = -BUILDING_HALF_D +
+	-- WING_D/2`, its buy pad a further 4.5 + 3(half pad depth) out beyond that)
+	-- was written for the studio's "base = building centre" convention, where
+	-- the wing's floor sits BEHIND `base` and its buy pad further behind still.
+	-- Here `base` is the room's back wall (positive Z INTO the room), so a
+	-- naive pass-through would build the whole wing behind the wall, outside
+	-- the room. Nudging `base` forward by 25 studs lands the buy pad ~1.5 studs
+	-- clear of the actual wall (no clipping through it) with the booth's floor
+	-- spanning roughly 9-25 studs into the room -- flush-ish to the back wall,
+	-- but its solid far wall spills ~9 studs past the 16-stud workRows band
+	-- into the living zone (WING_D=16 alone would fit the band exactly, but
+	-- the buy pad needs extra clearance in front of it). Same nudge for both;
+	-- only centerX differs, placing them in the left/right back corners.
+	local idleZoneBase = base + Vector3.new(0, 0, 25)
+	local dims = GameData.homeDims(tier)
+	buildInteractiveRoom(roomFolder, idleZoneBase, "ArcadeRoom", -(dims.roomW / 2) + 9, ARCADE_ACTIVITY)
+	buildInteractiveRoom(roomFolder, idleZoneBase, "MerchRoom", (dims.roomW / 2) - 9, MERCH_ACTIVITY)
 end
 
 -- Recolor a player's studio exterior to the given skin key ("Default" or a
@@ -1980,12 +2049,15 @@ function PlotManager.start()
 	end)
 
 	ProximityPromptService.PromptTriggered:Connect(function(prompt, player)
-		-- Every prompt handled below lives inside a player's PRIVATE plot
-		-- (elevator, collect, buy-room, PC/House/Workers upgrades). Only the
-		-- plot's OWNER may use them -- otherwise you could stand in someone
-		-- else's studio and open their menus / manage their things.
+		-- Every prompt handled below lives inside a player's PRIVATE plot or
+		-- their private Home room (elevator, collect, buy-room, PC/House/
+		-- Workers upgrades). Only the OWNER may use them -- otherwise you
+		-- could stand in someone else's studio/home and open their menus.
 		local ownPlot = PlotManager.getPlotFolder(plotOfPlayer[player.UserId])
-		if not ownPlot or not prompt:IsDescendantOf(ownPlot) then
+		local ownHome = workspace.Homes:FindFirstChild("Home" .. tostring(plotOfPlayer[player.UserId]))
+		local inOwn = (ownPlot and prompt:IsDescendantOf(ownPlot))
+			or (ownHome and prompt:IsDescendantOf(ownHome))
+		if not inOwn then
 			return
 		end
 
@@ -2017,9 +2089,10 @@ function PlotManager.start()
 			data.cash += amount
 			PlayerData.addWeekly(data, "cash", amount, os.time())
 			Remotes.PlayerStateUpdated:FireClient(player, data)
-			local plotFolder = PlotManager.getPlotFolder(plotOfPlayer[player.UserId])
-			if plotFolder then
-				refreshRoomDisplay(plotFolder, room, 0)
+			-- Arcade/Merch fixtures live in the Home room (Task 5) -- ownHome was
+			-- already resolved above (and is what the ownership check passed on).
+			if ownHome then
+				refreshRoomDisplay(ownHome, room, 0)
 			end
 		elseif prompt.Name == "BuyRoomPrompt" then
 			-- Tycoon buy button: purchase a money room.
@@ -2040,9 +2113,10 @@ function PlotManager.start()
 			data.cash -= cost
 			data.roomsOwned = data.roomsOwned or {}
 			data.roomsOwned[room] = true
-			local plotFolder = PlotManager.getPlotFolder(index)
-			if plotFolder then
-				applyRoomVisual(plotFolder, room, true)
+			-- Arcade/Merch fixtures live in the Home room (Task 5), not the
+			-- studio plot -- ownHome was already resolved above.
+			if ownHome then
+				applyRoomVisual(ownHome, room, true)
 			end
 			Remotes.PlayerStateUpdated:FireClient(player, data)
 		end
@@ -2126,9 +2200,14 @@ function PlotManager.start()
 		-- Rebuild the world to the fresh state (tier 0 studio, no rooms/trophies,
 		-- but keep their decorations).
 		PlotManager.rebuildHouseForPlayer(player, 0, 0)
-		PlotManager.rebuildPCForPlayer(player, 0)
 		PlotManager.rebuildPlayButtons(player, 0)
 		PlotManager.rebuildDecorForPlayer(player, data.decorations)
+		-- The dev stations/PC/workers/Arcade+Merch now live in the private Home
+		-- room (Task 4/5), not the studio -- rebuild it too so a prestige reset
+		-- actually resets what the player sees. Local require avoids a load
+		-- cycle (HomeService already requires PlotManager at the top).
+		local HomeService = require(script.Parent.HomeService)
+		HomeService.rebuildHome(player)
 
 		Remotes.PlayerStateUpdated:FireClient(player, data)
 		Remotes.PrestigeResult:FireClient(player, data.prestigeLevel)

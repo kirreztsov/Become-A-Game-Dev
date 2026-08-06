@@ -1,7 +1,6 @@
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
-local PlotManager = require(script.Parent.PlotManager)
 
 local HouseService = {}
 
@@ -26,7 +25,12 @@ function HouseService.start()
 		data.cash -= cost
 		data.houseTier += 1
 
-		PlotManager.rebuildHouseForPlayer(player, data.houseTier, data.pcTier)
+		-- The room-size upgrade now grows the private Home room (stations +
+		-- Trends + PC + workers desk all live there), not the studio -- the
+		-- studio is just an empty shell. Local require avoids a load-order
+		-- cycle with PlotManager/HomeService at boot.
+		local HomeService = require(script.Parent.HomeService)
+		HomeService.rebuildHome(player)
 
 		Remotes.HouseActionResult:FireClient(player, true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)

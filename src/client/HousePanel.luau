@@ -2,6 +2,7 @@ local ProximityPromptService = game:GetService("ProximityPromptService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Sound = require(script.Parent.Sound)
+local Fx = require(script.Parent.Fx)
 
 local HousePanel = {}
 
@@ -168,6 +169,7 @@ function HousePanel.init(player, theme, playerState)
 	Remotes.HouseActionResult.OnClientEvent:Connect(function(success)
 		if success then
 			Sound.play("Purchase")
+			Fx.rewardBurst("\240\159\143\160 ROOM UPGRADED!", theme.Accent)
 		else
 			statusLabel.Text = "Not enough cash!"
 			Sound.play("Error")
@@ -179,6 +181,7 @@ function HousePanel.init(player, theme, playerState)
 			screenGui.Enabled = true
 			statusLabel.Text = ""
 			refresh()
+			Fx.popIn(frame)
 		end
 	end)
 end

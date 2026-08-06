@@ -135,4 +135,43 @@ function Fx.coinBurst(centerX, centerY, n)
 	end)
 end
 
+-- Pop a GUI element in with a springy overshoot (open animation for menus).
+-- Manual UIScale tween (TweenService is unreliable in this project). Safe to
+-- call every time a panel opens; reuses/!resets a single UIScale child.
+function Fx.popIn(guiObject)
+	if not guiObject then
+		return
+	end
+	local scale = guiObject:FindFirstChildOfClass("UIScale")
+	if not scale then
+		scale = Instance.new("UIScale")
+		scale.Parent = guiObject
+	end
+	-- Animate a MULTIPLIER of whatever scale is already set and restore it, so
+	-- we don't stomp MobileScale's per-panel UIScale (which shrinks panels on
+	-- phones). Ending at `target`, not a hardcoded 1.0, keeps mobile correct.
+	local target = scale.Scale
+	if target <= 0 then target = 1 end
+	task.spawn(function()
+		for _, m in ipairs({ 0.6, 0.86, 1.06, 0.98, 1.0 }) do
+			scale.Scale = target * m
+			task.wait(0.025)
+		end
+		scale.Scale = target
+	end)
+end
+
+-- A satisfying reward pop for buying an upgrade / hiring: a coin burst from
+-- screen centre plus a little confetti. Optional banner text.
+function Fx.rewardBurst(text, color)
+	local cam = workspace.CurrentCamera
+	local cx = cam and cam.ViewportSize.X / 2 or 400
+	local cy = cam and cam.ViewportSize.Y / 2 or 300
+	Fx.coinBurst(cx, cy, 9)
+	Fx.confetti(18)
+	if text then
+		Fx.celebrate(text, color)
+	end
+end
+
 return Fx

@@ -21,16 +21,6 @@ local ACCENT = Color3.fromRGB(140, 92, 255)
 local homesFolder
 local roomCorner = {}  -- [index] = Vector3 of the room's -X,-Z floor corner
 local roomSpawn = {}   -- [index] = CFrame to drop the player at
-local recentlyLeft = {} -- [userId] = os.clock() when they last left, to stop the
-                        -- Home pad from instantly re-triggering as they land.
-
-local function markLeft(player)
-	recentlyLeft[player.UserId] = os.clock()
-end
-local function leftRecently(player)
-	local t = recentlyLeft[player.UserId]
-	return t ~= nil and (os.clock() - t) < 2
-end
 
 local function part(name, size, pos, color, mat, parent)
 	local p = Instance.new("Part")
@@ -79,7 +69,7 @@ local function buildRoom(index)
 		local plr = Players:GetPlayerFromCharacter(hit.Parent)
 		if plr and PlotManager.getPlayerPlotIndex(plr) == index then
 			local cf = PlotManager.getStudioEntranceCFrame(index)
-			if cf and plr.Character then markLeft(plr); plr.Character:PivotTo(cf) end
+			if cf and plr.Character then plr.Character:PivotTo(cf) end
 		end
 	end)
 	return folder
@@ -150,36 +140,11 @@ function HomeService.build()
 	homesFolder = Workspace:FindFirstChild("Homes")
 	if homesFolder then homesFolder:Destroy() end
 	homesFolder = Instance.new("Folder"); homesFolder.Name = "Homes"; homesFolder.Parent = Workspace
+	-- Entering your Home is a HUD button ("My Home", client UI.luau) that fires
+	-- RequestEnterHome -- no doorway pad, so the studio entrance stays clear for
+	-- walking in to the work stations.
 	for index = 1, 4 do
 		buildRoom(index)
-		-- Home portal standing UPRIGHT in the studio doorway for this plot.
-		local origin = PlotManager.getPlotOrigin(index)
-		if origin then
-			-- A vertical glowing pane filling the doorway opening (front wall is at
-			-- origin.z + 29; the door is ~4 wide x 6 tall). Sat just in front of the
-			-- glass door so it reads clearly even with the studio interior visible
-			-- behind it. Walk into it to enter your room. The leave-landing spot is
-			-- ~5 studs in front (origin + (0,4,23)); the 2s leftRecently debounce is
-			-- the backstop against an instant re-trigger.
-			local portalPos = origin + Vector3.new(0, 4, 28.4)
-			local pad = part("HomePad" .. index, Vector3.new(3.6, 6, 0.4), portalPos, ACCENT, Enum.Material.Neon, Workspace)
-			pad.CanCollide = false
-			pad.Transparency = 0.35
-			-- Label on BOTH faces so it reads walking in and looking back out.
-			for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
-				local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.Parent = pad
-				local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.fromScale(1, 1); lbl.BackgroundTransparency = 1
-				lbl.Text = "\240\159\143\160\nMy Home"; lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-				lbl.Font = Enum.Font.FredokaOne; lbl.TextScaled = true; lbl.Parent = sg
-			end
-			pad:SetAttribute("plotIndex", index)
-			pad.Touched:Connect(function(hit)
-				local plr = Players:GetPlayerFromCharacter(hit.Parent)
-				if plr and not leftRecently(plr) and PlotManager.getPlayerPlotIndex(plr) == index then
-					enter(plr)
-				end
-			end)
-		end
 	end
 end
 
@@ -188,7 +153,7 @@ function HomeService.start()
 	Remotes.RequestLeaveHome.OnServerEvent:Connect(function(player)
 		local index = PlotManager.getPlayerPlotIndex(player)
 		local cf = index and PlotManager.getStudioEntranceCFrame(index)
-		if cf and player.Character then markLeft(player); player.Character:PivotTo(cf) end
+		if cf and player.Character then player.Character:PivotTo(cf) end
 	end)
 
 	Remotes.RequestPlaceHomeItem.OnServerEvent:Connect(function(player, id, gx, gz, yaw)

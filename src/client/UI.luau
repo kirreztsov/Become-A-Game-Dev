@@ -890,6 +890,27 @@ function UI.init()
 		Remotes.RequestGoToStudio:FireServer()
 	end)
 
+	-- "My Home" teleports the player into their private Home room (server checks
+	-- plot ownership). Sits just under "To Studio" so the two travel buttons pair.
+	local myHomeBtn = Instance.new("TextButton")
+	myHomeBtn.Name = "MyHomeButton"
+	myHomeBtn.Size = UDim2.fromOffset(170, 38)
+	myHomeBtn.AnchorPoint = Vector2.new(0.5, 0)
+	myHomeBtn.Position = UDim2.new(0.5, 0, 0, 58)
+	myHomeBtn.BackgroundColor3 = Theme.Accent
+	myHomeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	myHomeBtn.Font = Enum.Font.FredokaOne
+	myHomeBtn.TextSize = 18
+	myHomeBtn.Text = "\240\159\143\160 My Home"
+	myHomeBtn.AutoButtonColor = true
+	myHomeBtn.Parent = screenGui
+	addCorner(myHomeBtn, 12)
+	addStroke(myHomeBtn, Color3.fromRGB(255, 255, 255), 1, 0.7)
+	myHomeBtn.MouseButton1Click:Connect(function()
+		Sound.play("Teleport")
+		Remotes.RequestEnterHome:FireServer()
+	end)
+
 	local leaderboardBtn = Instance.new("TextButton")
 	leaderboardBtn.Name = "GoToLeaderboardsButton"
 	leaderboardBtn.Size = UDim2.fromOffset(186, 48)

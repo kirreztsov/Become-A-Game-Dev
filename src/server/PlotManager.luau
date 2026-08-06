@@ -452,16 +452,17 @@ function PlotManager.refreshWorkerNPCs(player)
 	folder = Instance.new("Folder")
 	folder.Name = "WorkerNPCs"
 	folder.Parent = homeFolder
-	local base = PlotManager.getHomeBackWallPoint(index, data.houseTier or 0)
-	-- The Home room is a single floor (unlike the multi-floor studio), so
-	-- workers sit once each, at their station in the room.
+	-- Stations are now player-placed equipment, so a hired worker's NPC appears
+	-- at wherever the player put that station's seat. If the station isn't placed
+	-- yet, that worker simply has no NPC until it is.
 	for _, entry in ipairs(HOME_STATION_LAYOUT) do
 		local worker = data.workers[entry.name]
 		if worker and worker.hired then
-			local info = GameData.getRarityInfo(worker.rarity)
-			-- seat is 3 studs in front of the station desk (matches buildStation).
-			local seatPos = base + Vector3.new(entry.x, FLOOR_TOP, entry.z - 3)
-			buildWorkerNPC(folder, ("%sWorkerF0"):format(entry.name), seatPos, info.color, worker.rarity or "Common", entry.name)
+			local seat = homeFolder:FindFirstChild(entry.name .. "Seat", true)
+			if seat then
+				local info = GameData.getRarityInfo(worker.rarity)
+				buildWorkerNPC(folder, ("%sWorkerF0"):format(entry.name), seat.Position, info.color, worker.rarity or "Common", entry.name)
+			end
 		end
 	end
 end
@@ -1618,16 +1619,46 @@ local MERCH_ACTIVITY = {
 	buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
 }
 
--- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
-function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
-	for _, entry in ipairs(HOME_STATION_LAYOUT) do
+-- Build ONE functional work station (or the Workers desk) as a self-contained
+-- Model at a Home-room grid cell, rotated by `yaw`. Placeable "equipment"
+-- (HomeService.buildItem) uses this so players arrange their own studio. The
+-- seat keeps its canonical name (e.g. "NewProjectSeat") and the NewProject
+-- monitor keeps its PCUpgradePrompt, so client seat-tracking, DevelopmentService
+-- and the upgrade/manage prompts all keep working wherever the player puts it.
+-- `cellCenterWorld` is the footprint centre at floor-top height.
+function PlotManager.buildHomeStation(parent, cellCenterWorld, stationName, yaw, pcTier)
+	local model = Instance.new("Model")
+	model.Name = stationName .. "Station"
+	model.Parent = parent
+	-- buildStation/buildWorkersDesk lay parts at `origin + (x, <FLOOR_TOP-based y>, z)`.
+	-- Pick origin so the desk lands at the cell centre (x=z=0) and the legs' base
+	-- rests on the room floor (cellCenterWorld.Y is the floor top).
+	local origin = Vector3.new(cellCenterWorld.X, cellCenterWorld.Y - FLOOR_TOP, cellCenterWorld.Z)
+	if stationName == "Workers" then
+		buildWorkersDesk(model, origin, 0, 0, "")
+	else
 		for _, config in ipairs(STATION_CONFIGS) do
-			if config.name == entry.name then
-				buildStation(roomFolder, base, config, entry.x, entry.z, "", pcTier or 0)
+			if config.name == stationName then
+				buildStation(model, origin, config, 0, 0, "", pcTier or 0)
 				break
 			end
 		end
 	end
+	-- Rotate the whole assembly about the cell centre by yaw (0/90/180/270).
+	yaw = tonumber(yaw) or 0
+	if yaw ~= 0 then
+		local pivotPoint = CFrame.new(cellCenterWorld.X, origin.Y, cellCenterWorld.Z)
+		model:PivotTo(pivotPoint * CFrame.Angles(0, math.rad(yaw), 0) * pivotPoint:Inverse() * model:GetPivot())
+	end
+	return model
+end
+
+-- Fill a Home room with the gameplay fixtures. `base` is getHomeBackWallPoint.
+function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
+	-- The 4 dev stations + Workers desk are NO LONGER auto-placed here -- they
+	-- are placeable "equipment" the player positions themselves (start empty),
+	-- built via PlotManager.buildHomeStation from HomeService.buildItem. Only the
+	-- fixed fixtures (trends board, room-upgrade NPC, Arcade/Merch) are built here.
 	-- buildTrendsSign mounts the board `BUILDING_HALF_D - 0.4` studs in the +Z
 	-- direction from the base it's given (the studio convention: base = near
 	-- entrance, wall far in +Z). Here `base` IS the back wall itself (-Z side),
@@ -1635,9 +1666,6 @@ function PlotManager.populateHomeInterior(roomFolder, base, tier, pcTier)
 	-- (0.4 studs, matching the studio's inward offset) to sit the sign flush
 	-- against the wall instead of BUILDING_HALF_D studs into the room.
 	buildTrendsSign(roomFolder, base + Vector3.new(0, 0, 0.8 - BUILDING_HALF_D), "")
-	-- Workers desk sits further into the room (away from the back wall) so
-	-- hired-worker NPCs at the dev stations aren't crowded by it.
-	buildWorkersDesk(roomFolder, base, 0, 11, "")
 	-- Task 4 fold-in: the room-upgrade NPC now lives in the room itself (was
 	-- studio-only). buildUpgradeNPC's internal offsets (x = 8, z =
 	-- -BUILDING_HALF_D + 5) assume `base` is a studio-style building reference

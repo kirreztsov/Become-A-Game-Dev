@@ -129,29 +129,29 @@ def build_gpu():
     shroud, back, bracket, accent = [], [], [], []
     f1, f2, f3 = [], [], []
 
-    # Plastic shroud (the body) + PCB backplate behind it.
-    box((1.7, 1.1, 4.2), (0, 0.05, 2.15), shroud)
-    box((1.8, 0.16, 4.3), (0, 0.66, 2.15), back)
+    # Thick 3-slot shroud (the body) + PCB backplate behind it (Gaming Trio bulk).
+    box((1.7, 1.4, 4.2), (0, 0.05, 2.15), shroud)
+    box((1.8, 0.16, 4.3), (0, 0.82, 2.15), back)
     # Angular front lip that frames the fans (two thin plates top & bottom).
-    box((1.72, 0.16, 0.18), (0, -0.52, 4.05), shroud)
-    box((1.72, 0.16, 0.18), (0, -0.52, 0.28), shroud)
+    box((1.72, 0.16, 0.18), (0, -0.66, 4.05), shroud)
+    box((1.72, 0.16, 0.18), (0, -0.66, 0.28), shroud)
     # Heatsink fins peeking out the +X side (stack of thin plates).
     for k in range(7):
-        box((0.10, 0.9, 0.5), (0.86, 0.1, 0.7 + k * 0.5), shroud)
+        box((0.10, 1.15, 0.5), (0.86, 0.1, 0.7 + k * 0.5), shroud)
     # 8-pin power connector nub on the top edge.
-    box((0.7, 0.5, 0.28), (0.2, 0.15, 4.32), shroud)
+    box((0.7, 0.5, 0.28), (0.2, 0.2, 4.32), shroud)
     # Metal I/O bracket across the bottom + three display-port slots.
     box((1.8, 1.05, 0.20), (0, 0.05, 0.09), bracket)
     for sx in (-0.5, 0.0, 0.5):
         box((0.34, 0.5, 0.10), (sx, -0.35, 0.09), accent)
 
     # Three fans stacked up the -Y (front) face.
-    fan_y((0, -0.42, 1.05), 0.62, f1)
-    fan_y((0, -0.42, 2.15), 0.62, f2)
-    fan_y((0, -0.42, 3.25), 0.62, f3)
+    fan_y((0, -0.60, 1.05), 0.62, f1)
+    fan_y((0, -0.60, 2.15), 0.62, f2)
+    fan_y((0, -0.60, 3.25), 0.62, f3)
 
     # RGB accent strip down the front-left edge.
-    box((0.14, 0.12, 3.5), (-0.80, -0.50, 2.15), accent)
+    box((0.14, 0.12, 3.5), (-0.80, -0.70, 2.15), accent)
 
     join_bevel(shroud, "Shroud", bevel=0.05)
     join_bevel(back, "Backplate", bevel=0.02)
@@ -164,31 +164,39 @@ def build_gpu():
 
 
 # --------------------------------------------------------------------------
-# MONITOR -- a widescreen gaming monitor on a stand, screen toward -Y. Detail:
-# thin bezel, a rear housing bulge, a V-shaped stand base + hinge neck, a chin
-# logo bar, a power LED and control buttons. ~4.6 studs tall as built.
+# MONITOR -- a SUPER-ULTRAWIDE CURVED gaming monitor (V7 49" DQHD style), screen
+# toward -Y. The curve is faked with 7 flat panel segments across an arc (edges
+# pulled toward the viewer, each turned tangent). Thin bezel, central pillar +
+# tripod stand. ~8.6 studs WIDE (Lobby scales it by WIDTH so it fits the shelf).
 # --------------------------------------------------------------------------
 def build_monitor():
     clear_scene()
     bezel, screen, neck, base, accent = [], [], [], [], []
 
-    SZ = 3.15  # centre height of the panel
-    box((5.0, 0.18, 3.0), (0, 0.05, SZ), bezel)         # thin outer frame
-    box((4.62, 0.10, 2.64), (0, -0.10, SZ), screen)     # display panel (front)
-    box((4.2, 0.5, 2.2), (0, 0.45, SZ), bezel)          # rear housing bulge
-    # Chin: logo bar + power LED + two control-button nubs (lower-right back).
-    box((0.9, 0.06, 0.16), (0, -0.16, SZ - 1.35), accent)      # centre logo bar
-    box((0.14, 0.10, 0.14), (2.0, 0.22, SZ - 1.35), accent)    # power LED
-    box((0.5, 0.16, 0.12), (1.4, 0.5, SZ - 1.3), bezel)        # button strip
+    SZ = 3.4          # centre height of the panel
+    PANEL_H = 2.3
+    HALF = 4.0        # half the panel width
+    SEGS = 7
+    seg_w = (2 * HALF) / SEGS
+    for i in range(SEGS):
+        x = -HALF + seg_w * (i + 0.5)
+        t = x / HALF                       # -1 .. 1 across the panel
+        y = 0.15 - 0.55 * (t * t)          # concave: edges pulled to viewer (-Y)
+        rz = -18.0 * t                     # turn each segment tangent to the arc
+        box((seg_w + 0.14, 0.22, PANEL_H + 0.20), (x, y + 0.13, SZ), bezel, rot=(0, 0, rz))   # bezel-back
+        box((seg_w + 0.01, 0.10, PANEL_H), (x, y, SZ), screen, rot=(0, 0, rz))                # bright panel
+    # Chin: centre logo bar + power LED.
+    box((0.9, 0.10, 0.14), (0, -0.20, SZ - PANEL_H / 2 - 0.02), accent)
+    box((0.14, 0.12, 0.12), (2.6, 0.02, SZ - PANEL_H / 2 - 0.02), accent)
 
-    # Hinge neck + V-shaped stand feet on the ground.
-    box((0.6, 0.6, 1.2), (0, 0.35, 1.15), neck)
-    box((0.35, 0.35, 0.9), (0, 0.2, 0.55), neck)
-    box((2.6, 0.5, 0.16), (0, 0.35, 0.09), base, rot=(0, 0, 22))
-    box((2.6, 0.5, 0.16), (0, 0.35, 0.09), base, rot=(0, 0, -22))
-    box((0.9, 1.3, 0.14), (0, 0.35, 0.08), base)        # centre pad
+    # Central pillar + tripod base (two legs splayed toward the viewer, one back).
+    box((0.55, 0.7, 2.0), (0, 0.35, 1.35), neck)
+    box((1.0, 1.0, 0.22), (0, 0.35, 0.11), base)                       # base hub
+    box((2.4, 0.5, 0.18), (0.85, -0.45, 0.09), base, rot=(0, 0, -30))  # front-right leg
+    box((2.4, 0.5, 0.18), (-0.85, -0.45, 0.09), base, rot=(0, 0, 30))  # front-left leg
+    box((1.5, 0.5, 0.18), (0, 1.15, 0.09), base)                       # back leg
 
-    join_bevel(bezel, "Bezel", bevel=0.04)
+    join_bevel(bezel, "Bezel", bevel=0.03)
     join_bevel(screen, "Screen", bevel=0.02)
     join_bevel(neck, "Neck", bevel=0.04)
     join_bevel(base, "Base", bevel=0.04)
@@ -197,10 +205,10 @@ def build_monitor():
 
 
 # --------------------------------------------------------------------------
-# TOWER -- an RGB PC case: glass side panel on -X, front toward -Y, three RGB
-# fans stacked at the front intake, PLUS visible internals through the glass
-# (motherboard, a horizontal GPU, two RAM sticks, a round CPU cooler). Front
-# panel is a slatted mesh grille. ~4.6 studs tall as built.
+# TOWER -- an RGB mid-tower (Raider style): mesh FRONT (-Y) holding three RGB
+# fans facing the viewer, a tempered-glass side (-X) showing the internals
+# (motherboard, a horizontal GPU, two RAM sticks, a round CPU cooler) and the
+# backs of the front fans. Raised on four feet. ~4.6 studs tall as built.
 # --------------------------------------------------------------------------
 def build_tower():
     clear_scene()
@@ -208,33 +216,34 @@ def build_tower():
     board, cooler = [], []
     f1, f2, f3 = [], [], []
 
-    box((2.2, 4.6, 4.4), (0, 0.0, 2.35), case)          # main body
-    box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.35), glass)    # tempered-glass side (-X)
+    box((2.2, 4.6, 4.4), (0, 0.0, 2.55), case)          # main body
+    box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.55), glass)    # tempered-glass side (-X)
 
-    # Slatted front-panel grille (mesh intake) toward -Y.
-    box((2.2, 0.10, 4.4), (0, -2.34, 2.35), front)      # backing
-    for k in range(11):
-        box((1.9, 0.16, 0.18), (0, -2.30, 0.55 + k * 0.36), front)
-    # Top panel: power button + two USB slots.
-    box((0.22, 0.22, 0.12), (0.5, -1.4, 4.62), accent)  # power button
-    box((0.5, 0.16, 0.10), (-0.2, -1.4, 4.62), front)   # USB slots
+    # Slatted mesh front panel (-Y), with the RGB fans mounted just behind it.
+    box((2.2, 0.10, 4.4), (0, -2.34, 2.55), front)      # backing
+    for k in range(12):
+        box((2.0, 0.14, 0.14), (0, -2.31, 0.65 + k * 0.34), front)
+    # Three RGB fans facing the viewer (-Y), stacked up the front intake.
+    fan_y((0, -1.95, 1.35), 0.62, f1)
+    fan_y((0, -1.95, 2.55), 0.62, f2)
+    fan_y((0, -1.95, 3.75), 0.62, f3)
+
+    # Top panel: power button + USB slots.
+    box((0.24, 0.24, 0.12), (0.5, -1.4, 4.82), accent)  # power button
+    box((0.5, 0.16, 0.10), (-0.2, -1.4, 4.82), front)   # USB slots
 
     # Internals visible through the glass (mounted on the +X inner wall).
-    box((0.10, 3.4, 3.4), (0.55, 0.1, 2.5), board)       # motherboard plane
-    box((0.7, 2.6, 0.5), (0.15, -0.2, 1.5), board)       # horizontal GPU
-    box((0.18, 0.5, 1.2), (0.2, 1.1, 3.3), board)        # RAM stick 1
-    box((0.18, 0.5, 1.2), (0.2, 1.35, 3.3), board)       # RAM stick 2
-    cyl(0.55, 0.5, (0.2, 0.8, 3.3), cooler, rot=(0, 90, 0))  # CPU cooler
+    box((0.10, 3.2, 3.2), (0.62, 0.2, 2.7), board)       # motherboard plane
+    box((0.7, 2.4, 0.5), (0.2, 0.0, 1.7), board)         # horizontal GPU
+    box((0.16, 0.4, 1.1), (0.28, 0.85, 3.5), board)      # RAM stick 1
+    box((0.16, 0.4, 1.1), (0.28, 1.15, 3.5), board)      # RAM stick 2
+    cyl(0.55, 0.5, (0.25, 0.5, 3.4), cooler, rot=(0, 90, 0))  # CPU cooler
 
-    # Three RGB intake fans stacked up the front, facing the glass (-X).
-    fan_x((-0.55, -1.55, 1.15), 0.55, f1)
-    fan_x((-0.55, -1.55, 2.35), 0.55, f2)
-    fan_x((-0.55, -1.55, 3.55), 0.55, f3)
-
-    # RGB light bar down the front edge + two feet.
-    box((0.12, 0.14, 3.9), (-1.06, -2.30, 2.35), accent)
-    box((0.6, 1.2, 0.18), (-0.7, 0, 0.09), feet)
-    box((0.6, 1.2, 0.18), (0.7, 0, 0.09), feet)
+    # RGB light bar down the front-left corner + four feet (case sits raised).
+    box((0.12, 0.14, 3.9), (-1.06, -2.30, 2.55), accent)
+    for fx in (-0.8, 0.8):
+        for fy in (-1.8, 1.8):
+            box((0.4, 0.4, 0.3), (fx, fy, 0.15), feet)
 
     join_bevel(case, "Case", bevel=0.07)
     join_bevel(front, "Front", bevel=0.02)

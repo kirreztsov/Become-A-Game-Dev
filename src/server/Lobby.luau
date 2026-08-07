@@ -100,14 +100,18 @@ end
 -- studs tall, spun to `yaw`, then runs paint(part) on each BasePart. Returns
 -- the Model, or nil if the asset isn't synced yet (caller falls back to a
 -- procedural build). Independent of the asset's import scale.
-local function placeProp(name, parent, worldBasePos, targetHeight, yaw, paint)
+local function placeProp(name, parent, worldBasePos, targetSize, yaw, paint, byWidth)
 	local model = StudioModels.get(name)
 	if not model then
 		return nil
 	end
 	local _, size = model:GetBoundingBox()
-	if size.Y > 0 then
-		model:ScaleTo(model:GetScale() * (targetHeight / size.Y))
+	-- Normally scale to a target HEIGHT (bounding Y); byWidth scales to a target
+	-- WIDTH (bounding X) instead -- used for the ultrawide monitor, which would
+	-- be absurdly wide if scaled by height.
+	local dim = byWidth and size.X or size.Y
+	if dim > 0 then
+		model:ScaleTo(model:GetScale() * (targetSize / dim))
 	end
 	model:PivotTo(CFrame.new(worldBasePos) * CFrame.Angles(0, yaw or 0, 0))
 	local cf, sz = model:GetBoundingBox()
@@ -2383,11 +2387,11 @@ local function paintPCGpu(p)
 	elseif n:find("Bracket") then
 		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
 	elseif n:find("Fan") then
-		p.Color, p.Material = Color3.fromRGB(58, 60, 70), Enum.Material.SmoothPlastic
+		p.Color, p.Material = Color3.fromRGB(200, 205, 215), Enum.Material.SmoothPlastic -- silver fan frames
 	elseif n:find("Backplate") then
 		p.Color, p.Material = Color3.fromRGB(22, 22, 28), Enum.Material.SmoothPlastic
-	else -- Shroud
-		p.Color, p.Material = Color3.fromRGB(38, 40, 48), Enum.Material.SmoothPlastic
+	else -- Shroud (gunmetal, MSI Gaming Trio style)
+		p.Color, p.Material = Color3.fromRGB(74, 78, 90), Enum.Material.Metal
 	end
 	p.CanCollide = false
 end
@@ -2429,10 +2433,12 @@ local function paintPCTower(p)
 	end
 	p.CanCollide = false
 end
+-- `size` is a target HEIGHT in studs, unless `byWidth` (then it's a target WIDTH
+-- -- the ultrawide monitor scales by width so it doesn't tower over the shelf).
 local PC_SHELF_MODELS = {
-	GPU = { asset = "PCGpu", height = 2.6, extraYaw = 0, paint = paintPCGpu },
-	Monitor = { asset = "PCMonitor", height = 2.6, extraYaw = 0, paint = paintPCMonitor },
-	RGB = { asset = "PCTower", height = 3.0, extraYaw = math.rad(35), paint = paintPCTower },
+	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu },
+	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor },
+	RGB = { asset = "PCTower", size = 3.0, extraYaw = math.rad(35), paint = paintPCTower },
 }
 
 local function buildPCStoreShelves(lobbyFolder, center)
@@ -2448,7 +2454,7 @@ local function buildPCStoreShelves(lobbyFolder, center)
 		local shelfYaw = (spot.x < 0) and -math.pi / 2 or math.pi / 2
 		local pedestalTop = center + Vector3.new(spot.x, FLOOR_TOP + 3, spot.z)
 		local cfg = PC_SHELF_MODELS[part.id]
-		local model = cfg and placeProp(cfg.asset, lobbyFolder, pedestalTop, cfg.height, shelfYaw + cfg.extraYaw, cfg.paint)
+		local model = cfg and placeProp(cfg.asset, lobbyFolder, pedestalTop, cfg.size, shelfYaw + cfg.extraYaw, cfg.paint, cfg.byWidth)
 		if model then
 			model.Name = "PCShelfProp_" .. part.id
 		else

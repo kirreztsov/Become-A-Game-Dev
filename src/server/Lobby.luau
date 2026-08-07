@@ -2238,6 +2238,9 @@ local SHOP_DEFS = {
 	{ key = "Clothes", name = "\240\159\145\149 Clothes", color = Color3.fromRGB(110, 170, 210) },
 	{ key = "GameStore", name = "\240\159\142\174 Game Store", color = Color3.fromRGB(150, 120, 220) },
 	{ key = "Grocery", name = "\240\159\143\170 Grocery", color = Color3.fromRGB(120, 190, 130) },
+	-- The PC Store opens the PC Parts Shop (its keeper prompt is "PCStorePrompt",
+	-- handled by PCService/PCPanel, NOT the generic ShopPanel).
+	{ key = "PCParts", name = "\240\159\150\165\239\184\143 PC Store", color = Color3.fromRGB(90, 130, 220), promptName = "PCStorePrompt", actionText = "Browse Parts" },
 }
 
 local function buildShop(lobbyFolder, index, def, center, yaw)
@@ -2315,8 +2318,8 @@ local function buildShop(lobbyFolder, index, def, center, yaw)
 	-- it to face +Z (the door and the customer at the counter).
 	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(180), 0))
 	local shopPrompt = Instance.new("ProximityPrompt")
-	shopPrompt.Name = "ShopPrompt"
-	shopPrompt.ActionText = "Shop"
+	shopPrompt.Name = def.promptName or "ShopPrompt"
+	shopPrompt.ActionText = def.actionText or "Shop"
 	shopPrompt.ObjectText = def.name
 	shopPrompt.HoldDuration = 0.2
 	shopPrompt.MaxActivationDistance = 10
@@ -2349,6 +2352,7 @@ local SHOP_PLACEMENTS = {
 	{ x = 110, z = -5, yaw = 0 }, -- front avenue, east gap
 	{ x = 55, z = 160, yaw = 0 }, -- back avenue, west gap (by Plot 3)
 	{ x = 110, z = 160, yaw = 0 }, -- back avenue, east gap (by Plot 4)
+	{ x = 165, z = -5, yaw = 0 }, -- PC Store: front avenue, east end (verify clear)
 }
 
 local function buildShops(lobbyFolder)

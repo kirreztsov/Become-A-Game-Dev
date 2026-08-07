@@ -4,10 +4,51 @@ local PlayerData = require(script.Parent.PlayerData)
 
 local PCService = {}
 
+-- Per-visit deal the PC Store shopkeeper is offering each player, keyed by
+-- UserId: { partId = <id>, discount = <fraction> }. Re-rolled every time the
+-- player opens the store (RequestPCStore); the discount applies to buys of that
+-- part while it's set, and is validated server-side so it can't be spoofed.
+local currentDeal = {}
+local DEAL_CHANCE = 0.5
+local DEAL_DISCOUNTS = { 0.20, 0.25, 0.30, 0.40 }
+
+local function rollDeal(data)
+	if math.random() > DEAL_CHANCE then
+		return nil
+	end
+	-- Only offer a deal on a part that isn't already maxed (so it's useful).
+	local candidates = {}
+	for _, p in ipairs(GameData.PCParts) do
+		if (data.pcParts[p.id] or 0) < GameData.getPCPartMaxLevel(p.id) then
+			candidates[#candidates + 1] = p.id
+		end
+	end
+	if #candidates == 0 then
+		return nil
+	end
+	return {
+		partId = candidates[math.random(#candidates)],
+		discount = DEAL_DISCOUNTS[math.random(#DEAL_DISCOUNTS)],
+	}
+end
+
 function PCService.start()
-	-- PC Parts Shop: upgrade one component a level at a time (replaces the old
-	-- single pcTier upgrade). Money parts scale cash/game, follower parts scale
-	-- subscribers/release -- see GameData.getPCParts*Multiplier.
+	-- Opening the PC Store (walk up to the shopkeeper): roll a fresh per-visit
+	-- deal and tell the client so it can highlight the discounted part.
+	Remotes.RequestPCStore.OnServerEvent:Connect(function(player)
+		local data = PlayerData.get(player)
+		if not data then
+			return
+		end
+		data.pcParts = data.pcParts or {}
+		local deal = rollDeal(data)
+		currentDeal[player.UserId] = deal
+		Remotes.PCStoreOpen:FireClient(player, deal and deal.partId or nil, deal and deal.discount or nil)
+	end)
+
+	-- Buy the next model of a part. Money parts scale cash/game, follower parts
+	-- scale subscribers/release (GameData.getPCParts*Multiplier). A matching
+	-- shopkeeper deal discounts the price.
 	Remotes.RequestUpgradePart.OnServerEvent:Connect(function(player, partId)
 		local data = PlayerData.get(player)
 		if not data then
@@ -27,7 +68,16 @@ function PCService.start()
 		end
 
 		local cost = GameData.getPCPartUpgradeCost(partId, level)
-		if not cost or data.cash < cost then
+		if not cost then
+			Remotes.PCActionResult:FireClient(player, false)
+			return
+		end
+		-- Apply the shopkeeper's deal if it's for this part.
+		local deal = currentDeal[player.UserId]
+		if deal and deal.partId == partId then
+			cost = math.floor(cost * (1 - deal.discount))
+		end
+		if data.cash < cost then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end

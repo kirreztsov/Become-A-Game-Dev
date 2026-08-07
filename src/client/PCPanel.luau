@@ -20,6 +20,8 @@ function PCPanel.init(player, theme, playerState)
 	-- shared playerState carrying pcParts).
 	local myParts = (playerState and playerState.pcParts) or {}
 	local myCash = (playerState and playerState.cash) or 0
+	-- The shopkeeper's current per-visit deal (set by the PCStoreOpen remote).
+	local dealPartId, dealDiscount = nil, nil
 
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "PCPanelGui"
@@ -52,13 +54,14 @@ function PCPanel.init(player, theme, playerState)
 	title.TextSize = 24; title.TextXAlignment = Enum.TextXAlignment.Left; title.Parent = frame
 
 	local subtitle = Instance.new("TextLabel")
-	subtitle.Size = UDim2.new(1, 0, 0, 20); subtitle.Position = UDim2.fromOffset(0, 32)
+	subtitle.Size = UDim2.new(1, 0, 0, 40); subtitle.Position = UDim2.fromOffset(0, 32)
+	subtitle.TextYAlignment = Enum.TextYAlignment.Top
 	subtitle.BackgroundTransparency = 1; subtitle.TextColor3 = theme.TextMuted; subtitle.Font = Enum.Font.GothamMedium
 	subtitle.TextSize = 14; subtitle.TextXAlignment = Enum.TextXAlignment.Left; subtitle.RichText = true; subtitle.Parent = frame
 
 	-- Scrolling list of part rows.
 	local list = Instance.new("ScrollingFrame")
-	list.Size = UDim2.new(1, 0, 1, -104); list.Position = UDim2.fromOffset(0, 58)
+	list.Size = UDim2.new(1, 0, 1, -122); list.Position = UDim2.fromOffset(0, 76)
 	list.BackgroundTransparency = 1; list.BorderSizePixel = 0
 	list.ScrollBarThickness = 5; list.CanvasSize = UDim2.new(0, 0, 0, 0)
 	list.AutomaticCanvasSize = Enum.AutomaticSize.Y; list.Parent = frame
@@ -106,7 +109,13 @@ function PCPanel.init(player, theme, playerState)
 	local function refresh()
 		local cashMult = GameData.getPCPartsCashMultiplier(myParts)
 		local subsMult = GameData.getPCPartsSubsMultiplier(myParts)
-		subtitle.Text = ("<font color=\"#7CE38B\">%.2fx money</font>  \194\183  <font color=\"#FFD166\">%.2fx followers</font>"):format(cashMult, subsMult)
+		local line1 = ("<font color=\"#7CE38B\">%.2fx money</font>  \194\183  <font color=\"#FFD166\">%.2fx followers</font>"):format(cashMult, subsMult)
+		if dealPartId and dealDiscount then
+			local dp = GameData.getPCPart(dealPartId)
+			subtitle.Text = ("%s\n<font color=\"#FF8A3D\">\240\159\148\165 Shopkeeper deal: %d%% off %s!</font>"):format(line1, math.floor(dealDiscount * 100 + 0.5), dp and dp.name or "a part")
+		else
+			subtitle.Text = line1
+		end
 		for _, part in ipairs(GameData.PCParts) do
 			local r = rows[part.id]
 			local level = myParts[part.id] or 0
@@ -125,9 +134,18 @@ function PCPanel.init(player, theme, playerState)
 				r.info.Text = ("%s <b>%s</b>\n<font color=\"#B9BCC7\" size=\"12\">%s \226\134\146 </font><font color=\"%s\" size=\"12\">%s (+%d%%)</font>")
 					:format(part.icon, part.name, cur and cur.name or "-", hex, nextModel and nextModel.name or "?", gain)
 				local cost = GameData.getPCPartUpgradeCost(part.id, level) or 0
-				r.buy.Text = "$" .. withCommas(cost)
 				r.buy.AutoButtonColor = true
-				r.buy.BackgroundColor3 = (myCash >= cost) and r.kindColor or theme.Neutral
+				if part.id == dealPartId and dealDiscount then
+					-- On sale: strike the old price, show the discounted one, orange button.
+					local dealCost = math.floor(cost * (1 - dealDiscount))
+					r.buy.RichText = true
+					r.buy.Text = ("<s><font size=\"11\">$%s</font></s>\n$%s"):format(withCommas(cost), withCommas(dealCost))
+					r.buy.BackgroundColor3 = (myCash >= dealCost) and Color3.fromRGB(255, 138, 61) or theme.Neutral
+				else
+					r.buy.RichText = false
+					r.buy.Text = "$" .. withCommas(cost)
+					r.buy.BackgroundColor3 = (myCash >= cost) and r.kindColor or theme.Neutral
+				end
 			end
 		end
 	end
@@ -153,13 +171,21 @@ function PCPanel.init(player, theme, playerState)
 		end
 	end)
 
+	-- Walking up to the PC Store shopkeeper asks the server for a fresh per-visit
+	-- deal; the server replies with PCStoreOpen, which actually opens the shop.
 	ProximityPromptService.PromptTriggered:Connect(function(prompt, triggeringPlayer)
-		if triggeringPlayer == player and prompt.Name == "PCUpgradePrompt" then
-			screenGui.Enabled = true
-			statusLabel.Text = ""
-			refresh()
-			Fx.popIn(frame)
+		if triggeringPlayer == player and prompt.Name == "PCStorePrompt" then
+			Remotes.RequestPCStore:FireServer()
 		end
+	end)
+
+	Remotes.PCStoreOpen.OnClientEvent:Connect(function(partId, discount)
+		dealPartId = partId
+		dealDiscount = discount
+		screenGui.Enabled = true
+		statusLabel.Text = ""
+		refresh()
+		Fx.popIn(frame)
 	end)
 end
 

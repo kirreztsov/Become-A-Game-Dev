@@ -2240,7 +2240,7 @@ local SHOP_DEFS = {
 	{ key = "Grocery", name = "\240\159\143\170 Grocery", color = Color3.fromRGB(120, 190, 130) },
 	-- The PC Store opens the PC Parts Shop (its keeper prompt is "PCStorePrompt",
 	-- handled by PCService/PCPanel, NOT the generic ShopPanel).
-	{ key = "PCParts", name = "\240\159\150\165\239\184\143 PC Store", color = Color3.fromRGB(90, 130, 220), promptName = "PCStorePrompt", actionText = "Browse Parts" },
+	{ key = "PCParts", name = "\240\159\150\165\239\184\143 PC Store", color = Color3.fromRGB(90, 130, 220), physical = true },
 }
 
 local function buildShop(lobbyFolder, index, def, center, yaw)
@@ -2317,15 +2317,19 @@ local function buildShop(lobbyFolder, index, def, center, yaw)
 	-- NPCs are built facing -Z; the keeper stands behind the counter, so turn
 	-- it to face +Z (the door and the customer at the counter).
 	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(180), 0))
-	local shopPrompt = Instance.new("ProximityPrompt")
-	shopPrompt.Name = def.promptName or "ShopPrompt"
-	shopPrompt.ActionText = def.actionText or "Shop"
-	shopPrompt.ObjectText = def.name
-	shopPrompt.HoldDuration = 0.2
-	shopPrompt.MaxActivationDistance = 10
-	shopPrompt.RequiresLineOfSight = false -- the counter sits between you and the keeper
-	shopPrompt:SetAttribute("ShopKey", def.key) -- which catalog this shop sells
-	shopPrompt.Parent = keeper.PrimaryPart
+	-- A "physical" shop (the PC Store) has no counter menu prompt -- you buy at
+	-- the shelves themselves (buildPCStoreShelves). The keeper stays for flavour.
+	if not def.physical then
+		local shopPrompt = Instance.new("ProximityPrompt")
+		shopPrompt.Name = def.promptName or "ShopPrompt"
+		shopPrompt.ActionText = def.actionText or "Shop"
+		shopPrompt.ObjectText = def.name
+		shopPrompt.HoldDuration = 0.2
+		shopPrompt.MaxActivationDistance = 10
+		shopPrompt.RequiresLineOfSight = false -- the counter sits between you and the keeper
+		shopPrompt:SetAttribute("ShopKey", def.key) -- which catalog this shop sells
+		shopPrompt.Parent = keeper.PrimaryPart
+	end
 
 	-- The shop is built facing +Z; rotate the whole thing (every part named
 	-- with this shop's prefix, keeper included) about its centre so the front
@@ -2355,10 +2359,70 @@ local SHOP_PLACEMENTS = {
 	{ x = 165, z = -5, yaw = 0 }, -- PC Store: front avenue, east end (verify clear)
 }
 
+-- Physical PC Store interior: one shelf per PC-part category around the store,
+-- each with a placeholder component prop, a floating info label (filled in
+-- per-player on the client), and a "Buy" ProximityPrompt (PCBuyPrompt carrying
+-- the PartId). No screen menu -- you walk the aisle and buy at the shelf. A
+-- hidden PCStoreZone part lets the client roll the shopkeeper's per-visit deal
+-- when you step inside. Placeholder props get swapped for Blender models later.
+local PC_SHELF_SPOTS = {
+	{ x = -6.2, z = -4.0 }, { x = -6.2, z = -1.3 }, { x = -6.2, z = 1.3 }, { x = -6.2, z = 4.0 },
+	{ x = 6.2, z = -1.3 }, { x = 6.2, z = 1.3 }, { x = 6.2, z = 4.0 },
+}
+local function buildPCStoreShelves(lobbyFolder, center)
+	for i, part in ipairs(GameData.PCParts) do
+		local spot = PC_SHELF_SPOTS[i]
+		if not spot then break end
+		local propColor = (part.kind == "money") and Color3.fromRGB(90, 200, 150) or Color3.fromRGB(150, 110, 230)
+		-- Pedestal (the named anchor the client + prompt hang off).
+		local pedestal = makePart("PCShelf_" .. part.id, Vector3.new(1.8, 3, 1.8), center + Vector3.new(spot.x, FLOOR_TOP + 1.5, spot.z), Color3.fromRGB(60, 62, 72), Enum.Material.SmoothPlastic, lobbyFolder)
+		-- Placeholder component prop on top (swapped for a Blender model later).
+		local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.2, 0.9, 1.2), center + Vector3.new(spot.x, FLOOR_TOP + 3.45, spot.z), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
+		prop.CanCollide = false
+		-- Floating info label -- text is set PER-PLAYER on the client (each player
+		-- has different owned tiers / prices / deal), so leave it blank here.
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "Info"
+		bb.Size = UDim2.fromOffset(210, 96)
+		bb.StudsOffset = Vector3.new(0, 3.0, 0)
+		bb.MaxDistance = 45
+		bb.Parent = pedestal
+		local lbl = Instance.new("TextLabel")
+		lbl.Name = "Text"
+		lbl.Size = UDim2.fromScale(1, 1)
+		lbl.BackgroundTransparency = 1
+		lbl.RichText = true
+		lbl.TextScaled = true
+		lbl.Font = Enum.Font.FredokaOne
+		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		lbl.TextStrokeTransparency = 0.35
+		lbl.Text = part.name
+		lbl.Parent = bb
+		-- Buy prompt (server buys the triggering player's next tier of this part).
+		local buy = Instance.new("ProximityPrompt")
+		buy.Name = "PCBuyPrompt"
+		buy.ActionText = "Buy"
+		buy.ObjectText = part.name
+		buy.HoldDuration = 0.2
+		buy.MaxActivationDistance = 9
+		buy.RequiresLineOfSight = false
+		buy:SetAttribute("PartId", part.id)
+		buy.Parent = pedestal
+	end
+	-- Invisible zone the client watches to roll the shopkeeper's per-visit deal.
+	local zone = makePart("PCStoreZone", Vector3.new(13, 7, 10), center + Vector3.new(0, FLOOR_TOP + 3.5, 0), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
+	zone.Transparency = 1
+	zone.CanCollide = false
+	zone.CanQuery = false
+end
+
 local function buildShops(lobbyFolder)
 	for i, def in ipairs(SHOP_DEFS) do
 		local p = SHOP_PLACEMENTS[i]
 		buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
+		if def.physical then
+			buildPCStoreShelves(lobbyFolder, Vector3.new(p.x, 0, p.z))
+		end
 	end
 end
 

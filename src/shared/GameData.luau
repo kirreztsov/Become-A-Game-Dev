@@ -485,22 +485,71 @@ function GameData.getPCCashMultiplier(tier)
 end
 
 -- ---- PC Parts Shop ---------------------------------------------------------
--- Build your PC from 7 upgradeable parts (5 levels each). "money" parts scale
--- CASH per released game; "followers" parts scale SUBSCRIBERS per release.
--- (Replaces the old single pcTier upgrade.) `bonus` is the fraction added to
--- that part's multiplier per level.
-GameData.PCPartMaxLevel = 5
+-- A real shop: 7 categories, each an ordered ladder of NAMED models (tier 0 =
+-- the free starter you begin with, up to the best). `pcParts[categoryId]` = the
+-- owned tier index (0-based). "money" categories (CPU/RAM/Storage/Cooling) scale
+-- CASH per released game; "followers" categories (GPU/Monitor/RGB Case) scale
+-- SUBSCRIBERS per release. `bonus` is the multiplier ADDED when that exact model
+-- is equipped (tier-0 starters are free with bonus 0, so a fresh PC = 1.0x).
+-- Names are copyright-safe parodies of real hardware.
 GameData.PCParts = {
-	{ id = "CPU",     name = "Processor (CPU)", icon = "\226\154\153\239\184\143",             kind = "money",     bonus = 0.10 },
-	{ id = "RAM",     name = "Memory (RAM)",    icon = "\240\159\146\190",                     kind = "money",     bonus = 0.08 },
-	{ id = "Storage", name = "Storage (SSD)",   icon = "\240\159\151\132\239\184\143",         kind = "money",     bonus = 0.06 },
-	{ id = "Cooling", name = "Cooling Fans",    icon = "\240\159\140\128",                     kind = "money",     bonus = 0.05 },
-	{ id = "GPU",     name = "Graphics (GPU)",  icon = "\240\159\142\174",                     kind = "followers", bonus = 0.12 },
-	{ id = "Monitor", name = "Monitor",         icon = "\240\159\150\165\239\184\143",         kind = "followers", bonus = 0.08 },
-	{ id = "RGB",     name = "RGB Lights",      icon = "\240\159\140\136",                     kind = "followers", bonus = 0.05 },
+	{ id = "CPU", name = "Processor (CPU)", icon = "\226\154\153\239\184\143", kind = "money", models = {
+		{ name = "Celestron G1",         price = 0,     bonus = 0.00 },
+		{ name = "Inteal Core i3-Z",     price = 250,   bonus = 0.08 },
+		{ name = "Ryzem 5 Fury",         price = 700,   bonus = 0.16 },
+		{ name = "Inteal Core i7-K",     price = 1800,  bonus = 0.28 },
+		{ name = "Ryzem 9 Beast",        price = 4500,  bonus = 0.44 },
+		{ name = "Threadribber XT",      price = 11000, bonus = 0.65 },
+	} },
+	{ id = "RAM", name = "Memory (RAM)", icon = "\240\159\146\190", kind = "money", models = {
+		{ name = "4GB Basic Stick",      price = 0,     bonus = 0.00 },
+		{ name = "Corsayr 8GB",          price = 200,   bonus = 0.05 },
+		{ name = "G.Zkill 16GB",         price = 550,   bonus = 0.12 },
+		{ name = "Vengance 32GB",        price = 1400,  bonus = 0.22 },
+		{ name = "TridentX 64GB",        price = 3600,  bonus = 0.34 },
+		{ name = "HyperFury 128GB",      price = 9000,  bonus = 0.50 },
+	} },
+	{ id = "Storage", name = "Storage", icon = "\240\159\151\132\239\184\143", kind = "money", models = {
+		{ name = "250GB Old HDD",        price = 0,     bonus = 0.00 },
+		{ name = "Seagit 1TB HDD",       price = 180,   bonus = 0.04 },
+		{ name = "WesternDigi 1TB SSD",  price = 500,   bonus = 0.10 },
+		{ name = "Samsang 2TB NVMe",     price = 1300,  bonus = 0.18 },
+		{ name = "Crucal 4TB NVMe",      price = 3200,  bonus = 0.28 },
+		{ name = "OptaneX 8TB",          price = 8000,  bonus = 0.42 },
+	} },
+	{ id = "Cooling", name = "Cooling", icon = "\240\159\140\128", kind = "money", models = {
+		{ name = "Stock Fan",            price = 0,     bonus = 0.00 },
+		{ name = "CoolMaster Air",       price = 150,   bonus = 0.03 },
+		{ name = "BeQuiat Tower",        price = 450,   bonus = 0.08 },
+		{ name = "Noctuah Silent",       price = 1100,  bonus = 0.15 },
+		{ name = "NZXT Liquid 240",      price = 2800,  bonus = 0.24 },
+		{ name = "ArcticStorm 360",      price = 7000,  bonus = 0.36 },
+	} },
+	{ id = "GPU", name = "Graphics (GPU)", icon = "\240\159\142\174", kind = "followers", models = {
+		{ name = "Onboard Graphics",     price = 0,     bonus = 0.00 },
+		{ name = "MyForce GTX 1650",     price = 300,   bonus = 0.10 },
+		{ name = "MyForce RTX 3060",     price = 900,   bonus = 0.24 },
+		{ name = "Radion RX 7800",       price = 2400,  bonus = 0.42 },
+		{ name = "MyForce RTX 4080",     price = 6000,  bonus = 0.65 },
+		{ name = "MyForce RTX 4090 Ti",  price = 15000, bonus = 1.00 },
+	} },
+	{ id = "Monitor", name = "Monitor", icon = "\240\159\150\165\239\184\143", kind = "followers", models = {
+		{ name = "19\" Office CRT",      price = 0,     bonus = 0.00 },
+		{ name = "AZUS 24\" 1080p",      price = 250,   bonus = 0.06 },
+		{ name = "Dull 27\" 1440p",      price = 700,   bonus = 0.14 },
+		{ name = "Samsang 32\" 4K",      price = 1800,  bonus = 0.26 },
+		{ name = "LZ UltraWide 38\"",    price = 4500,  bonus = 0.42 },
+		{ name = "PixelPro 49\" Dual",   price = 11000, bonus = 0.62 },
+	} },
+	{ id = "RGB", name = "RGB Case", icon = "\240\159\140\136", kind = "followers", models = {
+		{ name = "Cardboard Box",        price = 0,     bonus = 0.00 },
+		{ name = "Basic ATX Case",       price = 150,   bonus = 0.03 },
+		{ name = "Glass Tower",          price = 450,   bonus = 0.08 },
+		{ name = "RGB Flow Case",        price = 1100,  bonus = 0.16 },
+		{ name = "MegaGlow 360",         price = 2800,  bonus = 0.26 },
+		{ name = "Galaxy RGB Rig",       price = 7000,  bonus = 0.40 },
+	} },
 }
-GameData.PCPartCostBase = 150
-GameData.PCPartCostGrowth = 1.8
 
 local _pcPartById = {}
 for _, p in ipairs(GameData.PCParts) do
@@ -510,9 +559,25 @@ function GameData.getPCPart(id)
 	return _pcPartById[id]
 end
 
--- Cost to raise one part from `currentLevel` to the next level.
-function GameData.getPCPartUpgradeCost(currentLevel)
-	return math.floor(GameData.PCPartCostBase * (GameData.PCPartCostGrowth ^ (currentLevel or 0)))
+-- Highest owned tier index for a category (== #models - 1).
+function GameData.getPCPartMaxLevel(id)
+	local p = _pcPartById[id]
+	return p and (#p.models - 1) or 0
+end
+
+-- The model equipped at `level` (0-based) in a category.
+function GameData.getPCPartModel(id, level)
+	local p = _pcPartById[id]
+	if not p then return nil end
+	return p.models[(level or 0) + 1]
+end
+
+-- Cost to buy the NEXT model up from `currentLevel` (nil = already maxed).
+function GameData.getPCPartUpgradeCost(id, currentLevel)
+	local p = _pcPartById[id]
+	if not p then return nil end
+	local nextModel = p.models[(currentLevel or 0) + 2]
+	return nextModel and nextModel.price or nil
 end
 
 local function _pcPartsMultiplier(pcParts, kind)
@@ -520,18 +585,21 @@ local function _pcPartsMultiplier(pcParts, kind)
 	local m = 1
 	for _, p in ipairs(GameData.PCParts) do
 		if p.kind == kind then
-			m += (pcParts[p.id] or 0) * p.bonus
+			local model = p.models[(pcParts[p.id] or 0) + 1]
+			if model then
+				m += model.bonus
+			end
 		end
 	end
 	return m
 end
 
--- Cash-per-game multiplier from the money parts (CPU/RAM/Storage/Cooling).
+-- Cash-per-game multiplier from the money categories (CPU/RAM/Storage/Cooling).
 function GameData.getPCPartsCashMultiplier(pcParts)
 	return _pcPartsMultiplier(pcParts, "money")
 end
 
--- Subscribers-per-release multiplier from the follower parts (GPU/Monitor/RGB).
+-- Subscribers-per-release multiplier from the follower categories (GPU/Monitor/RGB).
 function GameData.getPCPartsSubsMultiplier(pcParts)
 	return _pcPartsMultiplier(pcParts, "followers")
 end

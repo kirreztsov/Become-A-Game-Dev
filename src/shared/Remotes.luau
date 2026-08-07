@@ -15,6 +15,7 @@ local REMOTE_NAMES = {
 	"RequestUpgradeHouse",
 	"HouseActionResult",
 	"RequestUpgradePC",
+	"RequestUpgradePart",
 	"PCActionResult",
 	"PlayerStateUpdated",
 	"TrendsUpdated",

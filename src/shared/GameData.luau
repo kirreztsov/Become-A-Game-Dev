@@ -484,6 +484,58 @@ function GameData.getPCCashMultiplier(tier)
 	return 1 + (tier * GameData.PCCashBonusPerTier)
 end
 
+-- ---- PC Parts Shop ---------------------------------------------------------
+-- Build your PC from 7 upgradeable parts (5 levels each). "money" parts scale
+-- CASH per released game; "followers" parts scale SUBSCRIBERS per release.
+-- (Replaces the old single pcTier upgrade.) `bonus` is the fraction added to
+-- that part's multiplier per level.
+GameData.PCPartMaxLevel = 5
+GameData.PCParts = {
+	{ id = "CPU",     name = "Processor (CPU)", icon = "\226\154\153\239\184\143",             kind = "money",     bonus = 0.10 },
+	{ id = "RAM",     name = "Memory (RAM)",    icon = "\240\159\146\190",                     kind = "money",     bonus = 0.08 },
+	{ id = "Storage", name = "Storage (SSD)",   icon = "\240\159\151\132\239\184\143",         kind = "money",     bonus = 0.06 },
+	{ id = "Cooling", name = "Cooling Fans",    icon = "\240\159\140\128",                     kind = "money",     bonus = 0.05 },
+	{ id = "GPU",     name = "Graphics (GPU)",  icon = "\240\159\142\174",                     kind = "followers", bonus = 0.12 },
+	{ id = "Monitor", name = "Monitor",         icon = "\240\159\150\165\239\184\143",         kind = "followers", bonus = 0.08 },
+	{ id = "RGB",     name = "RGB Lights",      icon = "\240\159\140\136",                     kind = "followers", bonus = 0.05 },
+}
+GameData.PCPartCostBase = 150
+GameData.PCPartCostGrowth = 1.8
+
+local _pcPartById = {}
+for _, p in ipairs(GameData.PCParts) do
+	_pcPartById[p.id] = p
+end
+function GameData.getPCPart(id)
+	return _pcPartById[id]
+end
+
+-- Cost to raise one part from `currentLevel` to the next level.
+function GameData.getPCPartUpgradeCost(currentLevel)
+	return math.floor(GameData.PCPartCostBase * (GameData.PCPartCostGrowth ^ (currentLevel or 0)))
+end
+
+local function _pcPartsMultiplier(pcParts, kind)
+	pcParts = pcParts or {}
+	local m = 1
+	for _, p in ipairs(GameData.PCParts) do
+		if p.kind == kind then
+			m += (pcParts[p.id] or 0) * p.bonus
+		end
+	end
+	return m
+end
+
+-- Cash-per-game multiplier from the money parts (CPU/RAM/Storage/Cooling).
+function GameData.getPCPartsCashMultiplier(pcParts)
+	return _pcPartsMultiplier(pcParts, "money")
+end
+
+-- Subscribers-per-release multiplier from the follower parts (GPU/Monitor/RGB).
+function GameData.getPCPartsSubsMultiplier(pcParts)
+	return _pcPartsMultiplier(pcParts, "followers")
+end
+
 -- ---- Subscribers -----------------------------------------------------------
 -- Your channel audience. Gained when you release games (more for better games,
 -- big bonus on a trend hit). Subscribers (1) earn passive "ad revenue" cash

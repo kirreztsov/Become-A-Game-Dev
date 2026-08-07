@@ -188,7 +188,7 @@ function HomeService.rebuildHome(player)
 	local furn = folder:FindFirstChild("Furniture")
 	if furn then
 		for _, entry in ipairs(data.homeItems) do
-			pcall(buildItem, furn, index, entry, data.pcTier or 0)
+			pcall(buildItem, furn, index, entry, (data.pcParts and data.pcParts.Monitor) or 0)
 		end
 	end
 end
@@ -210,7 +210,7 @@ function HomeService.refreshFurniture(player)
 
 	furn:ClearAllChildren()
 	for _, entry in ipairs(data.homeItems) do
-		pcall(buildItem, furn, index, entry, data.pcTier or 0)
+		pcall(buildItem, furn, index, entry, (data.pcParts and data.pcParts.Monitor) or 0)
 	end
 	-- Worker NPCs sit at the (player-placed) station seats, so re-sync them
 	-- when furniture changes -- a station may have just been placed/moved/removed.

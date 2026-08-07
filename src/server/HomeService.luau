@@ -119,17 +119,18 @@ local function buildRoom(index, tier)
 end
 
 -- Build one item's model at its grid cell (Blender asset or procedural).
-local function buildItem(furn, index, entry, pcTier)
+local function buildItem(furn, index, entry, pcParts)
 	local it = GameData.getHomeItem(entry.id)
 	if not it then return end
 	-- Swapped footprint (w,d) is for positioning + the reserved grid cells.
 	local w, d = GameData.homeFootprint(entry.id, entry.yaw)
 	-- Placeable work stations ("equipment") build as FUNCTIONAL stations (real
-	-- seat + prompts) via PlotManager, not a decorative mesh.
+	-- seat + prompts) via PlotManager, not a decorative mesh. The full pcParts
+	-- table drives the monitor + all-out rig visuals on the New Project PC.
 	if it.station then
 		local corner = roomCorner[index]
 		local pos = GameData.homeCellToWorld(corner.X, corner.Z, corner.Y, entry.gx, entry.gz, w, d)
-		return PlotManager.buildHomeStation(furn, pos, it.station, entry.yaw or 0, pcTier or 0)
+		return PlotManager.buildHomeStation(furn, pos, it.station, entry.yaw or 0, pcParts)
 	end
 	-- Geometry is sized from the item's NATIVE cells; the yaw rotation in `cf`
 	-- re-projects it into the swapped world footprint. (Sizing from the swapped
@@ -188,7 +189,7 @@ function HomeService.rebuildHome(player)
 	local furn = folder:FindFirstChild("Furniture")
 	if furn then
 		for _, entry in ipairs(data.homeItems) do
-			pcall(buildItem, furn, index, entry, (data.pcParts and data.pcParts.Monitor) or 0)
+			pcall(buildItem, furn, index, entry, data.pcParts)
 		end
 	end
 end
@@ -210,7 +211,7 @@ function HomeService.refreshFurniture(player)
 
 	furn:ClearAllChildren()
 	for _, entry in ipairs(data.homeItems) do
-		pcall(buildItem, furn, index, entry, (data.pcParts and data.pcParts.Monitor) or 0)
+		pcall(buildItem, furn, index, entry, data.pcParts)
 	end
 	-- Worker NPCs sit at the (player-placed) station seats, so re-sync them
 	-- when furniture changes -- a station may have just been placed/moved/removed.

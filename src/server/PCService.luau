@@ -21,13 +21,13 @@ function PCService.start()
 
 		data.pcParts = data.pcParts or {}
 		local level = data.pcParts[partId] or 0
-		if level >= GameData.PCPartMaxLevel then
+		if level >= GameData.getPCPartMaxLevel(partId) then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end
 
-		local cost = GameData.getPCPartUpgradeCost(level)
-		if data.cash < cost then
+		local cost = GameData.getPCPartUpgradeCost(partId, level)
+		if not cost or data.cash < cost then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end

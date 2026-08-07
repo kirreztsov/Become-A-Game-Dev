@@ -112,7 +112,6 @@ function PCPanel.init(player, theme, playerState)
 			local level = myParts[part.id] or 0
 			local maxLevel = GameData.getPCPartMaxLevel(part.id)
 			local cur = GameData.getPCPartModel(part.id, level)
-			local kindWord = (part.kind == "money") and "money" or "followers"
 			local hex = (part.kind == "money") and "#7CE38B" or "#FFD166"
 			if level >= maxLevel then
 				r.info.Text = ("%s <b>%s</b>\n<font color=\"%s\" size=\"13\">%s</font> <font color=\"#B9BCC7\" size=\"12\">\194\183 MAXED</font>")
@@ -123,8 +122,8 @@ function PCPanel.init(player, theme, playerState)
 			else
 				local nextModel = GameData.getPCPartModel(part.id, level + 1)
 				local gain = math.floor(((nextModel and nextModel.bonus or 0) - (cur and cur.bonus or 0)) * 100 + 0.5)
-				r.info.Text = ("%s <b>%s</b>\n<font color=\"#B9BCC7\" size=\"12\">Now: %s  \226\134\146  </font><font color=\"%s\" size=\"12\">%s (+%d%% %s)</font>")
-					:format(part.icon, part.name, cur and cur.name or "-", hex, nextModel and nextModel.name or "?", gain, kindWord)
+				r.info.Text = ("%s <b>%s</b>\n<font color=\"#B9BCC7\" size=\"12\">%s \226\134\146 </font><font color=\"%s\" size=\"12\">%s (+%d%%)</font>")
+					:format(part.icon, part.name, cur and cur.name or "-", hex, nextModel and nextModel.name or "?", gain)
 				local cost = GameData.getPCPartUpgradeCost(part.id, level) or 0
 				r.buy.Text = "$" .. withCommas(cost)
 				r.buy.AutoButtonColor = true

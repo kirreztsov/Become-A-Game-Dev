@@ -925,7 +925,7 @@ GameData.HomeCatalog = {
 	-- FUNCTIONAL stations (real seat + prompts) via PlotManager.buildHomeStation,
 	-- so players arrange their own studio. Always available + free (equipment),
 	-- so deleting one is never permanent -- you just re-place it.
-	{ id = "NewProjectStation", name = "New Project PC", icon = "\240\159\134\149",             cells = {2, 2}, station = "NewProject",  equipment = true },
+	{ id = "NewProjectStation", name = "New Project PC", icon = "\240\159\134\149",             cells = {3, 2}, station = "NewProject",  equipment = true },
 	{ id = "CodingStation",     name = "Coding PC",      icon = "\226\154\161",                 cells = {2, 2}, station = "Coding",      equipment = true },
 	{ id = "MapStation",        name = "Map PC",         icon = "\240\159\151\186\239\184\143", cells = {2, 2}, station = "MapBuilding", equipment = true },
 	{ id = "TestingStation",    name = "Testing PC",     icon = "\226\156\168",                 cells = {2, 2}, station = "Testing",     equipment = true },

@@ -1619,14 +1619,95 @@ local MERCH_ACTIVITY = {
 	buyCost = ROOM_COSTS.Merch, perTick = ROOM_PER_TICK.Merch,
 }
 
+-- "All-out" visuals for the New Project PC: a full rig on/around the desk whose
+-- parts change with the player's equipped PC Parts (GameData PC Parts Shop).
+-- Built into the station model at desk-local (x,z), so it rotates with yaw.
+local RGB_STRIP_COLORS = {
+	Color3.fromRGB(255, 70, 70), Color3.fromRGB(255, 180, 40), Color3.fromRGB(80, 220, 100),
+	Color3.fromRGB(60, 150, 255), Color3.fromRGB(180, 90, 255),
+}
+local GPU_TIER_COLORS = {
+	Color3.fromRGB(90, 200, 120), Color3.fromRGB(70, 150, 255), Color3.fromRGB(240, 90, 90),
+	Color3.fromRGB(180, 90, 255), Color3.fromRGB(240, 200, 90),
+}
+local function buildPCRig(parent, origin, x, z, pcParts)
+	pcParts = pcParts or {}
+	local caseT = pcParts.RGB or 0
+	local gpuT = pcParts.GPU or 0
+	local coolT = pcParts.Cooling or 0
+	local monT = pcParts.Monitor or 0
+	local deskTop = FLOOR_TOP + 2.5 -- desk top surface height
+	local nc = function(p) p.CanCollide = false; return p end
+
+	-- ---- PC tower on the floor, right of the desk ----
+	local tx = x + 4.2
+	local towerW, towerH, towerD = 1.8, 3.4, 3.0
+	local tcY = FLOOR_TOP + towerH / 2
+	local caseColor = (caseT == 0 and Color3.fromRGB(196, 170, 120))       -- cardboard box
+		or (caseT == 1 and Color3.fromRGB(178, 182, 190))                  -- basic grey case
+		or Color3.fromRGB(26, 28, 36)                                      -- dark tower
+	nc(makePart("PCTowerBody", Vector3.new(towerW, towerH, towerD), origin + Vector3.new(tx, tcY, z), caseColor, Enum.Material.SmoothPlastic, parent)).CanCollide = true
+
+	-- Glass side panel + visible GPU once you own a real case (tier >= 2).
+	if caseT >= 2 then
+		local glass = nc(makePart("PCTowerGlass", Vector3.new(towerW - 0.2, towerH - 0.5, 0.1), origin + Vector3.new(tx, tcY, z - towerD / 2 - 0.03), Color3.fromRGB(150, 195, 215), Enum.Material.Glass, parent))
+		glass.Transparency = 0.5
+		if gpuT >= 1 then
+			local gc = GPU_TIER_COLORS[math.min(gpuT, #GPU_TIER_COLORS)]
+			nc(makePart("PCTowerGPU", Vector3.new(1.0 + gpuT * 0.06, 0.4, 1.7), origin + Vector3.new(tx, tcY - 0.3, z), gc, Enum.Material.SmoothPlastic, parent))
+		end
+		-- motherboard backplate
+		nc(makePart("PCTowerBoard", Vector3.new(towerW - 0.5, towerH - 1.0, 0.1), origin + Vector3.new(tx, tcY + 0.2, z + towerD / 2 - 0.2), Color3.fromRGB(20, 40, 30), Enum.Material.SmoothPlastic, parent))
+	end
+
+	-- RGB light strips on the front edge -- more + brighter with a better case.
+	if caseT >= 1 then
+		local n = math.min(caseT + 1, #RGB_STRIP_COLORS)
+		for i = 1, n do
+			local yOff = towerH * (i / (n + 1)) - towerH / 2
+			nc(makePart("PCTowerRGB" .. i, Vector3.new(towerW - 0.5, 0.16, 0.08), origin + Vector3.new(tx, tcY + yOff, z - towerD / 2 - 0.06), RGB_STRIP_COLORS[i], Enum.Material.Neon, parent))
+		end
+	end
+
+	-- Front cooling fans; their ring glows with the Cooling tier.
+	for i = 1, 2 do
+		local fy = tcY + (i == 1 and 0.7 or -0.7)
+		nc(makePart("PCTowerFan" .. i, Vector3.new(0.72, 0.72, 0.1), origin + Vector3.new(tx - 0.6, fy, z - towerD / 2 - 0.04), Color3.fromRGB(24, 25, 31), Enum.Material.SmoothPlastic, parent))
+		if coolT >= 1 then
+			local ringColor = (coolT >= 3) and Color3.fromRGB(90, 190, 255) or Color3.fromRGB(120, 170, 220)
+			nc(makePart("PCTowerFanRing" .. i, Vector3.new(0.84, 0.84, 0.05), origin + Vector3.new(tx - 0.6, fy, z - towerD / 2 - 0.02), ringColor, Enum.Material.Neon, parent))
+		end
+	end
+
+	-- ---- Peripherals on the desk ----
+	nc(makePart("PCKeyboard", Vector3.new(2.4, 0.16, 0.9), origin + Vector3.new(x, deskTop + 0.08, z - 0.7), Color3.fromRGB(30, 32, 38), Enum.Material.SmoothPlastic, parent))
+	if caseT >= 3 then
+		local kbrgb = nc(makePart("PCKeyboardRGB", Vector3.new(2.4, 0.05, 0.9), origin + Vector3.new(x, deskTop + 0.17, z - 0.7), Color3.fromRGB(120, 90, 255), Enum.Material.Neon, parent))
+		kbrgb.Transparency = 0.15
+	end
+	nc(makePart("PCMouse", Vector3.new(0.42, 0.16, 0.72), origin + Vector3.new(x + 1.7, deskTop + 0.08, z - 0.7), Color3.fromRGB(30, 32, 38), Enum.Material.SmoothPlastic, parent))
+
+	-- Dual-monitor setup at a high Monitor tier (>= 4).
+	if monT >= 4 then
+		local mh, mw = 1.6 + monT * 0.3, 2.2 + monT * 0.4
+		local mcY = deskTop + 1.0 + mh / 2
+		nc(makePart("PCMonitor2Neck", Vector3.new(0.35, 1.0, 0.35), origin + Vector3.new(x + 3.0, deskTop + 0.5, z + 0.85), Color3.fromRGB(34, 36, 42), Enum.Material.Metal, parent))
+		nc(makePart("PCMonitor2", Vector3.new(mw, mh, 0.25), origin + Vector3.new(x + 3.0, mcY, z + 0.85), Color3.fromRGB(34, 36, 42), Enum.Material.SmoothPlastic, parent))
+		nc(makePart("PCMonitor2Screen", Vector3.new(mw - 0.35, mh - 0.35, 0.06), origin + Vector3.new(x + 3.0, mcY, z + 0.71), GOLD_COLOR, Enum.Material.Neon, parent))
+	end
+end
+
 -- Build ONE functional work station (or the Workers desk) as a self-contained
 -- Model at a Home-room grid cell, rotated by `yaw`. Placeable "equipment"
 -- (HomeService.buildItem) uses this so players arrange their own studio. The
 -- seat keeps its canonical name (e.g. "NewProjectSeat") and the NewProject
 -- monitor keeps its PCUpgradePrompt, so client seat-tracking, DevelopmentService
 -- and the upgrade/manage prompts all keep working wherever the player puts it.
--- `cellCenterWorld` is the footprint centre at floor-top height.
-function PlotManager.buildHomeStation(parent, cellCenterWorld, stationName, yaw, pcTier)
+-- `cellCenterWorld` is the footprint centre at floor-top height. `pcParts` is
+-- the player's equipped-part table (drives the monitor + all-out rig visuals).
+function PlotManager.buildHomeStation(parent, cellCenterWorld, stationName, yaw, pcParts)
+	pcParts = (type(pcParts) == "table") and pcParts or {}
+	local monitorTier = pcParts.Monitor or 0
 	local model = Instance.new("Model")
 	model.Name = stationName .. "Station"
 	model.Parent = parent
@@ -1639,7 +1720,11 @@ function PlotManager.buildHomeStation(parent, cellCenterWorld, stationName, yaw,
 	else
 		for _, config in ipairs(STATION_CONFIGS) do
 			if config.name == stationName then
-				buildStation(model, origin, config, 0, 0, "", pcTier or 0)
+				buildStation(model, origin, config, 0, 0, "", monitorTier)
+				-- The New Project PC is the player's rig -> full all-out visuals.
+				if stationName == "NewProject" then
+					buildPCRig(model, origin, 0, 0, pcParts)
+				end
 				break
 			end
 		end

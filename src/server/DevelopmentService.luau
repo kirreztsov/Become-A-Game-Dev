@@ -384,7 +384,7 @@ function DevelopmentService.start()
 			-- active shop boost multiplies on top of that.
 			-- Subscribers give a permanent multiplier on cash you earn, on top
 			-- of the PC / floor / boost multipliers.
-			cash = math.floor(cash * GameData.getPCCashMultiplier(data.pcTier) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data))
+			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data))
 
 			data.cash += cash
 			data.gamesReleased += 1
@@ -394,7 +394,7 @@ function DevelopmentService.start()
 			-- Releasing a game grows your channel: more subscribers for a better
 			-- game, with a big bonus when it matched a trend. This can cross a
 			-- Play Button milestone (bonus cash + a trophy in the studio).
-			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data))
+			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data) * GameData.getPCPartsSubsMultiplier(data.pcParts))
 			local milestoneReached = PlotManager.grantSubscribers(player, data, subsGained)
 
 			Remotes.DevelopmentComplete:FireClient(player, cash, classification == "copy", hitBonus)

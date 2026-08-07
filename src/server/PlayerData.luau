@@ -13,6 +13,10 @@ local function defaultData()
 		gamesReleased = 0,
 		houseTier = 0,
 		pcTier = 0,
+		-- PC Parts Shop: level (0..PCPartMaxLevel) per component. Money parts
+		-- (CPU/RAM/Storage/Cooling) scale cash/game; follower parts
+		-- (GPU/Monitor/RGB) scale subscribers/release. Replaces the pcTier upgrade.
+		pcParts = { CPU = 0, RAM = 0, Storage = 0, Cooling = 0, GPU = 0, Monitor = 0, RGB = 0 },
 		workers = {
 			Coding = { hired = false, level = 0, rarity = nil },
 			MapBuilding = { hired = false, level = 0, rarity = nil },
@@ -84,6 +88,11 @@ function PlayerData.load(player)
 			-- Existing save found in DataStore -- backfill any fields added since this save was written
 			data.houseTier = data.houseTier or 0
 			data.pcTier = data.pcTier or 0
+			-- Backfill PC part levels (added with the PC Parts Shop).
+			data.pcParts = data.pcParts or {}
+			for _, p in ipairs(GameData.PCParts) do
+				data.pcParts[p.id] = data.pcParts[p.id] or 0
+			end
 			data.idle = data.idle or { Arcade = 0, Merch = 0 }
 			data.roomsOwned = data.roomsOwned or { Arcade = false, Merch = false }
 			data.boostUntil = 0 -- boosts are session-only; never restore a stale one

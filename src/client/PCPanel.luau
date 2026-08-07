@@ -1,3 +1,6 @@
+-- PC Parts Shop: upgrade your computer's 7 parts. Money parts (CPU/RAM/Storage/
+-- Cooling) scale cash per game; follower parts (GPU/Monitor/RGB) scale
+-- subscribers per release. Opens from the New Project computer's prompt.
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
@@ -6,7 +9,18 @@ local Fx = require(script.Parent.Fx)
 
 local PCPanel = {}
 
+local function withCommas(n)
+	local s = tostring(math.floor(n))
+	local out = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+	return (out:gsub("^,", ""))
+end
+
 function PCPanel.init(player, theme, playerState)
+	-- Local snapshot kept fresh from PlayerStateUpdated (don't rely on the
+	-- shared playerState carrying pcParts).
+	local myParts = (playerState and playerState.pcParts) or {}
+	local myCash = (playerState and playerState.cash) or 0
+
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name = "PCPanelGui"
 	screenGui.ResetOnSpawn = false
@@ -14,153 +28,112 @@ function PCPanel.init(player, theme, playerState)
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.fromOffset(340, 220)
+	frame.Size = UDim2.fromOffset(400, 452)
 	frame.Position = UDim2.fromScale(0.5, 0.5)
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	frame.BackgroundColor3 = theme.Panel
 	frame.BorderSizePixel = 0
 	frame.Parent = screenGui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 18)
-	corner.Parent = frame
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = theme.Accent
-	stroke.Thickness = 2
-	stroke.Transparency = 0.4
-	stroke.Parent = frame
-
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new(theme.PanelLight, theme.Panel)
-	gradient.Rotation = 90
-	gradient.Parent = frame
-
-	local headerBar = Instance.new("Frame")
-	headerBar.Name = "HeaderBar"
-	headerBar.Size = UDim2.new(1, 0, 0, 6)
-	headerBar.BackgroundColor3 = theme.Accent
-	headerBar.BorderSizePixel = 0
-	headerBar.Parent = frame
-	local headerCorner = Instance.new("UICorner")
-	headerCorner.CornerRadius = UDim.new(0, 6)
-	headerCorner.Parent = headerBar
+	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 18); corner.Parent = frame
+	local stroke = Instance.new("UIStroke"); stroke.Color = theme.Accent; stroke.Thickness = 2; stroke.Transparency = 0.4; stroke.Parent = frame
+	local gradient = Instance.new("UIGradient"); gradient.Color = ColorSequence.new(theme.PanelLight, theme.Panel); gradient.Rotation = 90; gradient.Parent = frame
+	local headerBar = Instance.new("Frame"); headerBar.Size = UDim2.new(1, 0, 0, 6); headerBar.BackgroundColor3 = theme.Accent; headerBar.BorderSizePixel = 0; headerBar.Parent = frame
+	local hbc = Instance.new("UICorner"); hbc.CornerRadius = UDim.new(0, 6); hbc.Parent = headerBar
 
 	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 16)
-	padding.PaddingBottom = UDim.new(0, 16)
-	padding.PaddingLeft = UDim.new(0, 16)
-	padding.PaddingRight = UDim.new(0, 16)
+	padding.PaddingTop = UDim.new(0, 16); padding.PaddingBottom = UDim.new(0, 14)
+	padding.PaddingLeft = UDim.new(0, 16); padding.PaddingRight = UDim.new(0, 16)
 	padding.Parent = frame
 
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 10)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = frame
+	local title = Instance.new("TextLabel")
+	title.Text = "\240\159\155\146 PC Parts Shop"
+	title.Size = UDim2.new(1, 0, 0, 30); title.Position = UDim2.fromOffset(0, 0)
+	title.BackgroundTransparency = 1; title.TextColor3 = theme.Text; title.Font = Enum.Font.FredokaOne
+	title.TextSize = 24; title.TextXAlignment = Enum.TextXAlignment.Left; title.Parent = frame
 
-	local titleLabel = Instance.new("TextLabel")
-	titleLabel.Text = "\240\159\146\187 PC Upgrade"
-	titleLabel.Size = UDim2.new(1, 0, 0, 30)
-	titleLabel.LayoutOrder = 1
-	titleLabel.BackgroundTransparency = 1
-	titleLabel.TextColor3 = theme.Text
-	titleLabel.Font = Enum.Font.FredokaOne
-	titleLabel.TextSize = 24
-	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-	titleLabel.Parent = frame
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Size = UDim2.new(1, 0, 0, 20); subtitle.Position = UDim2.fromOffset(0, 32)
+	subtitle.BackgroundTransparency = 1; subtitle.TextColor3 = theme.TextMuted; subtitle.Font = Enum.Font.GothamMedium
+	subtitle.TextSize = 14; subtitle.TextXAlignment = Enum.TextXAlignment.Left; subtitle.RichText = true; subtitle.Parent = frame
 
-	local tierLabel = Instance.new("TextLabel")
-	tierLabel.Text = ""
-	tierLabel.Size = UDim2.new(1, 0, 0, 24)
-	tierLabel.LayoutOrder = 2
-	tierLabel.BackgroundTransparency = 1
-	tierLabel.TextColor3 = theme.TextMuted
-	tierLabel.Font = Enum.Font.GothamMedium
-	tierLabel.TextSize = 15
-	tierLabel.TextXAlignment = Enum.TextXAlignment.Left
-	tierLabel.Parent = frame
-
-	local actionButton = Instance.new("TextButton")
-	actionButton.Size = UDim2.new(1, 0, 0, 44)
-	actionButton.LayoutOrder = 3
-	actionButton.BackgroundColor3 = theme.Accent
-	actionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	actionButton.Font = Enum.Font.FredokaOne
-	actionButton.TextSize = 16
-	actionButton.TextWrapped = true
-	actionButton.AutoButtonColor = false
-	actionButton.BorderSizePixel = 0
-	actionButton.Parent = frame
-
-	local actionCorner = Instance.new("UICorner")
-	actionCorner.CornerRadius = UDim.new(0, 10)
-	actionCorner.Parent = actionButton
-
-	local actionGradient = Instance.new("UIGradient")
-	actionGradient.Color = ColorSequence.new(theme.Accent, theme.AccentDeep)
-	actionGradient.Rotation = 90
-	actionGradient.Parent = actionButton
-
-	actionButton.MouseEnter:Connect(function()
-		actionButton.BackgroundColor3 = theme.AccentDeep
-	end)
-	actionButton.MouseLeave:Connect(function()
-		actionButton.BackgroundColor3 = theme.Accent
-	end)
-
-	actionButton.MouseButton1Click:Connect(function()
-		Remotes.RequestUpgradePC:FireServer()
-	end)
+	-- Scrolling list of part rows.
+	local list = Instance.new("ScrollingFrame")
+	list.Size = UDim2.new(1, 0, 1, -104); list.Position = UDim2.fromOffset(0, 58)
+	list.BackgroundTransparency = 1; list.BorderSizePixel = 0
+	list.ScrollBarThickness = 5; list.CanvasSize = UDim2.new(0, 0, 0, 0)
+	list.AutomaticCanvasSize = Enum.AutomaticSize.Y; list.Parent = frame
+	local listLayout = Instance.new("UIListLayout"); listLayout.Padding = UDim.new(0, 8); listLayout.SortOrder = Enum.SortOrder.LayoutOrder; listLayout.Parent = list
 
 	local statusLabel = Instance.new("TextLabel")
-	statusLabel.Text = ""
-	statusLabel.Size = UDim2.new(1, 0, 0, 20)
-	statusLabel.LayoutOrder = 4
-	statusLabel.BackgroundTransparency = 1
-	statusLabel.TextColor3 = theme.Danger
-	statusLabel.Font = Enum.Font.GothamMedium
-	statusLabel.TextSize = 13
-	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-	statusLabel.Parent = frame
+	statusLabel.Text = ""; statusLabel.Size = UDim2.new(1, 0, 0, 18); statusLabel.Position = UDim2.new(0, 0, 1, -40)
+	statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = theme.Danger; statusLabel.Font = Enum.Font.GothamMedium
+	statusLabel.TextSize = 13; statusLabel.TextXAlignment = Enum.TextXAlignment.Left; statusLabel.Parent = frame
 
 	local closeButton = Instance.new("TextButton")
-	closeButton.Text = "Close"
-	closeButton.Size = UDim2.new(1, 0, 0, 32)
-	closeButton.LayoutOrder = 5
-	closeButton.BackgroundColor3 = theme.Neutral
-	closeButton.TextColor3 = theme.Text
-	closeButton.Font = Enum.Font.FredokaOne
-	closeButton.TextSize = 16
-	closeButton.AutoButtonColor = false
-	closeButton.BorderSizePixel = 0
-	closeButton.Parent = frame
+	closeButton.Text = "Close"; closeButton.Size = UDim2.new(1, 0, 0, 30); closeButton.Position = UDim2.new(0, 0, 1, -30)
+	closeButton.BackgroundColor3 = theme.Neutral; closeButton.TextColor3 = theme.Text; closeButton.Font = Enum.Font.FredokaOne
+	closeButton.TextSize = 16; closeButton.AutoButtonColor = true; closeButton.BorderSizePixel = 0; closeButton.Parent = frame
+	local cbc = Instance.new("UICorner"); cbc.CornerRadius = UDim.new(0, 10); cbc.Parent = closeButton
+	closeButton.MouseButton1Click:Connect(function() screenGui.Enabled = false end)
 
-	local closeCorner = Instance.new("UICorner")
-	closeCorner.CornerRadius = UDim.new(0, 10)
-	closeCorner.Parent = closeButton
+	-- Build one row per part; keep handles for refresh().
+	local rows = {}
+	for i, part in ipairs(GameData.PCParts) do
+		local kindColor = (part.kind == "money") and theme.Success or theme.Gold
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, -6, 0, 56); row.BackgroundColor3 = theme.PanelLight
+		row.BorderSizePixel = 0; row.LayoutOrder = i; row.Parent = list
+		local rc = Instance.new("UICorner"); rc.CornerRadius = UDim.new(0, 12); rc.Parent = row
 
-	closeButton.MouseButton1Click:Connect(function()
-		screenGui.Enabled = false
-	end)
+		local info = Instance.new("TextLabel")
+		info.Size = UDim2.new(1, -108, 1, 0); info.Position = UDim2.fromOffset(12, 0)
+		info.BackgroundTransparency = 1; info.TextColor3 = theme.Text; info.Font = Enum.Font.GothamBold
+		info.TextSize = 15; info.TextXAlignment = Enum.TextXAlignment.Left; info.TextYAlignment = Enum.TextYAlignment.Center
+		info.RichText = true; info.Parent = row
+
+		local buy = Instance.new("TextButton")
+		buy.Size = UDim2.fromOffset(92, 40); buy.Position = UDim2.new(1, -100, 0.5, -20)
+		buy.BackgroundColor3 = kindColor; buy.TextColor3 = Color3.fromRGB(255, 255, 255)
+		buy.Font = Enum.Font.FredokaOne; buy.TextSize = 15; buy.AutoButtonColor = true; buy.BorderSizePixel = 0; buy.Parent = row
+		local bc = Instance.new("UICorner"); bc.CornerRadius = UDim.new(0, 10); bc.Parent = buy
+		buy.MouseButton1Click:Connect(function()
+			Remotes.RequestUpgradePart:FireServer(part.id)
+		end)
+
+		rows[part.id] = { info = info, buy = buy, kindColor = kindColor }
+	end
 
 	local function refresh()
-		local tier = playerState.pcTier
-		local multiplier = GameData.getPCCashMultiplier(tier)
-		tierLabel.Text = ("Tier %d of %d \194\183 %.2fx cash"):format(tier, GameData.PCTierCount - 1, multiplier)
-
-		if tier >= GameData.PCTierCount - 1 then
-			actionButton.Text = "Max tier reached!"
-			actionButton.Visible = false
-		else
-			actionButton.Visible = true
-			local cost = GameData.getPCUpgradeCost(tier, playerState.houseTier)
-			actionButton.Text = ("Upgrade PC \194\183 $%d"):format(cost)
+		local cashMult = GameData.getPCPartsCashMultiplier(myParts)
+		local subsMult = GameData.getPCPartsSubsMultiplier(myParts)
+		subtitle.Text = ("<font color=\"#7CE38B\">%.2fx money</font>  \194\183  <font color=\"#FFD166\">%.2fx followers</font>"):format(cashMult, subsMult)
+		for _, part in ipairs(GameData.PCParts) do
+			local r = rows[part.id]
+			local level = myParts[part.id] or 0
+			local kindWord = (part.kind == "money") and "money" or "followers"
+			local hex = (part.kind == "money") and "#7CE38B" or "#FFD166"
+			r.info.Text = ("%s <b>%s</b>   <font color=\"%s\">Lv %d/%d</font>\n<font color=\"#B9BCC7\" size=\"12\">+%d%% %s each level</font>")
+				:format(part.icon, part.name, hex, level, GameData.PCPartMaxLevel, math.floor(part.bonus * 100 + 0.5), kindWord)
+			if level >= GameData.PCPartMaxLevel then
+				r.buy.Text = "MAX"
+				r.buy.BackgroundColor3 = theme.Neutral
+				r.buy.AutoButtonColor = false
+			else
+				local cost = GameData.getPCPartUpgradeCost(level)
+				r.buy.Text = "$" .. withCommas(cost)
+				r.buy.AutoButtonColor = true
+				r.buy.BackgroundColor3 = (myCash >= cost) and r.kindColor or theme.Neutral
+			end
 		end
 	end
 
 	refresh()
 
-	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function()
+	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
+		if data then
+			myParts = data.pcParts or myParts
+			myCash = data.cash or myCash
+		end
 		statusLabel.Text = ""
 		refresh()
 	end)
@@ -168,7 +141,7 @@ function PCPanel.init(player, theme, playerState)
 	Remotes.PCActionResult.OnClientEvent:Connect(function(success)
 		if success then
 			Sound.play("Purchase")
-			Fx.rewardBurst("\240\159\150\165\239\184\143 PC UPGRADED!", theme.Accent)
+			Fx.rewardBurst("\240\159\150\165\239\184\143 PART UPGRADED!", theme.Accent)
 		else
 			statusLabel.Text = "Not enough cash!"
 			Sound.play("Error")

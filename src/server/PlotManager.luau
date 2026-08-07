@@ -283,9 +283,9 @@ local function buildStationMonitorRig(parent, origin, config, tier, x, z, namePr
 	local screen = makePart(namePrefix .. config.name .. "MonitorScreen", Vector3.new(monitorWidth - 0.35, monitorHeight - 0.35, 0.06), origin + Vector3.new(x, monitorCenterY, z + 0.71), screenColor, Enum.Material.Neon, rig)
 	screen.CanCollide = false
 
-	-- Every floor's NewProject monitor carries the PC upgrade prompt (the PC
-	-- is a single shared tier, so any floor opens the same upgrade panel).
-	if config.name == "NewProject" and tier < GameData.PCTierCount - 1 then
+	-- The NewProject monitor always carries the PC prompt -- it now opens the
+	-- PC Parts Shop (there's always some part left to upgrade / view).
+	if config.name == "NewProject" then
 		local upgradePrompt = Instance.new("ProximityPrompt")
 		upgradePrompt.Name = "PCUpgradePrompt"
 		upgradePrompt.ActionText = "Upgrade PC"

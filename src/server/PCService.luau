@@ -5,32 +5,42 @@ local PlayerData = require(script.Parent.PlayerData)
 local PCService = {}
 
 function PCService.start()
-	Remotes.RequestUpgradePC.OnServerEvent:Connect(function(player)
+	-- PC Parts Shop: upgrade one component a level at a time (replaces the old
+	-- single pcTier upgrade). Money parts scale cash/game, follower parts scale
+	-- subscribers/release -- see GameData.getPCParts*Multiplier.
+	Remotes.RequestUpgradePart.OnServerEvent:Connect(function(player, partId)
 		local data = PlayerData.get(player)
 		if not data then
 			return
 		end
-
-		if data.pcTier >= GameData.PCTierCount - 1 then
+		local part = GameData.getPCPart(partId)
+		if not part then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end
 
-		local cost = GameData.getPCUpgradeCost(data.pcTier, data.houseTier)
+		data.pcParts = data.pcParts or {}
+		local level = data.pcParts[partId] or 0
+		if level >= GameData.PCPartMaxLevel then
+			Remotes.PCActionResult:FireClient(player, false)
+			return
+		end
+
+		local cost = GameData.getPCPartUpgradeCost(level)
 		if data.cash < cost then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end
 
 		data.cash -= cost
-		data.pcTier += 1
+		data.pcParts[partId] = level + 1
 
-		-- The PC/monitor now lives in the private Home room, not the studio --
-		-- rebuild the room instead of the (now station-less) studio shell.
-		-- Local require avoids a load-order cycle with PlotManager/HomeService
-		-- at boot.
-		local HomeService = require(script.Parent.HomeService)
-		HomeService.rebuildHome(player)
+		-- Only the Monitor changes the on-screen computer visual, so only that
+		-- needs a room rebuild. Local require avoids a boot load-order cycle.
+		if partId == "Monitor" then
+			local HomeService = require(script.Parent.HomeService)
+			HomeService.rebuildHome(player)
+		end
 
 		Remotes.PCActionResult:FireClient(player, true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)

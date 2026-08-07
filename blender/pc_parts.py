@@ -57,7 +57,7 @@ def cyl(r, depth, loc, bucket, rot=(0, 0, 0), verts=24):
     return _finish(bpy.context.active_object, rot, bucket)
 
 
-def fan_y(center, r, bucket, blades=9):
+def fan_y(center, r, bucket, blades=11):
     """A fan facing -Y (axis along Y): square frame + hub + radial blades, in the
     X-Z plane. All parts go in `bucket` (one colour)."""
     cx, cy, cz = center
@@ -74,7 +74,7 @@ def fan_y(center, r, bucket, blades=9):
         box((r * 0.92, 0.06, 0.24), (bx, cy - 0.03, bz), bucket, rot=(0, 0, math.degrees(a) + 20))
 
 
-def fan_x(center, r, bucket, blades=9):
+def fan_x(center, r, bucket, blades=11):
     """A fan facing -X (axis along X): square frame + hub + radial blades, in the
     Y-Z plane. All parts go in `bucket`."""
     cx, cy, cz = center
@@ -129,26 +129,40 @@ def build_gpu():
     shroud, back, bracket, accent = [], [], [], []
     f1, f2, f3 = [], [], []
 
-    # Thick 3-slot shroud (the body) + PCB backplate behind it (Gaming Trio bulk).
+    # Thick 3-slot shroud + PCB backplate (Gaming Trio bulk).
     box((1.7, 1.4, 4.2), (0, 0.05, 2.15), shroud)
-    box((1.8, 0.16, 4.3), (0, 0.82, 2.15), back)
-    # Angular front lip that frames the fans (two thin plates top & bottom).
-    box((1.72, 0.16, 0.18), (0, -0.66, 4.05), shroud)
-    box((1.72, 0.16, 0.18), (0, -0.66, 0.28), shroud)
-    # Heatsink fins peeking out the +X side (stack of thin plates).
-    for k in range(7):
-        box((0.10, 1.15, 0.5), (0.86, 0.1, 0.7 + k * 0.5), shroud)
-    # 8-pin power connector nub on the top edge.
-    box((0.7, 0.5, 0.28), (0.2, 0.2, 4.32), shroud)
-    # Metal I/O bracket across the bottom + three display-port slots.
-    box((1.8, 1.05, 0.20), (0, 0.05, 0.09), bracket)
-    for sx in (-0.5, 0.0, 0.5):
-        box((0.34, 0.5, 0.10), (sx, -0.35, 0.09), accent)
+    box((1.82, 0.16, 4.3), (0, 0.82, 2.15), back)
+    # Raised ribs on the backplate (stylised vents).
+    for k in range(5):
+        box((0.12, 0.06, 3.4), (-0.6 + k * 0.3, 0.92, 2.15), back)
+    # Front lip framing the fans (top & bottom plates) + two centre dividers.
+    box((1.72, 0.18, 0.20), (0, -0.66, 4.05), shroud)
+    box((1.72, 0.18, 0.20), (0, -0.66, 0.28), shroud)
+    box((1.72, 0.18, 0.14), (0, -0.66, 1.62), shroud)
+    box((1.72, 0.18, 0.14), (0, -0.66, 2.72), shroud)
+    # Diagonal RGB accent slashes across the shroud front.
+    box((0.10, 0.10, 1.1), (0.55, -0.72, 3.4), accent, rot=(0, 0, 32))
+    box((0.10, 0.10, 1.1), (-0.55, -0.72, 0.9), accent, rot=(0, 0, 32))
+    # Heatsink fins peeking out the +X side.
+    for k in range(8):
+        box((0.10, 1.15, 0.42), (0.86, 0.1, 0.6 + k * 0.44), shroud)
+    # Dual 8-pin power connectors on the top edge.
+    box((0.6, 0.45, 0.28), (0.55, 0.2, 4.32), shroud)
+    box((0.6, 0.45, 0.28), (-0.15, 0.2, 4.32), shroud)
+    # Lit logo bar down the +X top edge.
+    box((0.12, 0.14, 2.2), (0.86, -0.5, 2.6), accent)
+    # Metal I/O bracket across the bottom + HDMI/DP port bumps + face screws.
+    box((1.85, 1.05, 0.22), (0, 0.05, 0.10), bracket)
+    box((0.5, 0.30, 0.12), (-0.55, -0.4, 0.10), shroud)          # HDMI port
+    for sx in (-0.25, 0.1, 0.45, 0.8):
+        box((0.16, 0.30, 0.12), (sx, -0.4, 0.10), shroud)        # DP ports
+    for sx, sz in ((-0.78, 0.5), (0.78, 0.5), (-0.78, 3.8), (0.78, 3.8)):
+        cyl(0.09, 0.10, (sx, -0.70, sz), bracket, rot=(90, 0, 0))  # face screws
 
-    # Three fans stacked up the -Y (front) face.
-    fan_y((0, -0.60, 1.05), 0.62, f1)
-    fan_y((0, -0.60, 2.15), 0.62, f2)
-    fan_y((0, -0.60, 3.25), 0.62, f3)
+    # Three fans (with a lit RGB hub dot each) stacked up the -Y face.
+    for fz, fbk in ((1.05, f1), (2.15, f2), (3.25, f3)):
+        fan_y((0, -0.60, fz), 0.62, fbk)
+        cyl(0.10, 0.16, (0, -0.80, fz), accent, rot=(90, 0, 0))
 
     # RGB accent strip down the front-left edge.
     box((0.14, 0.12, 3.5), (-0.80, -0.70, 2.15), accent)
@@ -176,21 +190,26 @@ def build_monitor():
     SZ = 3.4          # centre height of the panel
     PANEL_H = 2.3
     HALF = 4.0        # half the panel width
-    SEGS = 7
+    SEGS = 11
     seg_w = (2 * HALF) / SEGS
     for i in range(SEGS):
         x = -HALF + seg_w * (i + 0.5)
         t = x / HALF                       # -1 .. 1 across the panel
         y = 0.15 - 0.55 * (t * t)          # concave: edges pulled to viewer (-Y)
         rz = -18.0 * t                     # turn each segment tangent to the arc
-        box((seg_w + 0.14, 0.22, PANEL_H + 0.20), (x, y + 0.13, SZ), bezel, rot=(0, 0, rz))   # bezel-back
+        box((seg_w + 0.12, 0.24, PANEL_H + 0.20), (x, y + 0.14, SZ), bezel, rot=(0, 0, rz))   # bezel-back
         box((seg_w + 0.01, 0.10, PANEL_H), (x, y, SZ), screen, rot=(0, 0, rz))                # bright panel
-    # Chin: centre logo bar + power LED.
+        box((seg_w + 0.02, 0.06, 0.14), (x, y + 0.30, SZ + 0.75), accent, rot=(0, 0, rz))     # rear RGB strip
+    # Chin: centre logo bar + power LED + a control joystick nub on the back-right.
     box((0.9, 0.10, 0.14), (0, -0.20, SZ - PANEL_H / 2 - 0.02), accent)
-    box((0.14, 0.12, 0.12), (2.6, 0.02, SZ - PANEL_H / 2 - 0.02), accent)
+    box((0.14, 0.12, 0.12), (2.7, 0.02, SZ - PANEL_H / 2 - 0.02), accent)
+    box((0.3, 0.22, 0.3), (2.4, 0.42, SZ - 0.1), bezel)
+    cyl(0.07, 0.22, (2.4, 0.6, SZ - 0.1), bezel, rot=(90, 0, 0))
 
-    # Central pillar + tripod base (two legs splayed toward the viewer, one back).
+    # Central pillar (with a cable-management slot) + tripod base.
     box((0.55, 0.7, 2.0), (0, 0.35, 1.35), neck)
+    box((0.5, 0.16, 0.5), (0, 0.02, 1.1), neck)                        # cable clip housing
+    box((0.9, 0.9, 0.10), (0, 0.35, 0.24), base)                       # brushed top plate
     box((1.0, 1.0, 0.22), (0, 0.35, 0.11), base)                       # base hub
     box((2.4, 0.5, 0.18), (0.85, -0.45, 0.09), base, rot=(0, 0, -30))  # front-right leg
     box((2.4, 0.5, 0.18), (-0.85, -0.45, 0.09), base, rot=(0, 0, 30))  # front-left leg
@@ -219,25 +238,45 @@ def build_tower():
     box((2.2, 4.6, 4.4), (0, 0.0, 2.55), case)          # main body
     box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.55), glass)    # tempered-glass side (-X)
 
-    # Slatted mesh front panel (-Y), with the RGB fans mounted just behind it.
+    # Slatted mesh front panel (-Y): horizontal slats crossed by vertical bars
+    # to read as a perforated mesh, with the RGB fans mounted just behind it.
     box((2.2, 0.10, 4.4), (0, -2.34, 2.55), front)      # backing
     for k in range(12):
-        box((2.0, 0.14, 0.14), (0, -2.31, 0.65 + k * 0.34), front)
+        box((2.0, 0.14, 0.13), (0, -2.31, 0.65 + k * 0.34), front)
+    for vx in (-0.7, -0.23, 0.23, 0.7):
+        box((0.13, 0.16, 3.9), (vx, -2.30, 2.55), front)
     # Three RGB fans facing the viewer (-Y), stacked up the front intake.
     fan_y((0, -1.95, 1.35), 0.62, f1)
     fan_y((0, -1.95, 2.55), 0.62, f2)
     fan_y((0, -1.95, 3.75), 0.62, f3)
+    # Vertical RGB light strip behind the mesh (glows through the glass).
+    box((0.12, 0.12, 3.6), (-0.92, -1.75, 2.55), accent)
 
-    # Top panel: power button + USB slots.
-    box((0.24, 0.24, 0.12), (0.5, -1.4, 4.82), accent)  # power button
-    box((0.5, 0.16, 0.10), (-0.2, -1.4, 4.82), front)   # USB slots
+    # Top panel: power button, USB slots, and exhaust vent slats.
+    box((0.24, 0.24, 0.12), (0.5, -1.4, 4.86), accent)  # power button
+    box((0.5, 0.16, 0.10), (-0.2, -1.4, 4.86), front)   # USB slots
+    for k in range(4):
+        box((1.5, 0.13, 0.08), (0, -0.2 + k * 0.5, 4.85), front)
+
+    # Rear I/O shield on the +Y back with a few port bumps.
+    box((1.5, 0.10, 1.3), (-0.1, 2.30, 3.7), case)
+    for pz in (3.35, 3.75, 4.15):
+        box((0.9, 0.16, 0.16), (-0.1, 2.34, pz), case)
 
     # Internals visible through the glass (mounted on the +X inner wall).
-    box((0.10, 3.2, 3.2), (0.62, 0.2, 2.7), board)       # motherboard plane
-    box((0.7, 2.4, 0.5), (0.2, 0.0, 1.7), board)         # horizontal GPU
-    box((0.16, 0.4, 1.1), (0.28, 0.85, 3.5), board)      # RAM stick 1
-    box((0.16, 0.4, 1.1), (0.28, 1.15, 3.5), board)      # RAM stick 2
-    cyl(0.55, 0.5, (0.25, 0.5, 3.4), cooler, rot=(0, 90, 0))  # CPU cooler
+    box((0.10, 3.2, 3.2), (0.62, 0.2, 2.9), board)       # motherboard plane
+    box((0.7, 2.4, 0.5), (0.2, 0.0, 1.85), board)        # horizontal GPU
+    for rz in (0.75, 1.05, 1.35, 1.65):                  # four RAM sticks
+        box((0.16, 0.35, 1.1), (0.28, rz, 3.6), board)
+    cyl(0.55, 0.5, (0.25, 0.4, 3.5), cooler, rot=(0, 90, 0))  # CPU cooler body
+    for a in range(6):                                   # cooler fins
+        box((0.42, 0.06, 1.0), (0.25, 0.4, 3.5), cooler, rot=(a * 30, 90, 0))
+    # PSU shroud along the bottom + a storage drive sitting on it.
+    box((0.95, 3.0, 0.8), (0.3, 0.0, 0.65), case)
+    box((0.7, 1.0, 0.5), (0.25, -0.7, 1.35), case)       # SSD/HDD
+    # A couple of cables running from the shroud up to the board.
+    box((0.10, 0.10, 1.3), (0.55, 0.9, 1.7), case, rot=(12, 0, 0))
+    box((0.10, 0.10, 1.1), (0.55, -0.5, 1.5), case, rot=(-10, 0, 0))
 
     # RGB light bar down the front-left corner + four feet (case sits raised).
     box((0.12, 0.14, 3.9), (-1.06, -2.30, 2.55), accent)

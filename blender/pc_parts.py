@@ -8,7 +8,7 @@ subdivision-surface, no 3D text (those broke earlier imports).
 Part names drive in-game colour (set by Lobby.buildPCStoreShelves after clone):
   PCGpu     -> Shroud / Backplate / Fan1..3 / Bracket / Accent
   PCMonitor -> Bezel / Screen / Neck / Base / Accent
-  PCTower   -> Case / Front / Glass / Fan1..3 / Feet / Accent
+  PCTower   -> Case / Front / Glass / Fan1..3 / Feet / Accent / Inner* / Cooler
 
 Built Z-up, 1 unit = 1 stud, "front" toward -Y (fans / screen / glass face -Y;
 Lobby spins each model so the front faces the aisle). Each model's base sits at
@@ -57,6 +57,40 @@ def cyl(r, depth, loc, bucket, rot=(0, 0, 0), verts=24):
     return _finish(bpy.context.active_object, rot, bucket)
 
 
+def fan_y(center, r, bucket, blades=9):
+    """A fan facing -Y (axis along Y): square frame + hub + radial blades, in the
+    X-Z plane. All parts go in `bucket` (one colour)."""
+    cx, cy, cz = center
+    t = 0.14
+    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz + r + t / 2), bucket)   # frame top
+    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz - r - t / 2), bucket)   # frame bottom
+    box((t, 0.30, 2 * r), (cx + r + t / 2, cy, cz), bucket)          # frame right
+    box((t, 0.30, 2 * r), (cx - r - t / 2, cy, cz), bucket)          # frame left
+    cyl(0.20, 0.34, (cx, cy - 0.02, cz), bucket, rot=(90, 0, 0))     # hub
+    for k in range(blades):
+        a = k * 2 * math.pi / blades
+        bx = cx + math.cos(a) * r * 0.52
+        bz = cz + math.sin(a) * r * 0.52
+        box((r * 0.92, 0.06, 0.24), (bx, cy - 0.03, bz), bucket, rot=(0, 0, math.degrees(a) + 20))
+
+
+def fan_x(center, r, bucket, blades=9):
+    """A fan facing -X (axis along X): square frame + hub + radial blades, in the
+    Y-Z plane. All parts go in `bucket`."""
+    cx, cy, cz = center
+    t = 0.14
+    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz + r + t / 2), bucket)   # frame top
+    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz - r - t / 2), bucket)   # frame bottom
+    box((0.30, t, 2 * r), (cx, cy + r + t / 2, cz), bucket)          # frame +Y
+    box((0.30, t, 2 * r), (cx, cy - r - t / 2, cz), bucket)          # frame -Y
+    cyl(0.20, 0.34, (cx - 0.02, cy, cz), bucket, rot=(0, 90, 0))     # hub
+    for k in range(blades):
+        a = k * 2 * math.pi / blades
+        by = cy + math.cos(a) * r * 0.52
+        bz = cz + math.sin(a) * r * 0.52
+        box((0.06, r * 0.92, 0.24), (cx - 0.03, by, bz), bucket, rot=(math.degrees(a) + 20, 0, 0))
+
+
 def join_bevel(parts, name, bevel=0.05):
     if not parts:
         return
@@ -86,92 +120,132 @@ def export(filename):
 
 # --------------------------------------------------------------------------
 # GPU -- a triple-fan graphics card stood UPRIGHT on its short end (the classic
-# store-display pose): long axis vertical (Z), the big fan face toward -Y. Keeps
-# a small footprint on the pedestal. ~4.2 studs tall as built.
+# store-display pose): long axis vertical (Z), fan face toward -Y. ~4.2 studs
+# tall as built. Detail: real fan blades, heatsink fins along the top edge, an
+# 8-pin power connector, an I/O bracket with display-port slots.
 # --------------------------------------------------------------------------
 def build_gpu():
     clear_scene()
     shroud, back, bracket, accent = [], [], [], []
     f1, f2, f3 = [], [], []
 
-    # Plastic shroud (the body you see) + PCB backplate behind it.
-    box((1.7, 1.1, 4.2), (0, 0.0, 2.15), shroud)
-    box((1.7, 0.16, 4.2), (0, 0.63, 2.15), back)
-    # Metal I/O bracket across the bottom.
-    box((1.75, 1.05, 0.18), (0, 0.02, 0.09), bracket)
+    # Plastic shroud (the body) + PCB backplate behind it.
+    box((1.7, 1.1, 4.2), (0, 0.05, 2.15), shroud)
+    box((1.8, 0.16, 4.3), (0, 0.66, 2.15), back)
+    # Angular front lip that frames the fans (two thin plates top & bottom).
+    box((1.72, 0.16, 0.18), (0, -0.52, 4.05), shroud)
+    box((1.72, 0.16, 0.18), (0, -0.52, 0.28), shroud)
+    # Heatsink fins peeking out the +X side (stack of thin plates).
+    for k in range(7):
+        box((0.10, 0.9, 0.5), (0.86, 0.1, 0.7 + k * 0.5), shroud)
+    # 8-pin power connector nub on the top edge.
+    box((0.7, 0.5, 0.28), (0.2, 0.15, 4.32), shroud)
+    # Metal I/O bracket across the bottom + three display-port slots.
+    box((1.8, 1.05, 0.20), (0, 0.05, 0.09), bracket)
+    for sx in (-0.5, 0.0, 0.5):
+        box((0.34, 0.5, 0.10), (sx, -0.35, 0.09), accent)
 
-    # Three fans stacked up the -Y (front) face -- axis along Y.
-    for fz, bucket in ((1.05, f1), (2.15, f2), (3.25, f3)):
-        cyl(0.62, 0.24, (0, -0.50, fz), bucket, rot=(90, 0, 0))   # fan ring
-        cyl(0.16, 0.30, (0, -0.54, fz), bucket, rot=(90, 0, 0))   # hub cap
+    # Three fans stacked up the -Y (front) face.
+    fan_y((0, -0.42, 1.05), 0.62, f1)
+    fan_y((0, -0.42, 2.15), 0.62, f2)
+    fan_y((0, -0.42, 3.25), 0.62, f3)
 
     # RGB accent strip down the front-left edge.
-    box((0.14, 0.12, 3.6), (-0.78, -0.46, 2.15), accent)
+    box((0.14, 0.12, 3.5), (-0.80, -0.50, 2.15), accent)
 
-    join_bevel(shroud, "Shroud", bevel=0.06)
+    join_bevel(shroud, "Shroud", bevel=0.05)
     join_bevel(back, "Backplate", bevel=0.02)
     join_bevel(bracket, "Bracket", bevel=0.02)
-    join_bevel(f1, "Fan1", bevel=0.03)
-    join_bevel(f2, "Fan2", bevel=0.03)
-    join_bevel(f3, "Fan3", bevel=0.03)
+    join_bevel(f1, "Fan1", bevel=0.02)
+    join_bevel(f2, "Fan2", bevel=0.02)
+    join_bevel(f3, "Fan3", bevel=0.02)
     join_bevel(accent, "Accent", bevel=0.02)
     export("PCGpu.fbx")
 
 
 # --------------------------------------------------------------------------
-# MONITOR -- a widescreen gaming monitor on a stand, screen toward -Y.
-# ~5 studs wide, ~4.6 tall including base.
+# MONITOR -- a widescreen gaming monitor on a stand, screen toward -Y. Detail:
+# thin bezel, a rear housing bulge, a V-shaped stand base + hinge neck, a chin
+# logo bar, a power LED and control buttons. ~4.6 studs tall as built.
 # --------------------------------------------------------------------------
 def build_monitor():
     clear_scene()
     bezel, screen, neck, base, accent = [], [], [], [], []
 
-    SCREEN_Z = 3.05  # centre height of the panel
-    box((5.0, 0.24, 3.0), (0, 0.02, SCREEN_Z), bezel)      # outer frame
-    box((4.6, 0.10, 2.6), (0, -0.13, SCREEN_Z), screen)    # display panel (front)
-    box((0.55, 0.55, 1.15), (0, 0.18, 1.05), neck)         # stand neck
-    box((2.5, 1.4, 0.18), (0, 0.18, 0.09), base)           # stand foot on ground
-    box((4.4, 0.10, 0.12), (0, -0.19, 1.62), accent)       # RGB strip along the chin
+    SZ = 3.15  # centre height of the panel
+    box((5.0, 0.18, 3.0), (0, 0.05, SZ), bezel)         # thin outer frame
+    box((4.62, 0.10, 2.64), (0, -0.10, SZ), screen)     # display panel (front)
+    box((4.2, 0.5, 2.2), (0, 0.45, SZ), bezel)          # rear housing bulge
+    # Chin: logo bar + power LED + two control-button nubs (lower-right back).
+    box((0.9, 0.06, 0.16), (0, -0.16, SZ - 1.35), accent)      # centre logo bar
+    box((0.14, 0.10, 0.14), (2.0, 0.22, SZ - 1.35), accent)    # power LED
+    box((0.5, 0.16, 0.12), (1.4, 0.5, SZ - 1.3), bezel)        # button strip
 
-    join_bevel(bezel, "Bezel", bevel=0.05)
+    # Hinge neck + V-shaped stand feet on the ground.
+    box((0.6, 0.6, 1.2), (0, 0.35, 1.15), neck)
+    box((0.35, 0.35, 0.9), (0, 0.2, 0.55), neck)
+    box((2.6, 0.5, 0.16), (0, 0.35, 0.09), base, rot=(0, 0, 22))
+    box((2.6, 0.5, 0.16), (0, 0.35, 0.09), base, rot=(0, 0, -22))
+    box((0.9, 1.3, 0.14), (0, 0.35, 0.08), base)        # centre pad
+
+    join_bevel(bezel, "Bezel", bevel=0.04)
     join_bevel(screen, "Screen", bevel=0.02)
     join_bevel(neck, "Neck", bevel=0.04)
-    join_bevel(base, "Base", bevel=0.05)
+    join_bevel(base, "Base", bevel=0.04)
     join_bevel(accent, "Accent", bevel=0.02)
     export("PCMonitor.fbx")
 
 
 # --------------------------------------------------------------------------
 # TOWER -- an RGB PC case: glass side panel on -X, front toward -Y, three RGB
-# fans stacked at the front intake (visible through the glass). ~4.5 studs tall.
+# fans stacked at the front intake, PLUS visible internals through the glass
+# (motherboard, a horizontal GPU, two RAM sticks, a round CPU cooler). Front
+# panel is a slatted mesh grille. ~4.6 studs tall as built.
 # --------------------------------------------------------------------------
 def build_tower():
     clear_scene()
     case, front, glass, feet, accent = [], [], [], [], []
+    board, cooler = [], []
     f1, f2, f3 = [], [], []
 
     box((2.2, 4.6, 4.4), (0, 0.0, 2.35), case)          # main body
-    box((2.2, 0.16, 4.4), (0, -2.30, 2.35), front)      # front panel (-Y)
     box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.35), glass)    # tempered-glass side (-X)
 
-    # Three RGB intake fans stacked up the front, axis along X (face the glass).
-    for fz, bucket in ((1.15, f1), (2.35, f2), (3.55, f3)):
-        cyl(0.55, 0.18, (-0.55, -1.65, fz), bucket, rot=(0, 90, 0))
-        cyl(0.14, 0.24, (-0.60, -1.65, fz), bucket, rot=(0, 90, 0))
+    # Slatted front-panel grille (mesh intake) toward -Y.
+    box((2.2, 0.10, 4.4), (0, -2.34, 2.35), front)      # backing
+    for k in range(11):
+        box((1.9, 0.16, 0.18), (0, -2.30, 0.55 + k * 0.36), front)
+    # Top panel: power button + two USB slots.
+    box((0.22, 0.22, 0.12), (0.5, -1.4, 4.62), accent)  # power button
+    box((0.5, 0.16, 0.10), (-0.2, -1.4, 4.62), front)   # USB slots
+
+    # Internals visible through the glass (mounted on the +X inner wall).
+    box((0.10, 3.4, 3.4), (0.55, 0.1, 2.5), board)       # motherboard plane
+    box((0.7, 2.6, 0.5), (0.15, -0.2, 1.5), board)       # horizontal GPU
+    box((0.18, 0.5, 1.2), (0.2, 1.1, 3.3), board)        # RAM stick 1
+    box((0.18, 0.5, 1.2), (0.2, 1.35, 3.3), board)       # RAM stick 2
+    cyl(0.55, 0.5, (0.2, 0.8, 3.3), cooler, rot=(0, 90, 0))  # CPU cooler
+
+    # Three RGB intake fans stacked up the front, facing the glass (-X).
+    fan_x((-0.55, -1.55, 1.15), 0.55, f1)
+    fan_x((-0.55, -1.55, 2.35), 0.55, f2)
+    fan_x((-0.55, -1.55, 3.55), 0.55, f3)
 
     # RGB light bar down the front edge + two feet.
-    box((0.12, 0.14, 3.9), (-1.06, -2.28, 2.35), accent)
+    box((0.12, 0.14, 3.9), (-1.06, -2.30, 2.35), accent)
     box((0.6, 1.2, 0.18), (-0.7, 0, 0.09), feet)
     box((0.6, 1.2, 0.18), (0.7, 0, 0.09), feet)
 
     join_bevel(case, "Case", bevel=0.07)
-    join_bevel(front, "Front", bevel=0.03)
+    join_bevel(front, "Front", bevel=0.02)
     join_bevel(glass, "Glass", bevel=0.02)
     join_bevel(feet, "Feet", bevel=0.02)
     join_bevel(accent, "Accent", bevel=0.02)
-    join_bevel(f1, "Fan1", bevel=0.03)
-    join_bevel(f2, "Fan2", bevel=0.03)
-    join_bevel(f3, "Fan3", bevel=0.03)
+    join_bevel(board, "InnerBoard", bevel=0.02)
+    join_bevel(cooler, "Cooler", bevel=0.03)
+    join_bevel(f1, "Fan1", bevel=0.02)
+    join_bevel(f2, "Fan2", bevel=0.02)
+    join_bevel(f3, "Fan3", bevel=0.02)
     export("PCTower.fbx")
 
 

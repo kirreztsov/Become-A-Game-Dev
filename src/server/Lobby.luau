@@ -2414,6 +2414,10 @@ local function paintPCTower(p)
 		p.Color, p.Material = TOWER_FAN_COLORS[tonumber(fanIdx)] or TOWER_FAN_COLORS[1], Enum.Material.SmoothPlastic
 	elseif n:find("Glass") then
 		p.Color, p.Material, p.Transparency = Color3.fromRGB(150, 190, 220), Enum.Material.Glass, 0.55
+	elseif n:find("Cooler") then
+		p.Color, p.Material = Color3.fromRGB(120, 125, 140), Enum.Material.Metal
+	elseif n:find("InnerBoard") then
+		p.Color, p.Material = Color3.fromRGB(30, 70, 55), Enum.Material.SmoothPlastic -- motherboard green
 	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
 	elseif n:find("Front") then

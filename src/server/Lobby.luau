@@ -2369,6 +2369,68 @@ local PC_SHELF_SPOTS = {
 	{ x = -6.2, z = -4.0 }, { x = -6.2, z = -1.3 }, { x = -6.2, z = 1.3 }, { x = -6.2, z = 4.0 },
 	{ x = 6.2, z = -1.3 }, { x = 6.2, z = 1.3 }, { x = 6.2, z = 4.0 },
 }
+
+-- Detailed Blender display models for the shelves, keyed by PC-part id. Each is
+-- placed on the pedestal via placeProp (scaled to `height` studs tall, base on
+-- the pedestal top), painted by mesh-part name, then falls back to the coloured
+-- placeholder box when the asset isn't synced yet. `extraYaw` fine-tunes the
+-- facing on top of the aisle-facing turn. Categories without an entry (CPU/RAM/
+-- Storage/Cooling) keep the placeholder box until their models are built.
+local function paintPCGpu(p)
+	local n = p.Name
+	if n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Bracket") then
+		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
+	elseif n:find("Fan") then
+		p.Color, p.Material = Color3.fromRGB(58, 60, 70), Enum.Material.SmoothPlastic
+	elseif n:find("Backplate") then
+		p.Color, p.Material = Color3.fromRGB(22, 22, 28), Enum.Material.SmoothPlastic
+	else -- Shroud
+		p.Color, p.Material = Color3.fromRGB(38, 40, 48), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = false
+end
+local function paintPCMonitor(p)
+	local n = p.Name
+	if n:find("Screen") then
+		p.Color, p.Material = Color3.fromRGB(70, 130, 225), Enum.Material.SmoothPlastic
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(235, 95, 220), Enum.Material.SmoothPlastic
+	elseif n:find("Neck") then
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
+	elseif n:find("Base") then
+		p.Color, p.Material = Color3.fromRGB(34, 36, 44), Enum.Material.SmoothPlastic
+	else -- Bezel
+		p.Color, p.Material = Color3.fromRGB(26, 28, 34), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = false
+end
+local TOWER_FAN_COLORS = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(235, 95, 220), Color3.fromRGB(120, 240, 150) }
+local function paintPCTower(p)
+	local n = p.Name
+	local fanIdx = n:match("^Fan(%d)")
+	if fanIdx then
+		p.Color, p.Material = TOWER_FAN_COLORS[tonumber(fanIdx)] or TOWER_FAN_COLORS[1], Enum.Material.SmoothPlastic
+	elseif n:find("Glass") then
+		p.Color, p.Material, p.Transparency = Color3.fromRGB(150, 190, 220), Enum.Material.Glass, 0.55
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Front") then
+		p.Color, p.Material = Color3.fromRGB(22, 24, 30), Enum.Material.SmoothPlastic
+	elseif n:find("Feet") then
+		p.Color, p.Material = Color3.fromRGB(20, 20, 24), Enum.Material.SmoothPlastic
+	else -- Case
+		p.Color, p.Material = Color3.fromRGB(30, 32, 40), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = false
+end
+local PC_SHELF_MODELS = {
+	GPU = { asset = "PCGpu", height = 2.6, extraYaw = 0, paint = paintPCGpu },
+	Monitor = { asset = "PCMonitor", height = 2.6, extraYaw = 0, paint = paintPCMonitor },
+	RGB = { asset = "PCTower", height = 3.0, extraYaw = math.rad(35), paint = paintPCTower },
+}
+
 local function buildPCStoreShelves(lobbyFolder, center)
 	for i, part in ipairs(GameData.PCParts) do
 		local spot = PC_SHELF_SPOTS[i]
@@ -2376,9 +2438,20 @@ local function buildPCStoreShelves(lobbyFolder, center)
 		local propColor = (part.kind == "money") and Color3.fromRGB(90, 200, 150) or Color3.fromRGB(150, 110, 230)
 		-- Pedestal (the named anchor the client + prompt hang off).
 		local pedestal = makePart("PCShelf_" .. part.id, Vector3.new(1.8, 3, 1.8), center + Vector3.new(spot.x, FLOOR_TOP + 1.5, spot.z), Color3.fromRGB(60, 62, 72), Enum.Material.SmoothPlastic, lobbyFolder)
-		-- Placeholder component prop on top (swapped for a Blender model later).
-		local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.2, 0.9, 1.2), center + Vector3.new(spot.x, FLOOR_TOP + 3.45, spot.z), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
-		prop.CanCollide = false
+		-- The display component sits on the pedestal top: a detailed Blender model
+		-- if synced, otherwise the coloured placeholder box. Shelves face the aisle
+		-- (west wall looks +X, east wall looks -X); the tower gets a 3/4 turn.
+		local shelfYaw = (spot.x < 0) and -math.pi / 2 or math.pi / 2
+		local pedestalTop = center + Vector3.new(spot.x, FLOOR_TOP + 3, spot.z)
+		local cfg = PC_SHELF_MODELS[part.id]
+		local model = cfg and placeProp(cfg.asset, lobbyFolder, pedestalTop, cfg.height, shelfYaw + cfg.extraYaw, cfg.paint)
+		if model then
+			model.Name = "PCShelfProp_" .. part.id
+		else
+			-- Placeholder component prop on top (swapped for a Blender model later).
+			local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.2, 0.9, 1.2), center + Vector3.new(spot.x, FLOOR_TOP + 3.45, spot.z), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
+			prop.CanCollide = false
+		end
 		-- Floating info label -- text is set PER-PLAYER on the client (each player
 		-- has different owned tiers / prices / deal), so leave it blank here.
 		local bb = Instance.new("BillboardGui")

@@ -2369,11 +2369,6 @@ local SHOP_PLACEMENTS = {
 -- the PartId). No screen menu -- you walk the aisle and buy at the shelf. A
 -- hidden PCStoreZone part lets the client roll the shopkeeper's per-visit deal
 -- when you step inside. Placeholder props get swapped for Blender models later.
-local PC_SHELF_SPOTS = {
-	{ x = -6.2, z = -4.0 }, { x = -6.2, z = -1.3 }, { x = -6.2, z = 1.3 }, { x = -6.2, z = 4.0 },
-	{ x = 6.2, z = -1.3 }, { x = 6.2, z = 1.3 }, { x = 6.2, z = 4.0 },
-}
-
 -- Detailed Blender display models for the shelves, keyed by PC-part id. Each is
 -- placed on the pedestal via placeProp (scaled to `height` studs tall, base on
 -- the pedestal top), painted by mesh-part name, then falls back to the coloured
@@ -2400,9 +2395,9 @@ end
 local function paintPCMonitor(p)
 	local n = p.Name
 	local sidx = n:match("^Screen(%d+)")
-	if sidx then -- vibrant wallpaper gradient across the ultrawide (blue->cyan->green->orange)
-		local h = 0.62 - 0.57 * ((tonumber(sidx) - 1) / 10)
-		p.Color, p.Material = Color3.fromHSV(h, 0.82, 1), Enum.Material.SmoothPlastic
+	if sidx then -- smooth cool wallpaper gradient across the ultrawide (blue -> purple)
+		local h = 0.58 + 0.28 * ((tonumber(sidx) - 1) / 10)
+		p.Color, p.Material = Color3.fromHSV(h, 0.68, 1), Enum.Material.SmoothPlastic
 	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(235, 95, 220), Enum.Material.SmoothPlastic
 	elseif n:find("Neck") then
@@ -2447,59 +2442,176 @@ local PC_SHELF_MODELS = {
 	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
 }
 
-local function buildPCStoreShelves(lobbyFolder, center)
-	for i, part in ipairs(GameData.PCParts) do
-		local spot = PC_SHELF_SPOTS[i]
-		if not spot then break end
+-- Build ONE product station on a counter: the counter block, a display model
+-- (or fallback box) on top facing the aisle, the per-player floating info label,
+-- a hanging category sign, and the "Buy" prompt. `topPos` is the counter-top
+-- centre in world; `faceYaw` turns the product toward the aisle; `ceilingY` is
+-- where the hanging sign hangs from.
+local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ceilingY)
+	-- Counter: a white body with an accent base skirt (the shop-display look).
+	makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(242, 242, 247), Enum.Material.SmoothPlastic, lobbyFolder)
+	local skirt = makePart("PCW_CounterBase_" .. part.id, Vector3.new(4.5, 0.7, 4.5), Vector3.new(counterX, FLOOR_TOP + 0.35, counterZ), Color3.fromRGB(232, 150, 92), Enum.Material.SmoothPlastic, lobbyFolder)
+	skirt.CanCollide = false
+	local topY = FLOOR_TOP + 2.6
+
+	-- The named anchor the client billboard + buy prompt hang off (thin plate on
+	-- the counter top). Kept even when the model is present so PCPanel can find it.
+	local anchor = makePart("PCShelf_" .. part.id, Vector3.new(2.6, 0.3, 2.6), Vector3.new(counterX, topY + 0.15, counterZ), Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic, lobbyFolder)
+	anchor.CanCollide = false
+
+	-- Display model on the counter (detailed Blender model if synced, else box).
+	local cfg = PC_SHELF_MODELS[part.id]
+	local topWorld = Vector3.new(counterX, topY + 0.3, counterZ)
+	local model = cfg and placeProp(cfg.asset, lobbyFolder, topWorld, cfg.size, faceYaw + cfg.extraYaw, cfg.paint, cfg.byWidth)
+	if model then
+		model.Name = "PCShelfProp_" .. part.id
+	else
 		local propColor = (part.kind == "money") and Color3.fromRGB(90, 200, 150) or Color3.fromRGB(150, 110, 230)
-		-- Pedestal (the named anchor the client + prompt hang off).
-		local pedestal = makePart("PCShelf_" .. part.id, Vector3.new(1.8, 3, 1.8), center + Vector3.new(spot.x, FLOOR_TOP + 1.5, spot.z), Color3.fromRGB(60, 62, 72), Enum.Material.SmoothPlastic, lobbyFolder)
-		-- The display component sits on the pedestal top: a detailed Blender model
-		-- if synced, otherwise the coloured placeholder box. Shelves face the aisle
-		-- (west wall looks +X, east wall looks -X); the tower gets a 3/4 turn.
-		local shelfYaw = (spot.x < 0) and -math.pi / 2 or math.pi / 2
-		local pedestalTop = center + Vector3.new(spot.x, FLOOR_TOP + 3, spot.z)
-		local cfg = PC_SHELF_MODELS[part.id]
-		local model = cfg and placeProp(cfg.asset, lobbyFolder, pedestalTop, cfg.size, shelfYaw + cfg.extraYaw, cfg.paint, cfg.byWidth)
-		if model then
-			model.Name = "PCShelfProp_" .. part.id
-		else
-			-- Placeholder component prop on top (swapped for a Blender model later).
-			local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.2, 0.9, 1.2), center + Vector3.new(spot.x, FLOOR_TOP + 3.45, spot.z), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
-			prop.CanCollide = false
-		end
-		-- Floating info label -- text is set PER-PLAYER on the client (each player
-		-- has different owned tiers / prices / deal), so leave it blank here.
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "Info"
-		bb.Size = UDim2.fromOffset(210, 96)
-		bb.StudsOffset = Vector3.new(0, 3.0, 0)
-		bb.MaxDistance = 45
-		bb.Parent = pedestal
-		local lbl = Instance.new("TextLabel")
-		lbl.Name = "Text"
-		lbl.Size = UDim2.fromScale(1, 1)
-		lbl.BackgroundTransparency = 1
-		lbl.RichText = true
-		lbl.TextScaled = true
-		lbl.Font = Enum.Font.FredokaOne
-		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-		lbl.TextStrokeTransparency = 0.35
-		lbl.Text = part.name
-		lbl.Parent = bb
-		-- Buy prompt (server buys the triggering player's next tier of this part).
-		local buy = Instance.new("ProximityPrompt")
-		buy.Name = "PCBuyPrompt"
-		buy.ActionText = "Buy"
-		buy.ObjectText = part.name
-		buy.HoldDuration = 0.2
-		buy.MaxActivationDistance = 9
-		buy.RequiresLineOfSight = false
-		buy:SetAttribute("PartId", part.id)
-		buy.Parent = pedestal
+		local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.4, 1.4, 1.4), Vector3.new(counterX, topY + 1.0, counterZ), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
+		prop.CanCollide = false
 	end
-	-- Invisible zone the client watches to roll the shopkeeper's per-visit deal.
-	local zone = makePart("PCStoreZone", Vector3.new(13, 7, 10), center + Vector3.new(0, FLOOR_TOP + 3.5, 0), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
+
+	-- Per-player floating info label (text set on the client: owned tier / price / deal).
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "Info"
+	bb.Size = UDim2.fromOffset(210, 96)
+	bb.StudsOffset = Vector3.new(0, 3.6, 0)
+	bb.MaxDistance = 55
+	bb.Parent = anchor
+	local lbl = Instance.new("TextLabel")
+	lbl.Name = "Text"
+	lbl.Size = UDim2.fromScale(1, 1)
+	lbl.BackgroundTransparency = 1
+	lbl.RichText = true
+	lbl.TextScaled = true
+	lbl.Font = Enum.Font.FredokaOne
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.TextStrokeTransparency = 0.35
+	lbl.Text = part.name
+	lbl.Parent = bb
+
+	-- Buy prompt (server buys the triggering player's next tier of this part).
+	local buy = Instance.new("ProximityPrompt")
+	buy.Name = "PCBuyPrompt"
+	buy.ActionText = "Buy"
+	buy.ObjectText = part.name
+	buy.HoldDuration = 0.2
+	buy.MaxActivationDistance = 9
+	buy.RequiresLineOfSight = false
+	buy:SetAttribute("PartId", part.id)
+	buy.Parent = anchor
+
+	-- Hanging category sign from the ceiling above the counter (both faces).
+	local signBoard = makePart("PCW_Sign_" .. part.id, Vector3.new(4.6, 1.3, 0.2), Vector3.new(counterX, ceilingY - 1.6, counterZ), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
+	signBoard.CanCollide = false -- default faces +/-Z so it reads as you walk down the aisle
+	local hanger = makePart("PCW_SignRod_" .. part.id, Vector3.new(0.12, 1.0, 0.12), Vector3.new(counterX, ceilingY - 0.6, counterZ), Color3.fromRGB(60, 60, 66), Enum.Material.Metal, lobbyFolder)
+	hanger.CanCollide = false
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.CanvasSize = Vector2.new(360, 100)
+		sg.LightInfluence = 0
+		sg.Parent = signBoard
+		local sl = Instance.new("TextLabel")
+		sl.Size = UDim2.fromScale(1, 1)
+		sl.BackgroundTransparency = 1
+		sl.Text = part.icon .. " " .. part.name
+		sl.Font = Enum.Font.FredokaOne
+		sl.TextScaled = true
+		sl.TextColor3 = Color3.fromRGB(255, 240, 210)
+		sl.Parent = sg
+	end
+end
+
+-- A small potted plant (pot + leafy top) for warehouse decor.
+local function buildPCPlant(lobbyFolder, name, x, z)
+	makePart(name .. "Pot", Vector3.new(1.4, 1.4, 1.4), Vector3.new(x, FLOOR_TOP + 0.7, z), Color3.fromRGB(200, 120, 80), Enum.Material.SmoothPlastic, lobbyFolder)
+	local leaf = makePart(name .. "Leaf", Vector3.new(2.2, 2.6, 2.2), Vector3.new(x, FLOOR_TOP + 2.7, z), Color3.fromRGB(70, 150, 90), Enum.Material.Grass, lobbyFolder)
+	leaf.CanCollide = false
+end
+
+-- The physical PC Store is a bright warehouse: a long hall you walk down with
+-- product counters on both sides (one per PC-part category), hanging category
+-- signs, warm walls + ceiling lights, plants, and a shopkeeper. Buying is still
+-- physical (walk to a counter, press the Buy prompt); the whole interior is the
+-- deal-roll zone. `center` is the old storefront point; the hall extends -Z.
+local function buildPCWarehouse(lobbyFolder, center, def)
+	local W, L, H, wt = 24, 40, 13, 0.6
+	local cx = center.X
+	local frontZ = center.Z + 6         -- entrance wall (aligned with the old storefront)
+	local backZ = frontZ - L
+	local cz = (frontZ + backZ) / 2
+	local wallY = FLOOR_TOP + H / 2
+	local ceilingY = FLOOR_TOP + H
+	local WALL = Color3.fromRGB(224, 152, 92)
+	local TRIM = Color3.fromRGB(206, 120, 70)
+
+	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(214, 210, 222), Enum.Material.Concrete, lobbyFolder)
+	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(238, 236, 232), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_WallRight", Vector3.new(wt, H, L), Vector3.new(cx + W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
+	-- Front wall with a wide doorway gap.
+	local doorW, doorH = 9, 8
+	local sideW = (W - doorW) / 2
+	makePart("PCW_FrontLeft", Vector3.new(sideW, H, wt), Vector3.new(cx - (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_FrontRight", Vector3.new(sideW, H, wt), Vector3.new(cx + (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_Lintel", Vector3.new(doorW, H - doorH, wt), Vector3.new(cx, FLOOR_TOP + doorH + (H - doorH) / 2, frontZ), TRIM, Enum.Material.Brick, lobbyFolder)
+
+	-- Entrance banner over the door (faces +Z, out toward the avenue).
+	local banner = makePart("PCW_Banner", Vector3.new(W - 2, 2.2, 0.3), Vector3.new(cx, ceilingY + 1.3, frontZ + 0.2), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
+	banner.CanCollide = false
+	local bsg = Instance.new("SurfaceGui")
+	bsg.Face = Enum.NormalId.Front
+	bsg.CanvasSize = Vector2.new(520, 90)
+	bsg.LightInfluence = 0
+	bsg.Parent = banner
+	local btl = Instance.new("TextLabel")
+	btl.Size = UDim2.fromScale(1, 1)
+	btl.BackgroundTransparency = 1
+	btl.Text = def.name .. " \226\128\162 MEGASTORE"
+	btl.Font = Enum.Font.FredokaOne
+	btl.TextScaled = true
+	btl.TextColor3 = Color3.fromRGB(255, 240, 210)
+	btl.Parent = bsg
+
+	-- Ceiling light bars down the hall (bright warm SmoothPlastic + soft lights).
+	for i = 0, 3 do
+		local lz = frontZ - 6 - i * ((L - 8) / 3)
+		local bar = makePart("PCW_Light" .. i, Vector3.new(6, 0.3, 1.6), Vector3.new(cx, ceilingY - 0.4, lz), Color3.fromRGB(255, 246, 220), Enum.Material.SmoothPlastic, lobbyFolder)
+		bar.CanCollide = false
+		local pl = Instance.new("PointLight")
+		pl.Brightness = 1.6
+		pl.Range = 26
+		pl.Color = Color3.fromRGB(255, 244, 214)
+		pl.Parent = bar
+	end
+
+	-- Seven product counters -- four down the left wall, three down the right --
+	-- each facing the central aisle. Order follows GameData.PCParts.
+	local LAYOUT = {
+		{ -9, frontZ - 6 }, { -9, frontZ - 16 }, { -9, frontZ - 26 }, { -9, frontZ - 36 },
+		{ 9, frontZ - 9 }, { 9, frontZ - 21 }, { 9, frontZ - 33 },
+	}
+	for i, part in ipairs(GameData.PCParts) do
+		local spot = LAYOUT[i]
+		if not spot then break end
+		local counterX = cx + spot[1]
+		local faceYaw = (spot[1] < 0) and -math.pi / 2 or math.pi / 2 -- face the aisle
+		buildPCStation(lobbyFolder, part, counterX, spot[2], faceYaw, ceilingY)
+	end
+
+	-- Shopkeeper NPC just inside the entrance (flavour; buying is at the counters).
+	local pal = NPC_PALETTE[1]
+	local keeper = buildNPC(lobbyFolder, "PCW_Keeper", Vector3.new(cx - 7, FLOOR_TOP, frontZ - 4), pal.shirt, pal.pants, pal.skin, def.color)
+	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(90), 0))
+
+	-- Plants flanking the entrance.
+	buildPCPlant(lobbyFolder, "PCW_PlantL", cx - W / 2 + 2, frontZ - 2)
+	buildPCPlant(lobbyFolder, "PCW_PlantR", cx + W / 2 - 2, frontZ - 2)
+
+	-- Invisible zone spanning the interior: stepping inside rolls the deal.
+	local zone = makePart("PCStoreZone", Vector3.new(W - 2, H - 2, L - 4), Vector3.new(cx, wallY, cz), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
 	zone.Transparency = 1
 	zone.CanCollide = false
 	zone.CanQuery = false
@@ -2508,9 +2620,10 @@ end
 local function buildShops(lobbyFolder)
 	for i, def in ipairs(SHOP_DEFS) do
 		local p = SHOP_PLACEMENTS[i]
-		buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
 		if def.physical then
-			buildPCStoreShelves(lobbyFolder, Vector3.new(p.x, 0, p.z))
+			buildPCWarehouse(lobbyFolder, Vector3.new(p.x, 0, p.z), def)
+		else
+			buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
 		end
 	end
 end

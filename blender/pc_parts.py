@@ -238,19 +238,23 @@ def build_tower():
     box((2.2, 4.6, 4.4), (0, 0.0, 2.55), case)          # main body
     box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.55), glass)    # tempered-glass side (-X)
 
-    # Slatted mesh front panel (-Y): horizontal slats crossed by vertical bars
-    # to read as a perforated mesh, with the RGB fans mounted just behind it.
-    box((2.2, 0.10, 4.4), (0, -2.34, 2.55), front)      # backing
-    for k in range(12):
-        box((2.0, 0.14, 0.13), (0, -2.31, 0.65 + k * 0.34), front)
-    for vx in (-0.7, -0.23, 0.23, 0.7):
-        box((0.13, 0.16, 3.9), (vx, -2.30, 2.55), front)
-    # Three RGB fans facing the viewer (-Y), stacked up the front intake.
-    fan_y((0, -1.95, 1.35), 0.62, f1)
-    fan_y((0, -1.95, 2.55), 0.62, f2)
-    fan_y((0, -1.95, 3.75), 0.62, f3)
-    # Vertical RGB light strip behind the mesh (glows through the glass).
-    box((0.12, 0.12, 3.6), (-0.92, -1.75, 2.55), accent)
+    # Open front bezel (NO solid backing -- the RGB fans must show through) with
+    # a light grille of thin bars over the fans so it still reads as a mesh intake.
+    box((2.2, 0.20, 0.22), (0, -2.30, 4.70), front)     # bezel top
+    box((2.2, 0.20, 0.22), (0, -2.30, 0.40), front)     # bezel bottom
+    box((0.22, 0.20, 4.5), (-1.0, -2.30, 2.55), front)  # bezel left
+    box((0.22, 0.20, 4.5), (1.0, -2.30, 2.55), front)   # bezel right
+    # Three RGB fans right at the front opening, clearly visible (-Y).
+    fan_y((0, -2.18, 1.35), 0.62, f1)
+    fan_y((0, -2.18, 2.55), 0.62, f2)
+    fan_y((0, -2.18, 3.75), 0.62, f3)
+    # Thin grille bars OVER the fans (fans glow through the gaps).
+    for zz in (0.95, 1.75, 2.15, 2.95, 3.35, 4.15):
+        box((1.9, 0.10, 0.08), (0, -2.44, zz), front)
+    for vx in (-0.5, 0.5):
+        box((0.08, 0.10, 3.9), (vx, -2.44, 2.55), front)
+    # Vertical RGB light strip at the front-left inner edge (glows through glass).
+    box((0.12, 0.12, 3.6), (-0.92, -2.0, 2.55), accent)
 
     # Top panel: power button, USB slots, and exhaust vent slats.
     box((0.24, 0.24, 0.12), (0.5, -1.4, 4.86), accent)  # power button

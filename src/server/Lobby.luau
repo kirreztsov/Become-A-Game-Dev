@@ -2438,7 +2438,7 @@ end
 local PC_SHELF_MODELS = {
 	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu },
 	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor },
-	RGB = { asset = "PCTower", size = 3.0, extraYaw = math.rad(35), paint = paintPCTower },
+	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
 }
 
 local function buildPCStoreShelves(lobbyFolder, center)

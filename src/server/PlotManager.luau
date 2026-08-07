@@ -283,18 +283,8 @@ local function buildStationMonitorRig(parent, origin, config, tier, x, z, namePr
 	local screen = makePart(namePrefix .. config.name .. "MonitorScreen", Vector3.new(monitorWidth - 0.35, monitorHeight - 0.35, 0.06), origin + Vector3.new(x, monitorCenterY, z + 0.71), screenColor, Enum.Material.Neon, rig)
 	screen.CanCollide = false
 
-	-- The NewProject monitor always carries the PC prompt -- it now opens the
-	-- PC Parts Shop (there's always some part left to upgrade / view).
-	if config.name == "NewProject" then
-		local upgradePrompt = Instance.new("ProximityPrompt")
-		upgradePrompt.Name = "PCUpgradePrompt"
-		upgradePrompt.ActionText = "Upgrade PC"
-		upgradePrompt.ObjectText = "Computer"
-		upgradePrompt.HoldDuration = 0 -- instant tap, no holding
-		upgradePrompt.RequiresLineOfSight = false -- easy to trigger, no precise aiming
-		upgradePrompt.MaxActivationDistance = 14
-		upgradePrompt.Parent = screen
-	end
+	-- (No PC upgrade prompt on the computer -- PC parts are bought at the PC
+	-- Store building in town now, from the shopkeeper. Store-only by design.)
 end
 
 local function buildStation(parent, origin, config, x, z, namePrefix, monitorTier)

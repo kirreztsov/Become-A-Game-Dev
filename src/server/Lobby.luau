@@ -2382,12 +2382,14 @@ local PC_SHELF_SPOTS = {
 -- Storage/Cooling) keep the placeholder box until their models are built.
 local function paintPCGpu(p)
 	local n = p.Name
-	if n:find("Accent") then
+	if n:find("Ring") then -- bright RGB fan ring (SmoothPlastic; Neon blooms white here)
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
 	elseif n:find("Bracket") then
 		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
-	elseif n:find("Fan") then
-		p.Color, p.Material = Color3.fromRGB(200, 205, 215), Enum.Material.SmoothPlastic -- silver fan frames
+	elseif n:find("Fan") then -- dark fan frame + blades + hub
+		p.Color, p.Material = Color3.fromRGB(46, 49, 58), Enum.Material.SmoothPlastic
 	elseif n:find("Backplate") then
 		p.Color, p.Material = Color3.fromRGB(22, 22, 28), Enum.Material.SmoothPlastic
 	else -- Shroud (gunmetal, MSI Gaming Trio style)
@@ -2397,8 +2399,10 @@ local function paintPCGpu(p)
 end
 local function paintPCMonitor(p)
 	local n = p.Name
-	if n:find("Screen") then
-		p.Color, p.Material = Color3.fromRGB(70, 130, 225), Enum.Material.SmoothPlastic
+	local sidx = n:match("^Screen(%d+)")
+	if sidx then -- vibrant wallpaper gradient across the ultrawide (blue->cyan->green->orange)
+		local h = 0.62 - 0.57 * ((tonumber(sidx) - 1) / 10)
+		p.Color, p.Material = Color3.fromHSV(h, 0.82, 1), Enum.Material.SmoothPlastic
 	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(235, 95, 220), Enum.Material.SmoothPlastic
 	elseif n:find("Neck") then
@@ -2413,11 +2417,13 @@ end
 local TOWER_FAN_COLORS = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(235, 95, 220), Color3.fromRGB(120, 240, 150) }
 local function paintPCTower(p)
 	local n = p.Name
-	local fanIdx = n:match("^Fan(%d)")
-	if fanIdx then
-		p.Color, p.Material = TOWER_FAN_COLORS[tonumber(fanIdx)] or TOWER_FAN_COLORS[1], Enum.Material.SmoothPlastic
+	local ringIdx = n:match("^Ring(%d)")
+	if ringIdx then -- bright RGB fan ring, each a different colour (Neon blooms white here)
+		p.Color, p.Material = TOWER_FAN_COLORS[tonumber(ringIdx)] or TOWER_FAN_COLORS[1], Enum.Material.SmoothPlastic
+	elseif n:find("Fan") then -- dark fan frame + blades + hub
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
 	elseif n:find("Glass") then
-		p.Color, p.Material, p.Transparency = Color3.fromRGB(150, 190, 220), Enum.Material.Glass, 0.55
+		p.Color, p.Material, p.Transparency, p.Reflectance = Color3.fromRGB(170, 205, 235), Enum.Material.Glass, 0.5, 0.1
 	elseif n:find("Cooler") then
 		p.Color, p.Material = Color3.fromRGB(120, 125, 140), Enum.Material.Metal
 	elseif n:find("InnerBoard") then

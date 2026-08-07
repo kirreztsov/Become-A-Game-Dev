@@ -57,38 +57,43 @@ def cyl(r, depth, loc, bucket, rot=(0, 0, 0), verts=24):
     return _finish(bpy.context.active_object, rot, bucket)
 
 
-def fan_y(center, r, bucket, blades=11):
-    """A fan facing -Y (axis along Y): square frame + hub + radial blades, in the
-    X-Z plane. All parts go in `bucket` (one colour)."""
+def fan_y(center, r, body, ring, blades=7):
+    """A clean fan facing -Y (axis along Y), in the X-Z plane. A dark square
+    frame + a BRIGHT RGB ring + a dark blade face with subtle swept blades + a
+    hub. Frame/blades/hub go in `body`; the glowing ring goes in `ring`."""
     cx, cy, cz = center
     t = 0.14
-    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz + r + t / 2), bucket)   # frame top
-    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz - r - t / 2), bucket)   # frame bottom
-    box((t, 0.30, 2 * r), (cx + r + t / 2, cy, cz), bucket)          # frame right
-    box((t, 0.30, 2 * r), (cx - r - t / 2, cy, cz), bucket)          # frame left
-    cyl(0.20, 0.34, (cx, cy - 0.02, cz), bucket, rot=(90, 0, 0))     # hub
-    for k in range(blades):
+    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz + r + t / 2), body)     # frame top
+    box((2 * r + 2 * t, 0.30, t), (cx, cy, cz - r - t / 2), body)     # frame bottom
+    box((t, 0.30, 2 * r), (cx + r + t / 2, cy, cz), body)            # frame right
+    box((t, 0.30, 2 * r), (cx - r - t / 2, cy, cz), body)            # frame left
+    cyl(r * 0.92, 0.10, (cx, cy - 0.10, cz), ring, rot=(90, 0, 0))    # bright glow disc
+    cyl(r * 0.72, 0.14, (cx, cy - 0.16, cz), body, rot=(90, 0, 0))    # dark face (leaves a ring)
+    for k in range(blades):                                          # subtle swept blades
         a = k * 2 * math.pi / blades
-        bx = cx + math.cos(a) * r * 0.52
-        bz = cz + math.sin(a) * r * 0.52
-        box((r * 0.92, 0.06, 0.24), (bx, cy - 0.03, bz), bucket, rot=(0, 0, math.degrees(a) + 20))
+        bx = cx + math.cos(a) * r * 0.36
+        bz = cz + math.sin(a) * r * 0.36
+        box((r * 0.55, 0.04, 0.12), (bx, cy - 0.22, bz), body, rot=(0, 0, math.degrees(a) + 22))
+    cyl(0.16, 0.22, (cx, cy - 0.24, cz), body, rot=(90, 0, 0))       # hub
 
 
-def fan_x(center, r, bucket, blades=11):
-    """A fan facing -X (axis along X): square frame + hub + radial blades, in the
-    Y-Z plane. All parts go in `bucket`."""
+def fan_x(center, r, body, ring, blades=7):
+    """A clean fan facing -X (axis along X), in the Y-Z plane (same design as
+    fan_y). Frame/blades/hub -> `body`; glowing ring -> `ring`."""
     cx, cy, cz = center
     t = 0.14
-    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz + r + t / 2), bucket)   # frame top
-    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz - r - t / 2), bucket)   # frame bottom
-    box((0.30, t, 2 * r), (cx, cy + r + t / 2, cz), bucket)          # frame +Y
-    box((0.30, t, 2 * r), (cx, cy - r - t / 2, cz), bucket)          # frame -Y
-    cyl(0.20, 0.34, (cx - 0.02, cy, cz), bucket, rot=(0, 90, 0))     # hub
+    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz + r + t / 2), body)     # frame top
+    box((0.30, 2 * r + 2 * t, t), (cx, cy, cz - r - t / 2), body)     # frame bottom
+    box((0.30, t, 2 * r), (cx, cy + r + t / 2, cz), body)            # frame +Y
+    box((0.30, t, 2 * r), (cx, cy - r - t / 2, cz), body)            # frame -Y
+    cyl(r * 0.92, 0.10, (cx - 0.10, cy, cz), ring, rot=(0, 90, 0))    # bright glow disc
+    cyl(r * 0.72, 0.14, (cx - 0.16, cy, cz), body, rot=(0, 90, 0))    # dark face (leaves a ring)
     for k in range(blades):
         a = k * 2 * math.pi / blades
-        by = cy + math.cos(a) * r * 0.52
-        bz = cz + math.sin(a) * r * 0.52
-        box((0.06, r * 0.92, 0.24), (cx - 0.03, by, bz), bucket, rot=(math.degrees(a) + 20, 0, 0))
+        by = cy + math.cos(a) * r * 0.36
+        bz = cz + math.sin(a) * r * 0.36
+        box((0.04, r * 0.55, 0.12), (cx - 0.22, by, bz), body, rot=(math.degrees(a) + 22, 0, 0))
+    cyl(0.16, 0.22, (cx - 0.24, cy, cz), body, rot=(0, 90, 0))       # hub
 
 
 def join_bevel(parts, name, bevel=0.05):
@@ -128,6 +133,7 @@ def build_gpu():
     clear_scene()
     shroud, back, bracket, accent = [], [], [], []
     f1, f2, f3 = [], [], []
+    r1, r2, r3 = [], [], []
 
     # Thick 3-slot shroud + PCB backplate (Gaming Trio bulk).
     box((1.7, 1.4, 4.2), (0, 0.05, 2.15), shroud)
@@ -159,10 +165,9 @@ def build_gpu():
     for sx, sz in ((-0.78, 0.5), (0.78, 0.5), (-0.78, 3.8), (0.78, 3.8)):
         cyl(0.09, 0.10, (sx, -0.70, sz), bracket, rot=(90, 0, 0))  # face screws
 
-    # Three fans (with a lit RGB hub dot each) stacked up the -Y face.
-    for fz, fbk in ((1.05, f1), (2.15, f2), (3.25, f3)):
-        fan_y((0, -0.60, fz), 0.62, fbk)
-        cyl(0.10, 0.16, (0, -0.80, fz), accent, rot=(90, 0, 0))
+    # Three clean fans (dark body + bright RGB ring) stacked up the -Y face.
+    for fz, fbk, rbk in ((1.05, f1, r1), (2.15, f2, r2), (3.25, f3, r3)):
+        fan_y((0, -0.60, fz), 0.62, fbk, rbk)
 
     # RGB accent strip down the front-left edge.
     box((0.14, 0.12, 3.5), (-0.80, -0.70, 2.15), accent)
@@ -173,6 +178,9 @@ def build_gpu():
     join_bevel(f1, "Fan1", bevel=0.02)
     join_bevel(f2, "Fan2", bevel=0.02)
     join_bevel(f3, "Fan3", bevel=0.02)
+    join_bevel(r1, "Ring1", bevel=0.02)
+    join_bevel(r2, "Ring2", bevel=0.02)
+    join_bevel(r3, "Ring3", bevel=0.02)
     join_bevel(accent, "Accent", bevel=0.02)
     export("PCGpu.fbx")
 
@@ -198,8 +206,12 @@ def build_monitor():
         y = 0.15 - 0.55 * (t * t)          # concave: edges pulled to viewer (-Y)
         rz = -18.0 * t                     # turn each segment tangent to the arc
         box((seg_w + 0.12, 0.24, PANEL_H + 0.20), (x, y + 0.14, SZ), bezel, rot=(0, 0, rz))   # bezel-back
-        box((seg_w + 0.01, 0.10, PANEL_H), (x, y, SZ), screen, rot=(0, 0, rz))                # bright panel
         box((seg_w + 0.02, 0.06, 0.14), (x, y + 0.30, SZ + 0.75), accent, rot=(0, 0, rz))     # rear RGB strip
+        # Each screen segment is its OWN named part (Screen1..N) so the game can
+        # paint a vibrant wallpaper gradient across the panel.
+        seg = []
+        box((seg_w + 0.01, 0.10, PANEL_H), (x, y, SZ), seg, rot=(0, 0, rz))
+        join_bevel(seg, "Screen" + str(i + 1), bevel=0.02)
     # Chin: centre logo bar + power LED + a control joystick nub on the back-right.
     box((0.9, 0.10, 0.14), (0, -0.20, SZ - PANEL_H / 2 - 0.02), accent)
     box((0.14, 0.12, 0.12), (2.7, 0.02, SZ - PANEL_H / 2 - 0.02), accent)
@@ -216,7 +228,6 @@ def build_monitor():
     box((1.5, 0.5, 0.18), (0, 1.15, 0.09), base)                       # back leg
 
     join_bevel(bezel, "Bezel", bevel=0.03)
-    join_bevel(screen, "Screen", bevel=0.02)
     join_bevel(neck, "Neck", bevel=0.04)
     join_bevel(base, "Base", bevel=0.04)
     join_bevel(accent, "Accent", bevel=0.02)
@@ -234,6 +245,7 @@ def build_tower():
     case, front, glass, feet, accent = [], [], [], [], []
     board, cooler = [], []
     f1, f2, f3 = [], [], []
+    r1, r2, r3 = [], [], []
 
     box((2.2, 4.6, 4.4), (0, 0.0, 2.55), case)          # main body
     box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.55), glass)    # tempered-glass side (-X)
@@ -245,9 +257,9 @@ def build_tower():
     box((0.22, 0.20, 4.5), (-1.0, -2.30, 2.55), front)  # bezel left
     box((0.22, 0.20, 4.5), (1.0, -2.30, 2.55), front)   # bezel right
     # Three RGB fans right at the front opening, clearly visible (-Y).
-    fan_y((0, -2.18, 1.35), 0.62, f1)
-    fan_y((0, -2.18, 2.55), 0.62, f2)
-    fan_y((0, -2.18, 3.75), 0.62, f3)
+    fan_y((0, -2.18, 1.35), 0.62, f1, r1)
+    fan_y((0, -2.18, 2.55), 0.62, f2, r2)
+    fan_y((0, -2.18, 3.75), 0.62, f3, r3)
     # Thin grille bars OVER the fans (fans glow through the gaps).
     for zz in (0.95, 1.75, 2.15, 2.95, 3.35, 4.15):
         box((1.9, 0.10, 0.08), (0, -2.44, zz), front)
@@ -298,6 +310,9 @@ def build_tower():
     join_bevel(f1, "Fan1", bevel=0.02)
     join_bevel(f2, "Fan2", bevel=0.02)
     join_bevel(f3, "Fan3", bevel=0.02)
+    join_bevel(r1, "Ring1", bevel=0.02)
+    join_bevel(r2, "Ring2", bevel=0.02)
+    join_bevel(r3, "Ring3", bevel=0.02)
     export("PCTower.fbx")
 
 

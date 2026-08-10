@@ -104,7 +104,7 @@ local function easeTo(model, cf)
 end
 
 -- Run a single-part round. Returns true if installed.
-local function runRound(scene, camera, partId, oldTier, newTier)
+local function runRound(scene, camera, partId, oldTier, newTier, shouldCancel)
 	local slotWorld = PCInstall.worldSlot(partId)
 	local trayWorld = PCInstall.worldTray(partId)
 	local snap = PCInstall.Layout[partId].snap
@@ -119,6 +119,9 @@ local function runRound(scene, camera, partId, oldTier, newTier)
 			oldModel.Parent = scene
 			highlight(oldModel, Color3.fromRGB(255, 170, 60))
 			dragUntilRelease(oldModel, planeY, camera)
+			if shouldCancel() then
+				return false
+			end
 			for _, d in ipairs(oldModel:GetDescendants()) do
 				if d:IsA("BasePart") then
 					d.Transparency = 0.5
@@ -139,6 +142,9 @@ local function runRound(scene, camera, partId, oldTier, newTier)
 
 	while true do
 		local drop = dragUntilRelease(newModel, planeY, camera)
+		if shouldCancel() then
+			return false
+		end
 		if PCInstall.isWithinSnap(drop, slotWorld.Position, snap) then
 			easeTo(newModel, slotWorld)
 			marker.Transparency = 1
@@ -211,7 +217,7 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local done = runRound(scene, camera, partId, oldTier, newTier)
+		local done = runRound(scene, camera, partId, oldTier, newTier, function() return cancelled end)
 		cleanup()
 		if cancelled or not done then
 			Remotes.PCInstallCancel:FireServer(partId)

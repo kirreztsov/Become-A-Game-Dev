@@ -4,6 +4,7 @@
 -- per-visit deal, which shows as a slashed SALE price on that shelf.
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Sound = require(script.Parent.Sound)
@@ -77,6 +78,50 @@ function PCPanel.init(player, theme, playerState)
 			end
 		end
 		updateShelves()
+	end)
+
+	-- Slowly spin each display product on its counter (a turntable, like the
+	-- plaza hologram). Done on the client so it costs nothing on the network --
+	-- only the product model (PCShelfProp_<id>) turns; its label/prompt anchor
+	-- (PCShelf_<id>) stays put.
+	task.spawn(function()
+		local lobby = workspace:WaitForChild("Lobby", 20)
+		if not lobby then
+			return
+		end
+		local spinners = {}
+		for _, part in ipairs(GameData.PCParts) do
+			local prop
+			for _ = 1, 100 do
+				prop = lobby:FindFirstChild("PCShelfProp_" .. part.id)
+				if prop then
+					break
+				end
+				task.wait(0.2)
+			end
+			if prop then
+				local pos = (prop:IsA("Model") and prop:GetPivot() or prop.CFrame).Position
+				spinners[#spinners + 1] = { obj = prop, pos = pos, isModel = prop:IsA("Model") }
+			end
+		end
+		if #spinners == 0 then
+			return
+		end
+		local angle = 0
+		RunService.Heartbeat:Connect(function(dt)
+			angle += dt * 0.7 -- ~0.7 rad/s, a gentle turntable
+			local rot = CFrame.Angles(0, angle, 0)
+			for _, s in ipairs(spinners) do
+				if s.obj and s.obj.Parent then
+					local target = CFrame.new(s.pos) * rot
+					if s.isModel then
+						s.obj:PivotTo(target)
+					else
+						s.obj.CFrame = target
+					end
+				end
+			end
+		end)
 	end)
 
 	-- Stepping into the store rolls a fresh shopkeeper deal (debounced).

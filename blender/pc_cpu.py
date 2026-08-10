@@ -69,7 +69,10 @@ def export(filename):
 def chip(prefix, w, cz, gold, rgb, pins):
     pcb, ihs, gld, ac, stand = [], [], [], [], []
     half = w / 2.0
-    box((1.3 + w * 0.15, 0.7, 0.5), (0, 0, 0.25), stand)               # stand
+    # Chunky pedestal whose top OVERLAPS the chip's bottom (so it's one connected
+    # piece, not a chip floating above a stand), plus a front lip that grips it.
+    box((w * 0.8, 1.0, 1.1), (0, 0, 0.55), stand)                      # pedestal (top ~1.1)
+    box((w * 0.9, 0.5, 0.35), (0, -0.15, 1.0), stand)                  # front mount lip
     box((w, 0.24, w), (0, 0, cz), pcb)                                 # PCB substrate
     box((w * 0.74, 0.18, w * 0.74), (0, -0.2, cz), ihs)                # heatspreader
     box((w * 0.45, 0.05, 0.04), (0, -0.31, cz + 0.22), ihs)            # engraving line
@@ -90,7 +93,7 @@ def chip(prefix, w, cz, gold, rgb, pins):
                 pz = cz - half * 0.7 + iz * (w * 0.7 / (n - 1))
                 box((0.08, 0.1, 0.08), (px, 0.16, pz), gld)
     if rgb:
-        box((w + 0.15, 0.13, 0.13), (0, -0.2, cz - half - 0.14), ac)   # RGB base glow
+        box((w + 0.05, 0.16, 0.16), (0, -0.18, cz - half + 0.12), ac)  # RGB glow hugging the chip base
     join_bevel(pcb, prefix + "PCB", 0.02)
     join_bevel(ihs, prefix + "IHS", 0.03)
     join_bevel(gld, prefix + "Gold", 0.02)
@@ -100,9 +103,9 @@ def chip(prefix, w, cz, gold, rgb, pins):
 
 def build_cpu():
     clear_scene()
-    chip("T1_", 1.6, 1.35, gold=False, rgb=False, pins=False)
-    chip("T2_", 1.8, 1.5, gold=True, rgb=False, pins=False)
-    chip("T3_", 2.0, 1.65, gold=True, rgb=True, pins=True)
+    chip("T1_", 1.6, 1.65, gold=False, rgb=False, pins=False)
+    chip("T2_", 1.8, 1.75, gold=True, rgb=False, pins=False)
+    chip("T3_", 2.0, 1.85, gold=True, rgb=True, pins=True)
     export("PCCpu.fbx")
 
 

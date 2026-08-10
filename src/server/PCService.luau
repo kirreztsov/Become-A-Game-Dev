@@ -32,6 +32,46 @@ local function rollDeal(data)
 	}
 end
 
+--- Pure buy check. Returns (ok, cost, targetLevel) without mutating `data`.
+--- `deal` is nil or { partId = <id>, discount = <fraction> }.
+function PCService.reserveDecision(data, partId, deal)
+	local part = GameData.getPCPart(partId)
+	if not part then
+		return false
+	end
+	local level = (data.pcParts and data.pcParts[partId]) or 0
+	if level >= GameData.getPCPartMaxLevel(partId) then
+		return false
+	end
+	local cost = GameData.getPCPartUpgradeCost(partId, level)
+	if not cost then
+		return false
+	end
+	if deal and deal.partId == partId then
+		cost = math.floor(cost * (1 - deal.discount))
+	end
+	if (data.cash or 0) < cost then
+		return false
+	end
+	return true, cost, level + 1
+end
+
+--- Re-validate a reserved install and, on success, apply it (mutates `data`).
+--- `pending` is { partId, cost, targetLevel }. Returns true if applied.
+function PCService.applyInstall(data, pending)
+	data.pcParts = data.pcParts or {}
+	local level = data.pcParts[pending.partId] or 0
+	if level ~= pending.targetLevel - 1 then
+		return false
+	end
+	if (data.cash or 0) < pending.cost then
+		return false
+	end
+	data.cash -= pending.cost
+	data.pcParts[pending.partId] = pending.targetLevel
+	return true
+end
+
 function PCService.start()
 	-- Opening the PC Store (walk up to the shopkeeper): roll a fresh per-visit
 	-- deal and tell the client so it can highlight the discounted part.

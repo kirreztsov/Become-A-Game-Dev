@@ -178,4 +178,39 @@ for _, p in ipairs(GameData.PCParts) do
 	end
 end
 
+-- PC install minigame: server reserve/apply rules (pure)
+local PCService = require(game:GetService("ServerScriptService").Server.PCService)
+local cpuCost0 = GameData.getPCPartUpgradeCost("CPU", 0)
+
+local rich = { cash = 1e9, pcParts = {} }
+local ok, cost, target = PCService.reserveDecision(rich, "CPU", nil)
+t:assertEqual(ok, true, "reserve: rich player can buy CPU")
+t:assertEqual(cost, cpuCost0, "reserve: cost is the level-0 upgrade cost")
+t:assertEqual(target, 1, "reserve: target level is 1")
+
+local broke = { cash = 0, pcParts = {} }
+t:assertEqual((PCService.reserveDecision(broke, "CPU", nil)), false, "reserve: no cash -> false")
+t:assertEqual((PCService.reserveDecision(rich, "NotAPart", nil)), false, "reserve: unknown part -> false")
+
+local maxed = { cash = 1e9, pcParts = { CPU = GameData.getPCPartMaxLevel("CPU") } }
+t:assertEqual((PCService.reserveDecision(maxed, "CPU", nil)), false, "reserve: maxed part -> false")
+
+local dealed = { cash = 1e9, pcParts = {} }
+local _, dcost = PCService.reserveDecision(dealed, "CPU", { partId = "CPU", discount = 0.5 })
+t:assertEqual(dcost, math.floor(cpuCost0 * 0.5), "reserve: matching deal halves the cost")
+
+local applyData = { cash = 1e9, pcParts = {} }
+local applied = PCService.applyInstall(applyData, { partId = "CPU", cost = cpuCost0, targetLevel = 1 })
+t:assertEqual(applied, true, "apply: valid install succeeds")
+t:assertEqual(applyData.cash, 1e9 - cpuCost0, "apply: exact cost deducted")
+t:assertEqual(applyData.pcParts.CPU, 1, "apply: level set to target")
+
+local staleLevel = { cash = 1e9, pcParts = { CPU = 3 } }
+t:assertEqual(PCService.applyInstall(staleLevel, { partId = "CPU", cost = cpuCost0, targetLevel = 1 }), false, "apply: level no longer matches -> false")
+t:assertEqual(staleLevel.cash, 1e9, "apply: rejected install does not charge")
+
+local poor = { cash = 1, pcParts = {} }
+t:assertEqual(PCService.applyInstall(poor, { partId = "CPU", cost = cpuCost0, targetLevel = 1 }), false, "apply: not enough cash at apply time -> false")
+t:assertEqual(poor.pcParts.CPU, nil, "apply: rejected install does not upgrade")
+
 t:summary()

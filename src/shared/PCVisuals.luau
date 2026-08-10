@@ -49,29 +49,34 @@ local function assetTemplate(assetName)
 	return studio and studio:FindFirstChild(assetName)
 end
 
--- Clone ONLY tier T<tier>_ parts of `assetName` into a fresh Model (from the
--- replicated Assets folder). Returns the model, or nil if the asset/tier isn't
--- present.
+-- Clone `assetName` and keep ONLY tier T<tier>_ parts (deleting the other
+-- tiers). Cloning the WHOLE model first preserves its upright orientation --
+-- rebuilding from individual parts loses it (the model ends up lying down).
+-- Returns the model, or nil if the asset/tier isn't present.
 function PCVisuals.cloneTier(assetName, tier)
 	local tmpl = assetTemplate(assetName)
 	if not tmpl then
 		return nil
 	end
+	local model = tmpl:Clone()
 	local prefix = "T" .. tier .. "_"
-	local model = Instance.new("Model")
-	local any = false
-	for _, d in ipairs(tmpl:GetDescendants()) do
-		if d:IsA("BasePart") and d.Name:sub(1, #prefix) == prefix then
-			local c = d:Clone()
-			c.Parent = model
-			any = true
+	local kept = false
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") and d.Name:match("^T%d+_") then
+			if d.Name:sub(1, #prefix) == prefix then
+				kept = true
+			else
+				d:Destroy()
+			end
 		end
 	end
-	if not any then
+	if not kept then
 		model:Destroy()
 		return nil
 	end
-	model.PrimaryPart = model:FindFirstChildWhichIsA("BasePart")
+	-- NOTE: do NOT set PrimaryPart here. GetBoundingBox/ScaleTo/PivotTo use the
+	-- model's own pivot orientation (from import); overriding PrimaryPart re-aligns
+	-- the bounding axes and makes the model scale/lie down wrong.
 	return model
 end
 
@@ -80,10 +85,7 @@ end
 -- `paintFn`, anchored. Returns the Model (caller parents it) or nil.
 function PCVisuals.buildTierDisplay(assetName, tier, basePos, targetHeight, yaw, paintFn)
 	local model = PCVisuals.cloneTier(assetName, tier)
-	if not model or not model.PrimaryPart then
-		if model then
-			model:Destroy()
-		end
+	if not model then
 		return nil
 	end
 	local _, size = model:GetBoundingBox()

@@ -100,14 +100,27 @@ end
 -- studs tall, spun to `yaw`, then runs paint(part) on each BasePart. Returns
 -- the Model, or nil if the asset isn't synced yet (caller falls back to a
 -- procedural build). Independent of the asset's import scale.
-local function placeProp(name, parent, worldBasePos, targetHeight, yaw, paint)
+local function placeProp(name, parent, worldBasePos, targetSize, yaw, paint, byWidth, tierPrefix)
 	local model = StudioModels.get(name)
 	if not model then
 		return nil
 	end
+	-- Tiered assets pack several "looks" (T1_/T2_/T3_ parts); keep only the
+	-- requested tier's parts so one clean variant shows instead of all stacked.
+	if tierPrefix then
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") and d.Name:match("^T%d+_") and d.Name:sub(1, #tierPrefix) ~= tierPrefix then
+				d:Destroy()
+			end
+		end
+	end
 	local _, size = model:GetBoundingBox()
-	if size.Y > 0 then
-		model:ScaleTo(model:GetScale() * (targetHeight / size.Y))
+	-- Normally scale to a target HEIGHT (bounding Y); byWidth scales to a target
+	-- WIDTH (bounding X) instead -- used for the ultrawide monitor, which would
+	-- be absurdly wide if scaled by height.
+	local dim = byWidth and size.X or size.Y
+	if dim > 0 then
+		model:ScaleTo(model:GetScale() * (targetSize / dim))
 	end
 	model:PivotTo(CFrame.new(worldBasePos) * CFrame.Angles(0, yaw or 0, 0))
 	local cf, sz = model:GetBoundingBox()
@@ -2365,52 +2378,488 @@ local SHOP_PLACEMENTS = {
 -- the PartId). No screen menu -- you walk the aisle and buy at the shelf. A
 -- hidden PCStoreZone part lets the client roll the shopkeeper's per-visit deal
 -- when you step inside. Placeholder props get swapped for Blender models later.
-local PC_SHELF_SPOTS = {
-	{ x = -6.2, z = -4.0 }, { x = -6.2, z = -1.3 }, { x = -6.2, z = 1.3 }, { x = -6.2, z = 4.0 },
-	{ x = 6.2, z = -1.3 }, { x = 6.2, z = 1.3 }, { x = 6.2, z = 4.0 },
-}
-local function buildPCStoreShelves(lobbyFolder, center)
-	for i, part in ipairs(GameData.PCParts) do
-		local spot = PC_SHELF_SPOTS[i]
-		if not spot then break end
-		local propColor = (part.kind == "money") and Color3.fromRGB(90, 200, 150) or Color3.fromRGB(150, 110, 230)
-		-- Pedestal (the named anchor the client + prompt hang off).
-		local pedestal = makePart("PCShelf_" .. part.id, Vector3.new(1.8, 3, 1.8), center + Vector3.new(spot.x, FLOOR_TOP + 1.5, spot.z), Color3.fromRGB(60, 62, 72), Enum.Material.SmoothPlastic, lobbyFolder)
-		-- Placeholder component prop on top (swapped for a Blender model later).
-		local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.2, 0.9, 1.2), center + Vector3.new(spot.x, FLOOR_TOP + 3.45, spot.z), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
-		prop.CanCollide = false
-		-- Floating info label -- text is set PER-PLAYER on the client (each player
-		-- has different owned tiers / prices / deal), so leave it blank here.
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "Info"
-		bb.Size = UDim2.fromOffset(210, 96)
-		bb.StudsOffset = Vector3.new(0, 3.0, 0)
-		bb.MaxDistance = 45
-		bb.Parent = pedestal
-		local lbl = Instance.new("TextLabel")
-		lbl.Name = "Text"
-		lbl.Size = UDim2.fromScale(1, 1)
-		lbl.BackgroundTransparency = 1
-		lbl.RichText = true
-		lbl.TextScaled = true
-		lbl.Font = Enum.Font.FredokaOne
-		lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-		lbl.TextStrokeTransparency = 0.35
-		lbl.Text = part.name
-		lbl.Parent = bb
-		-- Buy prompt (server buys the triggering player's next tier of this part).
-		local buy = Instance.new("ProximityPrompt")
-		buy.Name = "PCBuyPrompt"
-		buy.ActionText = "Buy"
-		buy.ObjectText = part.name
-		buy.HoldDuration = 0.2
-		buy.MaxActivationDistance = 9
-		buy.RequiresLineOfSight = false
-		buy:SetAttribute("PartId", part.id)
-		buy.Parent = pedestal
+-- Detailed Blender display models for the shelves, keyed by PC-part id. Each is
+-- placed on the pedestal via placeProp (scaled to `height` studs tall, base on
+-- the pedestal top), painted by mesh-part name, then falls back to the coloured
+-- placeholder box when the asset isn't synced yet. `extraYaw` fine-tunes the
+-- facing on top of the aisle-facing turn. Categories without an entry (CPU/RAM/
+-- Storage/Cooling) keep the placeholder box until their models are built.
+local function paintPCGpu(p)
+	local n = p.Name
+	if n:find("Ring") then -- bright RGB fan ring (SmoothPlastic; Neon blooms white here)
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Bracket") then
+		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
+	elseif n:find("Fan") then -- dark fan frame + blades + hub
+		p.Color, p.Material = Color3.fromRGB(46, 49, 58), Enum.Material.SmoothPlastic
+	elseif n:find("Backplate") then
+		p.Color, p.Material = Color3.fromRGB(22, 22, 28), Enum.Material.SmoothPlastic
+	else -- Shroud (gunmetal, MSI Gaming Trio style)
+		p.Color, p.Material = Color3.fromRGB(74, 78, 90), Enum.Material.Metal
 	end
-	-- Invisible zone the client watches to roll the shopkeeper's per-visit deal.
-	local zone = makePart("PCStoreZone", Vector3.new(13, 7, 10), center + Vector3.new(0, FLOOR_TOP + 3.5, 0), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
+	p.CanCollide = false
+end
+local function paintPCMonitor(p)
+	local n = p.Name
+	local sidx = n:match("^Screen(%d+)")
+	if sidx then -- smooth cool wallpaper gradient across the ultrawide (blue -> purple)
+		local h = 0.58 + 0.28 * ((tonumber(sidx) - 1) / 10)
+		p.Color, p.Material = Color3.fromHSV(h, 0.68, 1), Enum.Material.SmoothPlastic
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(235, 95, 220), Enum.Material.SmoothPlastic
+	elseif n:find("Neck") then
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
+	elseif n:find("Base") then
+		p.Color, p.Material = Color3.fromRGB(34, 36, 44), Enum.Material.SmoothPlastic
+	else -- Bezel
+		p.Color, p.Material = Color3.fromRGB(26, 28, 34), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = false
+end
+local TOWER_FAN_COLORS = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(235, 95, 220), Color3.fromRGB(120, 240, 150) }
+local function paintPCTower(p)
+	local n = p.Name
+	local ringIdx = n:match("^Ring(%d)")
+	if ringIdx then -- bright RGB fan ring, each a different colour (Neon blooms white here)
+		p.Color, p.Material = TOWER_FAN_COLORS[tonumber(ringIdx)] or TOWER_FAN_COLORS[1], Enum.Material.SmoothPlastic
+	elseif n:find("Fan") then -- dark fan frame + blades + hub
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
+	elseif n:find("Glass") then
+		p.Color, p.Material, p.Transparency, p.Reflectance = Color3.fromRGB(170, 205, 235), Enum.Material.Glass, 0.5, 0.1
+	elseif n:find("Cooler") then
+		p.Color, p.Material = Color3.fromRGB(120, 125, 140), Enum.Material.Metal
+	elseif n:find("InnerBoard") then
+		p.Color, p.Material = Color3.fromRGB(30, 70, 55), Enum.Material.SmoothPlastic -- motherboard green
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Front") then
+		p.Color, p.Material = Color3.fromRGB(22, 24, 30), Enum.Material.SmoothPlastic
+	elseif n:find("Feet") then
+		p.Color, p.Material = Color3.fromRGB(20, 20, 24), Enum.Material.SmoothPlastic
+	else -- Case
+		p.Color, p.Material = Color3.fromRGB(30, 32, 40), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = false
+end
+-- `size` is a target HEIGHT in studs, unless `byWidth` (then it's a target WIDTH
+-- -- the ultrawide monitor scales by width so it doesn't tower over the shelf).
+local PC_SHELF_MODELS = {
+	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu, tierPrefix = "T3_" }, -- interim: show the elite look until per-player tier-swap is wired
+	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor },
+	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
+}
+
+-- Paint the Blender display counter by mesh-part name.
+local function paintPCCounter(p)
+	local n = p.Name
+	if n:find("Chrome") then
+		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
+	elseif n:find("Top") then
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic -- dark display tray
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(240, 140, 60), Enum.Material.SmoothPlastic
+	elseif n:find("Screen") then
+		p.Color, p.Material = Color3.fromRGB(70, 205, 225), Enum.Material.SmoothPlastic
+	else -- Body
+		p.Color, p.Material = Color3.fromRGB(234, 234, 240), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = true
+end
+
+-- Build ONE product station on a counter: the counter, a display model
+-- (or fallback box) on top facing the aisle, the per-player floating info label,
+-- a hanging category sign, and the "Buy" prompt. `faceYaw` turns things toward
+-- the aisle; `ceilingY` is where the hanging sign hangs from.
+local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ceilingY)
+	-- Counter: a detailed Blender display stand if synced, else the plain box.
+	local counter = placeProp("PCCounter", lobbyFolder, Vector3.new(counterX, FLOOR_TOP, counterZ), 2.85, faceYaw, paintPCCounter)
+	if counter then
+		counter.Name = "PCW_Counter_" .. part.id
+	else
+		makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(224, 224, 230), Enum.Material.SmoothPlastic, lobbyFolder)
+		local skirt = makePart("PCW_CounterBase_" .. part.id, Vector3.new(4.5, 0.7, 4.5), Vector3.new(counterX, FLOOR_TOP + 0.35, counterZ), Color3.fromRGB(232, 150, 92), Enum.Material.SmoothPlastic, lobbyFolder)
+		skirt.CanCollide = false
+	end
+	local topY = FLOOR_TOP + 2.6
+
+	-- The named anchor the client billboard + buy prompt hang off (thin plate on
+	-- the counter top). Kept even when the model is present so PCPanel can find it.
+	local anchor = makePart("PCShelf_" .. part.id, Vector3.new(2.6, 0.3, 2.6), Vector3.new(counterX, topY + 0.15, counterZ), Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic, lobbyFolder)
+	anchor.CanCollide = false
+
+	-- Display model on the counter (detailed Blender model if synced, else box).
+	local cfg = PC_SHELF_MODELS[part.id]
+	local topWorld = Vector3.new(counterX, topY + 0.3, counterZ)
+	local model = cfg and placeProp(cfg.asset, lobbyFolder, topWorld, cfg.size, faceYaw + cfg.extraYaw, cfg.paint, cfg.byWidth, cfg.tierPrefix)
+	if model then
+		model.Name = "PCShelfProp_" .. part.id
+	else
+		local propColor = (part.kind == "money") and Color3.fromRGB(90, 200, 150) or Color3.fromRGB(150, 110, 230)
+		local prop = makePart("PCShelfProp_" .. part.id, Vector3.new(1.4, 1.4, 1.4), Vector3.new(counterX, topY + 1.0, counterZ), propColor, Enum.Material.SmoothPlastic, lobbyFolder)
+		prop.CanCollide = false
+	end
+
+	-- Per-player floating info label (text set on the client: owned tier / price / deal).
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "Info"
+	bb.Size = UDim2.fromOffset(168, 74)
+	bb.StudsOffset = Vector3.new(0, 3.7, 0) -- float clearly ABOVE the product
+	bb.MaxDistance = 26 -- only the counter you're standing at shows its label (no aisle overlap)
+	bb.Parent = anchor
+	-- A dark rounded "price tag" chip behind the text so the name + price stay
+	-- readable against the lit brick wall (not washed out).
+	local bg = Instance.new("Frame")
+	bg.Name = "BG"
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.fromRGB(26, 26, 34)
+	bg.BackgroundTransparency = 0.12
+	bg.BorderSizePixel = 0
+	bg.ZIndex = 1
+	bg.Parent = bb
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = bg
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Transparency = 0.75
+	stroke.Thickness = 1.5
+	stroke.Parent = bg
+	local lbl = Instance.new("TextLabel")
+	lbl.Name = "Text"
+	lbl.Size = UDim2.new(1, -14, 1, -10)
+	lbl.Position = UDim2.new(0, 7, 0, 5)
+	lbl.BackgroundTransparency = 1
+	lbl.RichText = true
+	lbl.TextScaled = true
+	lbl.ZIndex = 2
+	lbl.Font = Enum.Font.FredokaOne
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.TextStrokeTransparency = 0.35
+	lbl.Text = part.name
+	lbl.Parent = bb
+
+	-- Buy prompt (server buys the triggering player's next tier of this part).
+	local buy = Instance.new("ProximityPrompt")
+	buy.Name = "PCBuyPrompt"
+	buy.ActionText = "Buy"
+	buy.ObjectText = part.name
+	buy.HoldDuration = 0.2
+	buy.MaxActivationDistance = 9
+	buy.RequiresLineOfSight = false
+	buy:SetAttribute("PartId", part.id)
+	buy.Parent = anchor
+
+	-- Retail spotlight: a small ceiling fixture beaming a warm cone down onto the
+	-- product, so it pops out of the ambient light (the "designed showroom" look).
+	local fixture = makePart("PCW_Spot_" .. part.id, Vector3.new(0.7, 0.3, 0.7), Vector3.new(counterX, ceilingY - 0.7, counterZ), Color3.fromRGB(36, 36, 42), Enum.Material.SmoothPlastic, lobbyFolder)
+	fixture.CanCollide = false
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Bottom
+	spot.Angle = 55
+	spot.Range = 22
+	spot.Brightness = 4
+	spot.Color = Color3.fromRGB(255, 244, 222)
+	spot.Parent = fixture
+
+	-- Hanging category sign from the ceiling above the counter (both faces).
+	local signBoard = makePart("PCW_Sign_" .. part.id, Vector3.new(4.6, 1.3, 0.2), Vector3.new(counterX, ceilingY - 1.6, counterZ), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
+	signBoard.CanCollide = false -- default faces +/-Z so it reads as you walk down the aisle
+	local hanger = makePart("PCW_SignRod_" .. part.id, Vector3.new(0.12, 1.0, 0.12), Vector3.new(counterX, ceilingY - 0.6, counterZ), Color3.fromRGB(60, 60, 66), Enum.Material.Metal, lobbyFolder)
+	hanger.CanCollide = false
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.CanvasSize = Vector2.new(360, 100)
+		sg.LightInfluence = 0
+		sg.Parent = signBoard
+		local sl = Instance.new("TextLabel")
+		sl.Size = UDim2.fromScale(1, 1)
+		sl.BackgroundTransparency = 1
+		sl.Text = part.icon .. " " .. part.name
+		sl.Font = Enum.Font.FredokaOne
+		sl.TextScaled = true
+		sl.TextColor3 = Color3.fromRGB(255, 240, 210)
+		sl.Parent = sg
+	end
+end
+
+-- A small potted plant (pot + leafy top) for warehouse decor.
+local function buildPCPlant(lobbyFolder, name, x, z)
+	makePart(name .. "Pot", Vector3.new(1.4, 1.4, 1.4), Vector3.new(x, FLOOR_TOP + 0.7, z), Color3.fromRGB(200, 120, 80), Enum.Material.SmoothPlastic, lobbyFolder)
+	local leaf = makePart(name .. "Leaf", Vector3.new(2.2, 2.6, 2.2), Vector3.new(x, FLOOR_TOP + 2.7, z), Color3.fromRGB(70, 150, 90), Enum.Material.Grass, lobbyFolder)
+	leaf.CanCollide = false
+end
+
+-- Dress the warehouse so it reads as a real, lived-in store (not an empty box):
+-- a neon logo on the back wall, stocked shelf racks, wall posters, a floor
+-- runner + entrance mat, ceiling trusses, a checkout desk, and box clutter.
+local function buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, ceilingY)
+	local STEEL = Color3.fromRGB(72, 76, 86)
+	local TEAL = Color3.fromRGB(70, 205, 225)
+	local ORANGE = Color3.fromRGB(240, 140, 60)
+	local CARDBOARD = Color3.fromRGB(178, 132, 86)
+	local BOX_COLORS = {
+		Color3.fromRGB(222, 92, 82), Color3.fromRGB(82, 160, 222), Color3.fromRGB(92, 194, 122),
+		Color3.fromRGB(242, 192, 74), Color3.fromRGB(176, 112, 222), Color3.fromRGB(70, 205, 225),
+	}
+
+	-- ===== Back-wall hero: a glowing store logo =====
+	local logo = makePart("PCW_Logo", Vector3.new(17, 4.6, 0.4), Vector3.new(cx, FLOOR_TOP + 8.5, backZ + 0.5), Color3.fromRGB(20, 20, 28), Enum.Material.SmoothPlastic, lobbyFolder)
+	logo.CanCollide = false
+	local logoGlow = makePart("PCW_LogoGlow", Vector3.new(17.6, 5.2, 0.28), Vector3.new(cx, FLOOR_TOP + 8.5, backZ + 0.45), TEAL, Enum.Material.Neon, lobbyFolder)
+	logoGlow.CanCollide = false
+	local lsg = Instance.new("SurfaceGui")
+	lsg.Face = Enum.NormalId.Front
+	lsg.CanvasSize = Vector2.new(680, 180)
+	lsg.LightInfluence = 0
+	lsg.Parent = logo
+	local lt = Instance.new("TextLabel")
+	lt.Size = UDim2.fromScale(1, 1)
+	lt.BackgroundTransparency = 1
+	lt.Text = "\240\159\150\165\239\184\143 PIXEL PC"
+	lt.Font = Enum.Font.FredokaOne
+	lt.TextScaled = true
+	lt.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lt.Parent = lsg
+	local lsub = Instance.new("TextLabel")
+	lsub.Size = UDim2.new(1, 0, 0.28, 0)
+	lsub.Position = UDim2.fromScale(0, 0.72)
+	lsub.BackgroundTransparency = 1
+	lsub.Text = "COMPUTER MEGASTORE"
+	lsub.Font = Enum.Font.GothamBold
+	lsub.TextScaled = true
+	lsub.TextColor3 = TEAL
+	lsub.Parent = lsg
+
+	-- ===== Ceiling trusses (warehouse structure) =====
+	for i = 0, 4 do
+		local bz = frontZ - 4 - i * ((L - 8) / 4)
+		local t = makePart("PCW_Truss" .. i, Vector3.new(W, 0.5, 0.5), Vector3.new(cx, ceilingY - 0.7, bz), STEEL, Enum.Material.Metal, lobbyFolder)
+		t.CanCollide = false
+	end
+	for _, ox in ipairs({ -6, 6 }) do
+		local tl = makePart("PCW_TrussLong" .. (ox > 0 and "R" or "L"), Vector3.new(0.5, 0.5, L - 6), Vector3.new(cx + ox, ceilingY - 0.7, cz), STEEL, Enum.Material.Metal, lobbyFolder)
+		tl.CanCollide = false
+	end
+
+	-- ===== Floor: a runner down the aisle + entrance mat =====
+	local runner = makePart("PCW_Runner", Vector3.new(6.5, 0.08, L - 6), Vector3.new(cx, FLOOR_TOP + 0.06, cz), Color3.fromRGB(44, 52, 68), Enum.Material.SmoothPlastic, lobbyFolder)
+	runner.CanCollide = false
+	for _, ox in ipairs({ -3.25, 3.25 }) do
+		local edge = makePart("PCW_RunnerEdge" .. (ox > 0 and "R" or "L"), Vector3.new(0.35, 0.09, L - 6), Vector3.new(cx + ox, FLOOR_TOP + 0.07, cz), TEAL, Enum.Material.SmoothPlastic, lobbyFolder)
+		edge.CanCollide = false
+	end
+	local mat = makePart("PCW_Mat", Vector3.new(8, 0.08, 3), Vector3.new(cx, FLOOR_TOP + 0.06, frontZ - 2.5), ORANGE, Enum.Material.SmoothPlastic, lobbyFolder)
+	mat.CanCollide = false
+
+	-- ===== Stocked shelf racks flanking the logo on the back wall =====
+	local function shelfRack(nm, center)
+		local w, h, d = 5, 6.5, 1.4
+		for _, ox in ipairs({ -w / 2 + 0.15, w / 2 - 0.15 }) do
+			for _, oz in ipairs({ -d / 2 + 0.15, d / 2 - 0.15 }) do
+				local post = makePart(nm .. "Post", Vector3.new(0.2, h, 0.2), center + Vector3.new(ox, h / 2, oz), STEEL, Enum.Material.Metal, lobbyFolder)
+				post.CanCollide = false
+			end
+		end
+		for s = 1, 4 do
+			local sy = 1.5 * s
+			local shelf = makePart(nm .. "Shelf" .. s, Vector3.new(w, 0.15, d), center + Vector3.new(0, sy, 0), Color3.fromRGB(120, 92, 62), Enum.Material.WoodPlanks, lobbyFolder)
+			shelf.CanCollide = false
+			for b = 0, 3 do
+				local col = BOX_COLORS[((s + b) % #BOX_COLORS) + 1]
+				local bx = makePart(nm .. "Box" .. s .. "_" .. b, Vector3.new(0.9, 1.1, 0.9), center + Vector3.new(-w / 2 + 0.85 + b * 1.1, sy + 0.63, 0), col, Enum.Material.SmoothPlastic, lobbyFolder)
+				bx.CanCollide = false
+			end
+		end
+	end
+	shelfRack("PCW_RackL", Vector3.new(cx - 8.5, FLOOR_TOP, backZ + 1.1))
+	shelfRack("PCW_RackR", Vector3.new(cx + 8.5, FLOOR_TOP, backZ + 1.1))
+
+	-- ===== Wall posters (parody ads) in the gaps between counters =====
+	local function poster(nm, x, z, faceLeft, title, sub, col)
+		local p = makePart(nm, Vector3.new(0.25, 4.2, 3.2), Vector3.new(x, FLOOR_TOP + 5.5, z), Color3.fromRGB(18, 18, 24), Enum.Material.SmoothPlastic, lobbyFolder)
+		p.CanCollide = false
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = faceLeft and Enum.NormalId.Left or Enum.NormalId.Right
+		sg.CanvasSize = Vector2.new(320, 420)
+		sg.LightInfluence = 0
+		sg.Parent = p
+		local bar = Instance.new("Frame")
+		bar.Size = UDim2.fromScale(1, 1)
+		bar.BackgroundColor3 = col
+		bar.BorderSizePixel = 0
+		bar.Parent = sg
+		local tt = Instance.new("TextLabel")
+		tt.Size = UDim2.new(1, -20, 0.4, 0)
+		tt.Position = UDim2.new(0, 10, 0.08, 0)
+		tt.BackgroundTransparency = 1
+		tt.Text = title
+		tt.Font = Enum.Font.FredokaOne
+		tt.TextScaled = true
+		tt.TextColor3 = Color3.fromRGB(255, 255, 255)
+		tt.TextWrapped = true
+		tt.Parent = bar
+		local ss = Instance.new("TextLabel")
+		ss.Size = UDim2.new(1, -20, 0.22, 0)
+		ss.Position = UDim2.new(0, 10, 0.66, 0)
+		ss.BackgroundTransparency = 1
+		ss.Text = sub
+		ss.Font = Enum.Font.GothamBold
+		ss.TextScaled = true
+		ss.TextColor3 = Color3.fromRGB(20, 20, 28)
+		ss.Parent = bar
+	end
+	-- (Wall posters removed: the side walls now carry pillars + bright windows,
+	-- and the back wall has the logo + stocked shelf racks.)
+	local _ = poster -- keep the helper referenced without placing a poster
+
+	-- ===== Checkout desk in the OPEN right-entrance zone (clear of counters;
+	-- the first right counter is ~8 studs deeper). Long axis along Z, register
+	-- facing the aisle. =====
+	local ckX = cx + W / 2 - 2.2
+	local ckZ = frontZ - 3
+	local desk = makePart("PCW_Checkout", Vector3.new(2.4, 2.4, 4.4), Vector3.new(ckX, FLOOR_TOP + 1.2, ckZ), Color3.fromRGB(226, 226, 232), Enum.Material.SmoothPlastic, lobbyFolder)
+	desk.CanCollide = true
+	local dskirt = makePart("PCW_CheckoutSkirt", Vector3.new(2.6, 0.7, 4.6), Vector3.new(ckX, FLOOR_TOP + 0.35, ckZ), ORANGE, Enum.Material.SmoothPlastic, lobbyFolder)
+	dskirt.CanCollide = false
+	local reg = makePart("PCW_Register", Vector3.new(1.0, 0.9, 1.2), Vector3.new(ckX, FLOOR_TOP + 2.85, ckZ - 1.0), Color3.fromRGB(38, 40, 48), Enum.Material.SmoothPlastic, lobbyFolder)
+	reg.CanCollide = false
+	local regScr = makePart("PCW_RegisterScreen", Vector3.new(0.12, 0.7, 1.0), Vector3.new(ckX - 0.55, FLOOR_TOP + 3.0, ckZ - 1.0), TEAL, Enum.Material.SmoothPlastic, lobbyFolder)
+	regScr.CanCollide = false
+
+	-- ===== Cardboard box clutter (corners) =====
+	local function boxStack(nm, x, z)
+		local b1 = makePart(nm .. "1", Vector3.new(1.7, 1.7, 1.7), Vector3.new(x, FLOOR_TOP + 0.85, z), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		local b2 = makePart(nm .. "2", Vector3.new(1.4, 1.4, 1.4), Vector3.new(x + 0.3, FLOOR_TOP + 2.4, z + 0.2), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		local b3 = makePart(nm .. "3", Vector3.new(1.3, 1.3, 1.3), Vector3.new(x - 0.25, FLOOR_TOP + 3.5, z - 0.15), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		b1.CanCollide, b2.CanCollide, b3.CanCollide = true, false, false
+	end
+	-- Box clutter kept away from the walls (baseboards/windows there now): one
+	-- stack tucked in the front-left corner by the entrance.
+	boxStack("PCW_BoxesA", cx - W / 2 + 2.2, frontZ - 2.5)
+end
+
+-- The physical PC Store is a bright warehouse: a long hall you walk down with
+-- product counters on both sides (one per PC-part category), hanging category
+-- signs, warm walls + ceiling lights, plants, and a shopkeeper. Buying is still
+-- physical (walk to a counter, press the Buy prompt); the whole interior is the
+-- deal-roll zone. `center` is the old storefront point; the hall extends -Z.
+local function buildPCWarehouse(lobbyFolder, center, def)
+	local W, L, H, wt = 24, 40, 13, 0.6
+	local cx = center.X
+	local frontZ = center.Z + 6         -- entrance wall (aligned with the old storefront)
+	local backZ = frontZ - L
+	local cz = (frontZ + backZ) / 2
+	local wallY = FLOOR_TOP + H / 2
+	local ceilingY = FLOOR_TOP + H
+	-- Smooth painted showroom walls (NOT raw brick) in a soft warm tone.
+	local WALL = Color3.fromRGB(236, 219, 190)
+	local BASE = Color3.fromRGB(150, 122, 94)     -- baseboard
+	local PILLAR = Color3.fromRGB(247, 245, 241)  -- clean white columns
+	local WINPANE = Color3.fromRGB(226, 241, 255) -- bright daylight window
+	local MULLION = Color3.fromRGB(96, 82, 66)
+	local ACCENT = Color3.fromRGB(240, 140, 60)
+
+	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(230, 228, 234), Enum.Material.Marble, lobbyFolder)
+	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(238, 235, 230), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallRight", Vector3.new(wt, H, L), Vector3.new(cx + W / 2, wallY, cz), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	-- Front wall with a wide doorway gap.
+	local doorW, doorH = 9, 8
+	local sideW = (W - doorW) / 2
+	makePart("PCW_FrontLeft", Vector3.new(sideW, H, wt), Vector3.new(cx - (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_FrontRight", Vector3.new(sideW, H, wt), Vector3.new(cx + (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Lintel", Vector3.new(doorW, H - doorH, wt), Vector3.new(cx, FLOOR_TOP + doorH + (H - doorH) / 2, frontZ), ACCENT, Enum.Material.SmoothPlastic, lobbyFolder)
+
+	-- Architecture down both side walls: a baseboard, a top accent band, white
+	-- pillars, and big bright windows between them (the airy showroom look).
+	for _, sx in ipairs({ -1, 1 }) do
+		local side = (sx > 0) and "R" or "L"
+		local wx = cx + sx * (W / 2 - 0.35)
+		local bb = makePart("PCW_Base" .. side, Vector3.new(0.4, 1.5, L - 0.6), Vector3.new(wx, FLOOR_TOP + 0.75, cz), BASE, Enum.Material.SmoothPlastic, lobbyFolder)
+		bb.CanCollide = false
+		local band = makePart("PCW_Band" .. side, Vector3.new(0.34, 0.7, L - 0.6), Vector3.new(wx, ceilingY - 1.3, cz), ACCENT, Enum.Material.SmoothPlastic, lobbyFolder)
+		band.CanCollide = false
+		local cells = 4
+		for p = 0, cells do
+			local pz = frontZ - 1.6 - p * ((L - 3.2) / cells)
+			local col = makePart("PCW_Pillar" .. side .. p, Vector3.new(1.1, H, 1.1), Vector3.new(wx - sx * 0.35, wallY, pz), PILLAR, Enum.Material.Marble, lobbyFolder)
+			col.CanCollide = false
+			if p < cells then
+				local wz = frontZ - 1.6 - (p + 0.5) * ((L - 3.2) / cells)
+				local frame = makePart("PCW_WinFrame" .. side .. p, Vector3.new(0.2, 6.0, 5.4), Vector3.new(wx + sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				frame.CanCollide = false
+				local pane = makePart("PCW_Win" .. side .. p, Vector3.new(0.14, 5.3, 4.7), Vector3.new(wx - sx * 0.05, FLOOR_TOP + 6.3, wz), WINPANE, Enum.Material.SmoothPlastic, lobbyFolder)
+				pane.CanCollide = false
+				-- mullions (one horizontal + one vertical bar) over the pane
+				local mh = makePart("PCW_WinMH" .. side .. p, Vector3.new(0.16, 0.2, 4.7), Vector3.new(wx - sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				mh.CanCollide = false
+				local mv = makePart("PCW_WinMV" .. side .. p, Vector3.new(0.16, 5.3, 0.2), Vector3.new(wx - sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				mv.CanCollide = false
+			end
+		end
+	end
+
+	-- Entrance banner over the door (faces +Z, out toward the avenue).
+	local banner = makePart("PCW_Banner", Vector3.new(W - 2, 2.2, 0.3), Vector3.new(cx, ceilingY + 1.3, frontZ + 0.2), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
+	banner.CanCollide = false
+	local bsg = Instance.new("SurfaceGui")
+	bsg.Face = Enum.NormalId.Front
+	bsg.CanvasSize = Vector2.new(520, 90)
+	bsg.LightInfluence = 0
+	bsg.Parent = banner
+	local btl = Instance.new("TextLabel")
+	btl.Size = UDim2.fromScale(1, 1)
+	btl.BackgroundTransparency = 1
+	btl.Text = def.name .. " \226\128\162 MEGASTORE"
+	btl.Font = Enum.Font.FredokaOne
+	btl.TextScaled = true
+	btl.TextColor3 = Color3.fromRGB(255, 240, 210)
+	btl.Parent = bsg
+
+	-- Ceiling light bars down the hall (bright warm SmoothPlastic + soft lights).
+	for i = 0, 3 do
+		local lz = frontZ - 6 - i * ((L - 8) / 3)
+		local bar = makePart("PCW_Light" .. i, Vector3.new(6, 0.3, 1.6), Vector3.new(cx, ceilingY - 0.4, lz), Color3.fromRGB(255, 244, 220), Enum.Material.SmoothPlastic, lobbyFolder)
+		bar.CanCollide = false
+		local pl = Instance.new("PointLight")
+		pl.Brightness = 0.45 -- kept low: 4 lights in an enclosed hall otherwise blow out to white
+		pl.Range = 16
+		pl.Color = Color3.fromRGB(255, 244, 214)
+		pl.Parent = bar
+	end
+
+	-- Seven product counters -- four down the left wall, three down the right --
+	-- each facing the central aisle. Order follows GameData.PCParts.
+	local LAYOUT = {
+		{ -9, frontZ - 6 }, { -9, frontZ - 16 }, { -9, frontZ - 26 }, { -9, frontZ - 36 },
+		{ 9, frontZ - 9 }, { 9, frontZ - 21 }, { 9, frontZ - 33 },
+	}
+	for i, part in ipairs(GameData.PCParts) do
+		local spot = LAYOUT[i]
+		if not spot then break end
+		local counterX = cx + spot[1]
+		local faceYaw = (spot[1] < 0) and -math.pi / 2 or math.pi / 2 -- face the aisle
+		buildPCStation(lobbyFolder, part, counterX, spot[2], faceYaw, ceilingY)
+	end
+
+	-- Stock, signage, ceiling, floor and clutter so it reads as a real store.
+	buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, ceilingY)
+
+	-- Shopkeeper NPC greeting by the checkout (open right-entrance area, facing
+	-- the door so customers see them on the way in).
+	local pal = NPC_PALETTE[1]
+	local keeper = buildNPC(lobbyFolder, "PCW_Keeper", Vector3.new(cx + 6.5, FLOOR_TOP, frontZ - 2), pal.shirt, pal.pants, pal.skin, def.color)
+	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(90), 0)) -- face the aisle
+
+	-- A plant by the left of the entrance.
+	buildPCPlant(lobbyFolder, "PCW_PlantL", cx - W / 2 + 2, frontZ - 2.5)
+
+	-- Invisible zone spanning the interior: stepping inside rolls the deal.
+	local zone = makePart("PCStoreZone", Vector3.new(W - 2, H - 2, L - 4), Vector3.new(cx, wallY, cz), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)
 	zone.Transparency = 1
 	zone.CanCollide = false
 	zone.CanQuery = false
@@ -2419,9 +2868,10 @@ end
 local function buildShops(lobbyFolder)
 	for i, def in ipairs(SHOP_DEFS) do
 		local p = SHOP_PLACEMENTS[i]
-		buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
 		if def.physical then
-			buildPCStoreShelves(lobbyFolder, Vector3.new(p.x, 0, p.z))
+			buildPCWarehouse(lobbyFolder, Vector3.new(p.x, 0, p.z), def)
+		else
+			buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
 		end
 	end
 end
@@ -3216,7 +3666,7 @@ function Lobby.build()
 	buildFountain(lobbyFolder)
 	buildPlazaHologram(lobbyFolder)
 	buildParkDecor(lobbyFolder)
-	buildPlayground(lobbyFolder)
+	-- (Playground slide + swing set removed per request.)
 	buildPlazaExtras(lobbyFolder)
 	buildVIPLounge(lobbyFolder)
 	buildMountains(lobbyFolder)

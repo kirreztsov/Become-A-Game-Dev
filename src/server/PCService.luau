@@ -85,9 +85,11 @@ function PCService.start()
 		data.cash -= cost
 		data.pcParts[partId] = level + 1
 
-		-- Only the Monitor changes the on-screen computer visual, so only that
-		-- needs a room rebuild. Local require avoids a boot load-order cycle.
-		if partId == "Monitor" then
+		-- Parts that change the desk PC rig's look (case, GPU mesh, cooling fans,
+		-- monitor) trigger a room rebuild so the studio PC updates. Local require
+		-- avoids a boot load-order cycle.
+		local RIG_VISUAL_PARTS = { Monitor = true, GPU = true, RGB = true, Cooling = true }
+		if RIG_VISUAL_PARTS[partId] then
 			local HomeService = require(script.Parent.HomeService)
 			HomeService.rebuildHome(player)
 		end

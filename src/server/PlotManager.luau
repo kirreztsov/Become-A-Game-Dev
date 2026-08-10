@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local DecorBuilder = require(game.ReplicatedStorage.Shared.DecorBuilder)
+local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
 local PlayerData = require(script.Parent.PlayerData)
 local StudioModels = require(script.Parent.StudioModels)
 
@@ -1643,8 +1644,27 @@ local function buildPCRig(parent, origin, x, z, pcParts)
 		local glass = nc(makePart("PCTowerGlass", Vector3.new(towerW - 0.2, towerH - 0.5, 0.1), origin + Vector3.new(tx, tcY, z - towerD / 2 - 0.03), Color3.fromRGB(150, 195, 215), Enum.Material.Glass, parent))
 		glass.Transparency = 0.5
 		if gpuT >= 1 then
-			local gc = GPU_TIER_COLORS[math.min(gpuT, #GPU_TIER_COLORS)]
-			nc(makePart("PCTowerGPU", Vector3.new(1.0 + gpuT * 0.06, 0.4, 1.7), origin + Vector3.new(tx, tcY - 0.3, z), gc, Enum.Material.SmoothPlastic, parent))
+			-- The real tiered GPU mesh, laid flat and mounted horizontally inside
+			-- the case (visible through the glass); it changes basic->RGB->elite
+			-- with the GPU tier. Falls back to a coloured slab if the asset is missing.
+			local visT = PCVisuals.getVisualTier(gpuT)
+			local gpu = PCVisuals.buildTierDisplay("PCGpu", visT, origin + Vector3.new(tx, FLOOR_TOP, z), 1.5, 0, PCVisuals.paintGpu)
+			if gpu then
+				gpu.Name = "PCTowerGPU"
+				local center = origin + Vector3.new(tx, tcY - 0.25, z)
+				-- lay the upright card flat (rotate about X), keep it inside the case
+				gpu:PivotTo(CFrame.new(center) * CFrame.Angles(math.rad(90), 0, 0))
+				for _, p in ipairs(gpu:GetDescendants()) do
+					if p:IsA("BasePart") then
+						p.Anchored = true
+						p.CanCollide = false
+					end
+				end
+				gpu.Parent = parent
+			else
+				local gc = GPU_TIER_COLORS[math.min(gpuT, #GPU_TIER_COLORS)]
+				nc(makePart("PCTowerGPU", Vector3.new(1.0 + gpuT * 0.06, 0.4, 1.7), origin + Vector3.new(tx, tcY - 0.3, z), gc, Enum.Material.SmoothPlastic, parent))
+			end
 		end
 		-- motherboard backplate
 		nc(makePart("PCTowerBoard", Vector3.new(towerW - 0.5, towerH - 1.0, 0.1), origin + Vector3.new(tx, tcY + 0.2, z + towerD / 2 - 0.2), Color3.fromRGB(20, 40, 30), Enum.Material.SmoothPlastic, parent))

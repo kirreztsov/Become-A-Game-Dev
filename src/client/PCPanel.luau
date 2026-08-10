@@ -4,8 +4,10 @@
 -- per-visit deal, which shows as a slashed SALE price on that shelf.
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
 local Sound = require(script.Parent.Sound)
 local Fx = require(script.Parent.Fx)
 
@@ -79,6 +81,87 @@ function PCPanel.init(player, theme, playerState)
 		updateShelves()
 	end)
 
+	-- Turntable spin + per-player TIERED displays. Every product slowly spins on
+	-- its counter (client-side, no network cost). Non-tiered products spin the
+	-- shared server prop; TIERED ones (e.g. GPU) are rebuilt CLIENT-side to the
+	-- look matching THIS player's level, and swapped when they buy a better one.
+	local anchors = {} -- [partId] = the PCShelf_<id> anchor
+	local spinItems = {} -- list of { obj = model/part, pos = Vector3 }
+	local tierState = {} -- [partId] = { tier = n, model = Model|nil }
+
+	local function rebuildTier(partId)
+		local asset = PCVisuals.TIERED[partId]
+		local anchor = anchors[partId]
+		if not asset or not anchor then
+			return
+		end
+		local tier = PCVisuals.getVisualTier(myParts[partId] or 0)
+		if tierState[partId] and tierState[partId].tier == tier and tierState[partId].model then
+			return -- already showing this tier
+		end
+		local prev = tierState[partId]
+		if prev and prev.model then
+			for i = #spinItems, 1, -1 do
+				if spinItems[i].obj == prev.model then
+					table.remove(spinItems, i)
+				end
+			end
+			prev.model:Destroy()
+		end
+		local basePos = Vector3.new(anchor.Position.X, anchor.Position.Y + anchor.Size.Y / 2, anchor.Position.Z)
+		local model = PCVisuals.buildTierDisplay(asset, tier, basePos, 2.6, 0, PCVisuals.PAINT[partId])
+		if model then
+			model.Name = "ClientDisplay_" .. partId
+			model.Parent = workspace:FindFirstChild("Lobby") or workspace
+			spinItems[#spinItems + 1] = { obj = model, pos = model:GetPivot().Position }
+		end
+		tierState[partId] = { tier = tier, model = model }
+	end
+
+	task.spawn(function()
+		local lobby = workspace:WaitForChild("Lobby", 20)
+		if not lobby then
+			return
+		end
+		for _, part in ipairs(GameData.PCParts) do
+			local anchor
+			for _ = 1, 100 do
+				anchor = lobby:FindFirstChild("PCShelf_" .. part.id)
+				if anchor then
+					break
+				end
+				task.wait(0.2)
+			end
+			anchors[part.id] = anchor
+			local serverProp = lobby:FindFirstChild("PCShelfProp_" .. part.id)
+			if PCVisuals.TIERED[part.id] then
+				rebuildTier(part.id) -- build the per-player look
+				if tierState[part.id] and tierState[part.id].model and serverProp then
+					serverProp:Destroy() -- replaced by our per-player model
+				elseif serverProp then
+					spinItems[#spinItems + 1] = { obj = serverProp, pos = (serverProp:IsA("Model") and serverProp:GetPivot() or serverProp.CFrame).Position }
+				end
+			elseif serverProp then
+				spinItems[#spinItems + 1] = { obj = serverProp, pos = (serverProp:IsA("Model") and serverProp:GetPivot() or serverProp.CFrame).Position }
+			end
+		end
+		local angle = 0
+		RunService.Heartbeat:Connect(function(dt)
+			angle += dt * 0.7 -- ~0.7 rad/s, a gentle turntable
+			local rot = CFrame.Angles(0, angle, 0)
+			for _, s in ipairs(spinItems) do
+				if s.obj and s.obj.Parent then
+					local target = CFrame.new(s.pos) * rot
+					if s.obj:IsA("Model") then
+						s.obj:PivotTo(target)
+					else
+						s.obj.CFrame = target
+					end
+				end
+			end
+		end)
+	end)
+
 	-- Stepping into the store rolls a fresh shopkeeper deal (debounced).
 	task.spawn(function()
 		local lobby = workspace:WaitForChild("Lobby", 20)
@@ -102,6 +185,10 @@ function PCPanel.init(player, theme, playerState)
 			myCash = data.cash or myCash
 		end
 		updateShelves()
+		-- A bought upgrade may cross a visual-tier boundary -> swap the display.
+		for partId in pairs(PCVisuals.TIERED) do
+			rebuildTier(partId)
+		end
 	end)
 
 	Remotes.PCStoreOpen.OnClientEvent:Connect(function(partId, discount)

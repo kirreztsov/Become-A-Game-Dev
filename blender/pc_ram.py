@@ -1,14 +1,13 @@
 """
 Tiered RAM (memory) display model -> PCRam.fbx, parts named T1_/T2_/T3_.
 
-  T1 basic: bare green stick with gold contacts + a few chips.
-  T2 RGB:   stick with a black heatspreader + toothed top.
-  T3 elite: heatspreader stick with a glowing RGB light bar on top (gamer RAM).
+  T1 basic: bare green stick -- gold contacts + visible black memory chips.
+  T2 RGB:   black heatspreader with a toothed top comb.
+  T3 elite: heatspreader + a 4-segment multi-colour RGB diffuser bar on top.
 
-Stood on its short end (tall) so it reads on the counter, FRONT toward -Y, base
-at z = 0, the three looks stacked at the origin. Run in Blender (Scripting ->
-Open -> Reload -> Run) -> blender/out/PCRam.fbx; import + save
-assets/studio/PCRam.rbxm.
+Stood on its gold contacts, FRONT toward -Y, base at z = 0; the three looks
+stacked at the origin. Run in Blender (Scripting -> Open -> Reload -> Run) ->
+blender/out/PCRam.fbx; import + save assets/studio/PCRam.rbxm.
 """
 
 import bpy
@@ -64,41 +63,34 @@ def export(filename):
     print("Exported:", filename)
 
 
+def stick(prefix, spreader, rgb):
+    pcb, co, ch, sp = [], [], [], []
+    box((1.0, 0.16, 2.5), (0, 0, 1.3), pcb)                    # PCB
+    box((0.95, 0.22, 0.22), (0, 0, 0.16), co)                  # gold contacts
+    box((0.14, 0.24, 0.24), (0.05, 0, 0.16), pcb)              # contact notch gap
+    if not spreader:
+        for k in range(4):
+            box((0.66, 0.06, 0.32), (0, -0.1, 0.7 + k * 0.45), ch)   # visible memory chips (T1)
+    else:
+        box((1.06, 0.26, 2.0), (0, -0.06, 1.45), sp)           # heatspreader
+        for k in range(5):
+            box((0.14, 0.26, 0.3), (-0.42 + k * 0.21, -0.06, 2.55), sp)  # toothed top comb
+    join_bevel(pcb, prefix + "PCB", 0.02)
+    join_bevel(co, prefix + "Contacts", 0.02)
+    join_bevel(ch, prefix + "Chip", 0.02)
+    join_bevel(sp, prefix + "Spreader", 0.02)
+    if rgb:
+        for k in range(4):
+            seg = []
+            box((0.22, 0.34, 0.34), (-0.33 + k * 0.22, -0.04, 2.85), seg)  # RGB diffuser segment
+            join_bevel(seg, prefix + "Accent" + str(k + 1), 0.02)
+
+
 def build_ram():
     clear_scene()
-
-    # ---- T1 basic: bare green stick ----
-    pcb, co, ch = [], [], []
-    box((1.0, 0.14, 2.4), (0, 0, 1.3), pcb)
-    box((0.95, 0.18, 0.2), (0, 0, 0.15), co)           # gold contacts
-    for k in range(4):
-        box((0.72, 0.06, 0.34), (0, -0.1, 0.8 + k * 0.48), ch)  # chips
-    join_bevel(pcb, "T1_PCB", 0.02)
-    join_bevel(co, "T1_Contacts", 0.02)
-    join_bevel(ch, "T1_Chip", 0.02)
-
-    # ---- T2: heatspreader stick ----
-    pcb2, co2, sp2 = [], [], []
-    box((1.05, 0.16, 2.9), (0, 0, 1.55), pcb2)
-    box((1.0, 0.2, 0.2), (0, 0, 0.15), co2)
-    box((1.05, 0.26, 2.3), (0, -0.06, 1.75), sp2)      # heatspreader face
-    for k in range(5):                                  # toothed top comb
-        box((0.14, 0.26, 0.3), (-0.42 + k * 0.21, -0.06, 3.0), sp2)
-    join_bevel(pcb2, "T2_PCB", 0.02)
-    join_bevel(co2, "T2_Contacts", 0.02)
-    join_bevel(sp2, "T2_Spreader", 0.02)
-
-    # ---- T3 elite: heatspreader + glowing RGB bar ----
-    pcb3, co3, sp3, ac3 = [], [], [], []
-    box((1.1, 0.18, 3.1), (0, 0, 1.65), pcb3)
-    box((1.05, 0.22, 0.2), (0, 0, 0.15), co3)
-    box((1.1, 0.3, 2.4), (0, -0.07, 1.8), sp3)         # heatspreader
-    box((0.9, 0.34, 0.4), (0, -0.05, 3.25), ac3)       # RGB diffuser bar on top
-    join_bevel(pcb3, "T3_PCB", 0.02)
-    join_bevel(co3, "T3_Contacts", 0.02)
-    join_bevel(sp3, "T3_Spreader", 0.02)
-    join_bevel(ac3, "T3_Accent", 0.02)
-
+    stick("T1_", spreader=False, rgb=False)
+    stick("T2_", spreader=True, rgb=False)
+    stick("T3_", spreader=True, rgb=True)
     export("PCRam.fbx")
 
 

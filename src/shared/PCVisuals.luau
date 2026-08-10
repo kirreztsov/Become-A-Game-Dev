@@ -121,12 +121,14 @@ function PCVisuals.paintCpu(p)
 end
 
 -- Paint a RAM mesh part by role.
+local RAM_RGB = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(150, 110, 255), Color3.fromRGB(240, 90, 170), Color3.fromRGB(90, 240, 150) }
 function PCVisuals.paintRam(p)
 	local n = p.Name
-	if n:find("Contacts") then
+	local ai = n:match("Accent(%d)")
+	if ai then
+		p.Color, p.Material = RAM_RGB[tonumber(ai)] or RAM_RGB[1], Enum.Material.SmoothPlastic -- RGB diffuser segment
+	elseif n:find("Contacts") then
 		p.Color, p.Material = Color3.fromRGB(218, 180, 90), Enum.Material.Metal -- gold pins
-	elseif n:find("Accent") then
-		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic -- RGB bar
 	elseif n:find("Spreader") then
 		p.Color, p.Material = Color3.fromRGB(38, 40, 48), Enum.Material.Metal
 	elseif n:find("Chip") then

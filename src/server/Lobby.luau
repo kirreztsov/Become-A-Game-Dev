@@ -2669,11 +2669,9 @@ local function buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, 
 		ss.TextColor3 = Color3.fromRGB(20, 20, 28)
 		ss.Parent = bar
 	end
-	local wallL = cx - W / 2 + 0.45
-	local wallR = cx + W / 2 - 0.45
-	poster("PCW_PosterA", wallL, frontZ - 11, false, "MYFORCE RTX", "4K BEAST", Color3.fromRGB(60, 170, 230))
-	poster("PCW_PosterB", wallL, frontZ - 31, false, "AZUS ULTRAWIDE", "-30% TODAY", Color3.fromRGB(230, 90, 170))
-	poster("PCW_PosterC", wallR, frontZ - 26, true, "RYZEM 9", "IN STOCK", Color3.fromRGB(240, 150, 60))
+	-- (Wall posters removed: the side walls now carry pillars + bright windows,
+	-- and the back wall has the logo + stocked shelf racks.)
+	local _ = poster -- keep the helper referenced without placing a poster
 
 	-- ===== Checkout desk in the OPEN right-entrance zone (clear of counters;
 	-- the first right counter is ~8 studs deeper). Long axis along Z, register
@@ -2696,8 +2694,9 @@ local function buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, 
 		local b3 = makePart(nm .. "3", Vector3.new(1.3, 1.3, 1.3), Vector3.new(x - 0.25, FLOOR_TOP + 3.5, z - 0.15), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
 		b1.CanCollide, b2.CanCollide, b3.CanCollide = true, false, false
 	end
-	boxStack("PCW_BoxesA", cx - W / 2 + 1.6, frontZ - 20) -- left wall, gap between counters
-	boxStack("PCW_BoxesB", cx + W / 2 - 1.6, frontZ - 14) -- right wall, gap between counters
+	-- Box clutter kept away from the walls (baseboards/windows there now): one
+	-- stack tucked in the front-left corner by the entrance.
+	boxStack("PCW_BoxesA", cx - W / 2 + 2.2, frontZ - 2.5)
 end
 
 -- The physical PC Store is a bright warehouse: a long hall you walk down with
@@ -2713,20 +2712,54 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 	local cz = (frontZ + backZ) / 2
 	local wallY = FLOOR_TOP + H / 2
 	local ceilingY = FLOOR_TOP + H
-	local WALL = Color3.fromRGB(224, 152, 92)
-	local TRIM = Color3.fromRGB(206, 120, 70)
+	-- Smooth painted showroom walls (NOT raw brick) in a soft warm tone.
+	local WALL = Color3.fromRGB(236, 219, 190)
+	local BASE = Color3.fromRGB(150, 122, 94)     -- baseboard
+	local PILLAR = Color3.fromRGB(247, 245, 241)  -- clean white columns
+	local WINPANE = Color3.fromRGB(226, 241, 255) -- bright daylight window
+	local MULLION = Color3.fromRGB(96, 82, 66)
+	local ACCENT = Color3.fromRGB(240, 140, 60)
 
-	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(198, 194, 206), Enum.Material.Concrete, lobbyFolder)
-	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(224, 222, 218), Enum.Material.SmoothPlastic, lobbyFolder)
-	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.Brick, lobbyFolder)
-	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
-	makePart("PCW_WallRight", Vector3.new(wt, H, L), Vector3.new(cx + W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(228, 226, 233), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(238, 235, 230), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_WallRight", Vector3.new(wt, H, L), Vector3.new(cx + W / 2, wallY, cz), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
 	-- Front wall with a wide doorway gap.
 	local doorW, doorH = 9, 8
 	local sideW = (W - doorW) / 2
-	makePart("PCW_FrontLeft", Vector3.new(sideW, H, wt), Vector3.new(cx - (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.Brick, lobbyFolder)
-	makePart("PCW_FrontRight", Vector3.new(sideW, H, wt), Vector3.new(cx + (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.Brick, lobbyFolder)
-	makePart("PCW_Lintel", Vector3.new(doorW, H - doorH, wt), Vector3.new(cx, FLOOR_TOP + doorH + (H - doorH) / 2, frontZ), TRIM, Enum.Material.Brick, lobbyFolder)
+	makePart("PCW_FrontLeft", Vector3.new(sideW, H, wt), Vector3.new(cx - (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_FrontRight", Vector3.new(sideW, H, wt), Vector3.new(cx + (doorW + sideW) / 2, wallY, frontZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Lintel", Vector3.new(doorW, H - doorH, wt), Vector3.new(cx, FLOOR_TOP + doorH + (H - doorH) / 2, frontZ), ACCENT, Enum.Material.SmoothPlastic, lobbyFolder)
+
+	-- Architecture down both side walls: a baseboard, a top accent band, white
+	-- pillars, and big bright windows between them (the airy showroom look).
+	for _, sx in ipairs({ -1, 1 }) do
+		local side = (sx > 0) and "R" or "L"
+		local wx = cx + sx * (W / 2 - 0.35)
+		local bb = makePart("PCW_Base" .. side, Vector3.new(0.4, 1.5, L - 0.6), Vector3.new(wx, FLOOR_TOP + 0.75, cz), BASE, Enum.Material.SmoothPlastic, lobbyFolder)
+		bb.CanCollide = false
+		local band = makePart("PCW_Band" .. side, Vector3.new(0.34, 0.7, L - 0.6), Vector3.new(wx, ceilingY - 1.3, cz), ACCENT, Enum.Material.SmoothPlastic, lobbyFolder)
+		band.CanCollide = false
+		local cells = 4
+		for p = 0, cells do
+			local pz = frontZ - 1.6 - p * ((L - 3.2) / cells)
+			local col = makePart("PCW_Pillar" .. side .. p, Vector3.new(1.1, H, 1.1), Vector3.new(wx - sx * 0.35, wallY, pz), PILLAR, Enum.Material.SmoothPlastic, lobbyFolder)
+			col.CanCollide = false
+			if p < cells then
+				local wz = frontZ - 1.6 - (p + 0.5) * ((L - 3.2) / cells)
+				local frame = makePart("PCW_WinFrame" .. side .. p, Vector3.new(0.2, 6.0, 5.4), Vector3.new(wx + sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				frame.CanCollide = false
+				local pane = makePart("PCW_Win" .. side .. p, Vector3.new(0.14, 5.3, 4.7), Vector3.new(wx - sx * 0.05, FLOOR_TOP + 6.3, wz), WINPANE, Enum.Material.SmoothPlastic, lobbyFolder)
+				pane.CanCollide = false
+				-- mullions (one horizontal + one vertical bar) over the pane
+				local mh = makePart("PCW_WinMH" .. side .. p, Vector3.new(0.16, 0.2, 4.7), Vector3.new(wx - sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				mh.CanCollide = false
+				local mv = makePart("PCW_WinMV" .. side .. p, Vector3.new(0.16, 5.3, 0.2), Vector3.new(wx - sx * 0.08, FLOOR_TOP + 6.3, wz), MULLION, Enum.Material.SmoothPlastic, lobbyFolder)
+				mv.CanCollide = false
+			end
+		end
+	end
 
 	-- Entrance banner over the door (faces +Z, out toward the avenue).
 	local banner = makePart("PCW_Banner", Vector3.new(W - 2, 2.2, 0.3), Vector3.new(cx, ceilingY + 1.3, frontZ + 0.2), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)

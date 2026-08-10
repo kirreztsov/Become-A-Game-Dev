@@ -22,6 +22,7 @@ PCVisuals.TIERED = {
 	Monitor = "PCMonitor",
 	RGB = "PCTower",
 	CPU = "PCCpu",
+	RAM = "PCRam",
 }
 
 -- Per-category display sizing on the shop counter (matches Lobby PC_SHELF_MODELS).
@@ -31,6 +32,7 @@ PCVisuals.DISPLAY = {
 	Monitor = { size = 3.0, byWidth = true },
 	RGB = { size = 3.0 },
 	CPU = { size = 2.0 },
+	RAM = { size = 2.6 },
 }
 
 -- Paint a GPU mesh part by its role name (shared so the counter and rig match).
@@ -114,11 +116,28 @@ function PCVisuals.paintCpu(p)
 	end
 end
 
+-- Paint a RAM mesh part by role.
+function PCVisuals.paintRam(p)
+	local n = p.Name
+	if n:find("Contacts") then
+		p.Color, p.Material = Color3.fromRGB(218, 180, 90), Enum.Material.Metal -- gold pins
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic -- RGB bar
+	elseif n:find("Spreader") then
+		p.Color, p.Material = Color3.fromRGB(38, 40, 48), Enum.Material.Metal
+	elseif n:find("Chip") then
+		p.Color, p.Material = Color3.fromRGB(24, 26, 32), Enum.Material.SmoothPlastic
+	else -- PCB
+		p.Color, p.Material = Color3.fromRGB(26, 74, 48), Enum.Material.SmoothPlastic
+	end
+end
+
 PCVisuals.PAINT = {
 	GPU = PCVisuals.paintGpu,
 	Monitor = PCVisuals.paintMonitor,
 	RGB = PCVisuals.paintTower,
 	CPU = PCVisuals.paintCpu,
+	RAM = PCVisuals.paintRam,
 }
 
 local function assetTemplate(assetName)

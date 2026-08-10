@@ -175,5 +175,156 @@ def build_gpu():
     export("PCGpu.fbx")
 
 
+# --------------------------------------------------------------------------
+# MONITOR -- three looks, screen toward -Y, base at z=0.
+#   T1 basic: small flat 16:9 on a simple stand.
+#   T2 RGB:   wider slightly-curved 21:9, thin bezel, chin RGB strip.
+#   T3 elite: super-ultrawide curved (11 arc segments) + tripod + rear RGB.
+# Screen segments are named T<t>_Screen<n> so the game paints a gradient.
+# --------------------------------------------------------------------------
+def build_monitor():
+    clear_scene()
+
+    # ---- T1 basic ----
+    bz, sc, nk, ba = [], [], [], []
+    box((3.2, 0.2, 2.0), (0, 0.05, 2.6), bz)
+    box((2.9, 0.08, 1.7), (0, -0.09, 2.6), sc)
+    box((0.45, 0.45, 1.2), (0, 0.12, 1.4), nk)
+    box((1.7, 1.1, 0.16), (0, 0.12, 0.08), ba)
+    join_bevel(bz, "T1_Bezel", 0.03)
+    join_bevel(sc, "T1_Screen", 0.02)
+    join_bevel(nk, "T1_Neck", 0.04)
+    join_bevel(ba, "T1_Base", 0.04)
+
+    # ---- T2 curved 21:9 ----
+    bz2, nk2, ba2, ac2 = [], [], [], []
+    SZ2, PH2, HALF2, SEGS2 = 2.9, 2.2, 3.0, 5
+    sw2 = (2 * HALF2) / SEGS2
+    for i in range(SEGS2):
+        x = -HALF2 + sw2 * (i + 0.5)
+        t = x / HALF2
+        y = 0.12 - 0.35 * (t * t)
+        rz = -14.0 * t
+        box((sw2 + 0.10, 0.20, PH2 + 0.16), (x, y + 0.12, SZ2), bz2, rot=(0, 0, rz))
+        seg = []
+        box((sw2 + 0.01, 0.09, PH2), (x, y, SZ2), seg, rot=(0, 0, rz))
+        join_bevel(seg, "T2_Screen" + str(i + 1), 0.02)
+    box((2.6, 0.10, 0.14), (0, -0.16, SZ2 - PH2 / 2 - 0.03), ac2)
+    box((0.5, 0.5, 1.2), (0, 0.15, 1.3), nk2)
+    box((2.0, 1.1, 0.16), (0, 0.15, 0.08), ba2)
+    join_bevel(bz2, "T2_Bezel", 0.03)
+    join_bevel(nk2, "T2_Neck", 0.04)
+    join_bevel(ba2, "T2_Base", 0.04)
+    join_bevel(ac2, "T2_Accent", 0.02)
+
+    # ---- T3 elite ultrawide ----
+    bz3, nk3, ba3, ac3 = [], [], [], []
+    SZ, PH, HALF, SEGS = 3.4, 2.3, 4.0, 11
+    sw = (2 * HALF) / SEGS
+    for i in range(SEGS):
+        x = -HALF + sw * (i + 0.5)
+        t = x / HALF
+        y = 0.15 - 0.55 * (t * t)
+        rz = -18.0 * t
+        box((sw + 0.12, 0.24, PH + 0.20), (x, y + 0.14, SZ), bz3, rot=(0, 0, rz))
+        box((sw + 0.02, 0.06, 0.14), (x, y + 0.30, SZ + 0.75), ac3, rot=(0, 0, rz))
+        seg = []
+        box((sw + 0.01, 0.10, PH), (x, y, SZ), seg, rot=(0, 0, rz))
+        join_bevel(seg, "T3_Screen" + str(i + 1), 0.02)
+    box((0.9, 0.10, 0.14), (0, -0.20, SZ - PH / 2 - 0.02), ac3)
+    box((0.55, 0.7, 2.0), (0, 0.35, 1.35), nk3)
+    box((1.0, 1.0, 0.22), (0, 0.35, 0.11), ba3)
+    box((2.4, 0.5, 0.18), (0.85, -0.45, 0.09), ba3, rot=(0, 0, -30))
+    box((2.4, 0.5, 0.18), (-0.85, -0.45, 0.09), ba3, rot=(0, 0, 30))
+    box((1.5, 0.5, 0.18), (0, 1.15, 0.09), ba3)
+    join_bevel(bz3, "T3_Bezel", 0.03)
+    join_bevel(nk3, "T3_Neck", 0.04)
+    join_bevel(ba3, "T3_Base", 0.04)
+    join_bevel(ac3, "T3_Accent", 0.02)
+
+    export("PCMonitor.fbx")
+
+
+# --------------------------------------------------------------------------
+# TOWER -- three looks, front toward -Y, base at z=0.
+#   T1 basic: plain solid case, no glass/RGB.
+#   T2 RGB:   case with a side window + 2 front RGB fans + a light strip.
+#   T3 elite: full glass side, mesh front, 3 RGB fans, internals.
+# --------------------------------------------------------------------------
+def build_tower():
+    clear_scene()
+
+    # ---- T1 basic ----
+    c1, ft1 = [], []
+    box((2.2, 4.4, 4.2), (0, 0, 2.3), c1)
+    box((2.2, 0.14, 4.2), (0, -2.2, 2.3), c1)          # solid front
+    box((0.3, 0.2, 0.12), (0.5, -2.28, 3.9), c1)       # power button nub
+    for fx in (-0.8, 0.8):
+        for fy in (-1.7, 1.7):
+            box((0.4, 0.4, 0.3), (fx, fy, 0.15), ft1)
+    join_bevel(c1, "T1_Case", 0.05)
+    join_bevel(ft1, "T1_Feet", 0.03)
+
+    # ---- T2 window + 2 fans ----
+    c2, fr2, gl2, ft2, ac2, r2a, r2b = [], [], [], [], [], [], []
+    box((2.2, 4.4, 4.2), (0, 0, 2.3), c2)
+    box((0.10, 3.6, 3.4), (-1.12, 0, 2.3), gl2)        # side window
+    box((2.2, 0.12, 4.2), (0, -2.22, 2.3), fr2)        # front panel
+    ring_fan((0, -1.95, 1.6), 0.55, fr2, r2a)
+    ring_fan((0, -1.95, 3.0), 0.55, fr2, r2b)
+    box((0.12, 0.12, 3.4), (-1.05, -2.2, 2.3), ac2)    # RGB strip
+    for fx in (-0.8, 0.8):
+        for fy in (-1.7, 1.7):
+            box((0.4, 0.4, 0.3), (fx, fy, 0.15), ft2)
+    join_bevel(c2, "T2_Case", 0.05)
+    join_bevel(fr2, "T2_Front", 0.02)
+    join_bevel(gl2, "T2_Glass", 0.02)
+    join_bevel(ft2, "T2_Feet", 0.03)
+    join_bevel(ac2, "T2_Accent", 0.02)
+    join_bevel(r2a, "T2_Ring1", 0.02)
+    join_bevel(r2b, "T2_Ring2", 0.02)
+
+    # ---- T3 elite (glass + mesh front + 3 fans + internals) ----
+    c3, fr3, gl3, ft3, ac3, bd3, co3 = [], [], [], [], [], [], []
+    f1, f2, f3, r1, r2, r3 = [], [], [], [], [], []
+    box((2.2, 4.6, 4.4), (0, 0.0, 2.55), c3)
+    box((0.10, 4.2, 4.0), (-1.12, 0.0, 2.55), gl3)
+    box((2.2, 0.20, 0.22), (0, -2.30, 4.70), fr3)      # bezel top
+    box((2.2, 0.20, 0.22), (0, -2.30, 0.40), fr3)      # bezel bottom
+    box((0.22, 0.20, 4.5), (-1.0, -2.30, 2.55), fr3)
+    box((0.22, 0.20, 4.5), (1.0, -2.30, 2.55), fr3)
+    ring_fan((0, -2.18, 1.35), 0.62, f1, r1)
+    ring_fan((0, -2.18, 2.55), 0.62, f2, r2)
+    ring_fan((0, -2.18, 3.75), 0.62, f3, r3)
+    for zz in (0.95, 1.75, 2.15, 2.95, 3.35, 4.15):
+        box((1.9, 0.10, 0.08), (0, -2.44, zz), fr3)
+    box((0.12, 0.12, 3.6), (-0.92, -2.0, 2.55), ac3)
+    box((0.10, 3.2, 3.2), (0.62, 0.2, 2.9), bd3)       # motherboard
+    box((0.7, 2.4, 0.5), (0.2, 0.0, 1.7), bd3)         # inner GPU
+    for rz in (0.75, 1.05, 1.35, 1.65):
+        box((0.16, 0.35, 1.1), (0.28, rz, 3.6), bd3)   # RAM
+    cyl(0.55, 0.5, (0.25, 0.4, 3.5), co3, rot=(0, 90, 0))
+    for fx in (-0.8, 0.8):
+        for fy in (-1.8, 1.8):
+            box((0.4, 0.4, 0.3), (fx, fy, 0.15), ft3)
+    join_bevel(c3, "T3_Case", 0.06)
+    join_bevel(fr3, "T3_Front", 0.02)
+    join_bevel(gl3, "T3_Glass", 0.02)
+    join_bevel(ft3, "T3_Feet", 0.03)
+    join_bevel(ac3, "T3_Accent", 0.02)
+    join_bevel(bd3, "T3_InnerBoard", 0.02)
+    join_bevel(co3, "T3_Cooler", 0.03)
+    join_bevel(f1, "T3_Fan1", 0.02)
+    join_bevel(f2, "T3_Fan2", 0.02)
+    join_bevel(f3, "T3_Fan3", 0.02)
+    join_bevel(r1, "T3_Ring1", 0.02)
+    join_bevel(r2, "T3_Ring2", 0.02)
+    join_bevel(r3, "T3_Ring3", 0.02)
+
+    export("PCTower.fbx")
+
+
 build_gpu()
-print("Done. Import blender/out/PCGpu.fbx and save assets/studio/PCGpu.rbxm (overwrite).")
+build_monitor()
+build_tower()
+print("Done. Import PCGpu.fbx, PCMonitor.fbx, PCTower.fbx (overwrite the 3 rbxm files).")

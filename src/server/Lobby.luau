@@ -2447,8 +2447,8 @@ end
 -- -- the ultrawide monitor scales by width so it doesn't tower over the shelf).
 local PC_SHELF_MODELS = {
 	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu, tierPrefix = "T3_" }, -- interim: show the elite look until per-player tier-swap is wired
-	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor },
-	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
+	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor, tierPrefix = "T3_" },
+	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower, tierPrefix = "T3_" },
 }
 
 -- Paint the Blender display counter by mesh-part name.

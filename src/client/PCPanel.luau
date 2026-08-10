@@ -109,7 +109,8 @@ function PCPanel.init(player, theme, playerState)
 			prev.model:Destroy()
 		end
 		local basePos = Vector3.new(anchor.Position.X, anchor.Position.Y + anchor.Size.Y / 2, anchor.Position.Z)
-		local model = PCVisuals.buildTierDisplay(asset, tier, basePos, 2.6, 0, PCVisuals.PAINT[partId])
+		local dcfg = PCVisuals.DISPLAY[partId] or { size = 2.6 }
+		local model = PCVisuals.buildTierDisplay(asset, tier, basePos, dcfg.size, 0, PCVisuals.PAINT[partId], dcfg.byWidth)
 		if model then
 			model.Name = "ClientDisplay_" .. partId
 			model.Parent = workspace:FindFirstChild("Lobby") or workspace

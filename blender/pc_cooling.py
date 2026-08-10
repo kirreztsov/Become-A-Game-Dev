@@ -112,28 +112,31 @@ def build_cooling():
 
     # ---- T1 basic: low heatsink + 1 plain fan ----
     fn, fa = [], []
-    box((1.5, 1.1, 1.9), (0, 0.25, 1.15), fn)          # fin block
-    fin_stack(1.6, 1.15, 0.4, 8, 0.2, fn)               # groove plates
-    basic_fan((0, -0.5, 1.15), 0.55, fa)
+    box((2.0, 1.4, 0.5), (0, 0, 0.25), fn)              # base plate (connected)
+    box((1.5, 1.1, 1.9), (0, 0.25, 1.35), fn)          # fin block
+    fin_stack(1.6, 1.15, 0.6, 8, 0.2, fn)               # groove plates
+    basic_fan((0, -0.5, 1.35), 0.55, fa)
     join_bevel(fn, "T1_Fins", 0.02)
     join_bevel(fa, "T1_Fan", 0.02)
 
     # ---- T2: taller tower + RGB-ring fan ----
     fn2, fa2, rg2 = [], [], []
-    box((1.7, 1.2, 3.0), (0, 0.25, 1.6), fn2)
-    fin_stack(1.8, 1.25, 0.4, 13, 0.2, fn2)
-    ring_fan((0, -0.58, 1.5), 0.62, fa2, rg2)
+    box((2.0, 1.4, 0.5), (0, 0, 0.25), fn2)             # base plate
+    box((1.7, 1.2, 3.0), (0, 0.25, 2.0), fn2)          # fin block on base
+    fin_stack(1.8, 1.25, 0.9, 12, 0.2, fn2)
+    ring_fan((0, -0.58, 1.9), 0.62, fa2, rg2)
     join_bevel(fn2, "T2_Fins", 0.02)
     join_bevel(fa2, "T2_Fan", 0.02)
     join_bevel(rg2, "T2_Ring", 0.02)
 
     # ---- T3 elite: big dual-fan tower + RGB rings + lit top cap ----
     fn3, fa3, rg3, ac3 = [], [], [], []
-    box((1.9, 1.35, 3.6), (0, 0.25, 1.9), fn3)
-    fin_stack(2.0, 1.4, 0.4, 15, 0.22, fn3)
-    ring_fan((0, -0.62, 1.15), 0.62, fa3, rg3)
-    ring_fan((0, -0.62, 2.6), 0.62, fa3, rg3)
-    box((1.6, 1.2, 0.28), (0, 0.25, 3.75), ac3)         # lit top cap
+    box((2.2, 1.5, 0.5), (0, 0, 0.25), fn3)             # base plate
+    box((1.9, 1.35, 3.4), (0, 0.25, 2.3), fn3)         # fin block on base
+    fin_stack(2.0, 1.4, 1.0, 14, 0.22, fn3)
+    ring_fan((0, -0.62, 1.5), 0.62, fa3, rg3)
+    ring_fan((0, -0.62, 3.0), 0.62, fa3, rg3)
+    box((1.6, 1.2, 0.28), (0, 0.25, 4.15), ac3)         # lit top cap
     join_bevel(fn3, "T3_Fins", 0.02)
     join_bevel(fa3, "T3_Fan", 0.02)
     join_bevel(rg3, "T3_Ring", 0.02)

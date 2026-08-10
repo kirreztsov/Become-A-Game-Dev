@@ -24,6 +24,7 @@ PCVisuals.TIERED = {
 	CPU = "PCCpu",
 	RAM = "PCRam",
 	Storage = "PCStorage",
+	Cooling = "PCCooling",
 }
 
 -- Per-category display sizing on the shop counter (matches Lobby PC_SHELF_MODELS).
@@ -35,6 +36,7 @@ PCVisuals.DISPLAY = {
 	CPU = { size = 2.0 },
 	RAM = { size = 2.6 },
 	Storage = { size = 2.2 },
+	Cooling = { size = 2.6 },
 }
 
 -- Paint a GPU mesh part by its role name (shared so the counter and rig match).
@@ -150,6 +152,18 @@ function PCVisuals.paintStorage(p)
 	end
 end
 
+-- Paint a Cooling mesh part by role.
+function PCVisuals.paintCooling(p)
+	local n = p.Name
+	if n:find("Ring") or n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic -- cool blue RGB
+	elseif n:find("Fan") then
+		p.Color, p.Material = Color3.fromRGB(46, 49, 58), Enum.Material.SmoothPlastic
+	else -- Fins (heatsink)
+		p.Color, p.Material = Color3.fromRGB(170, 175, 185), Enum.Material.Metal
+	end
+end
+
 PCVisuals.PAINT = {
 	GPU = PCVisuals.paintGpu,
 	Monitor = PCVisuals.paintMonitor,
@@ -157,6 +171,7 @@ PCVisuals.PAINT = {
 	CPU = PCVisuals.paintCpu,
 	RAM = PCVisuals.paintRam,
 	Storage = PCVisuals.paintStorage,
+	Cooling = PCVisuals.paintCooling,
 }
 
 local function assetTemplate(assetName)

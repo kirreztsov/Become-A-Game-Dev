@@ -2550,6 +2550,156 @@ local function buildPCPlant(lobbyFolder, name, x, z)
 	leaf.CanCollide = false
 end
 
+-- Dress the warehouse so it reads as a real, lived-in store (not an empty box):
+-- a neon logo on the back wall, stocked shelf racks, wall posters, a floor
+-- runner + entrance mat, ceiling trusses, a checkout desk, and box clutter.
+local function buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, ceilingY)
+	local STEEL = Color3.fromRGB(72, 76, 86)
+	local TEAL = Color3.fromRGB(70, 205, 225)
+	local ORANGE = Color3.fromRGB(240, 140, 60)
+	local CARDBOARD = Color3.fromRGB(178, 132, 86)
+	local BOX_COLORS = {
+		Color3.fromRGB(222, 92, 82), Color3.fromRGB(82, 160, 222), Color3.fromRGB(92, 194, 122),
+		Color3.fromRGB(242, 192, 74), Color3.fromRGB(176, 112, 222), Color3.fromRGB(70, 205, 225),
+	}
+
+	-- ===== Back-wall hero: a glowing store logo =====
+	local logo = makePart("PCW_Logo", Vector3.new(17, 4.6, 0.4), Vector3.new(cx, FLOOR_TOP + 8.5, backZ + 0.5), Color3.fromRGB(20, 20, 28), Enum.Material.SmoothPlastic, lobbyFolder)
+	logo.CanCollide = false
+	local logoGlow = makePart("PCW_LogoGlow", Vector3.new(17.6, 5.2, 0.28), Vector3.new(cx, FLOOR_TOP + 8.5, backZ + 0.45), TEAL, Enum.Material.Neon, lobbyFolder)
+	logoGlow.CanCollide = false
+	local lsg = Instance.new("SurfaceGui")
+	lsg.Face = Enum.NormalId.Front
+	lsg.CanvasSize = Vector2.new(680, 180)
+	lsg.LightInfluence = 0
+	lsg.Parent = logo
+	local lt = Instance.new("TextLabel")
+	lt.Size = UDim2.fromScale(1, 1)
+	lt.BackgroundTransparency = 1
+	lt.Text = "\240\159\150\165\239\184\143 PIXEL PC"
+	lt.Font = Enum.Font.FredokaOne
+	lt.TextScaled = true
+	lt.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lt.Parent = lsg
+	local lsub = Instance.new("TextLabel")
+	lsub.Size = UDim2.new(1, 0, 0.28, 0)
+	lsub.Position = UDim2.fromScale(0, 0.72)
+	lsub.BackgroundTransparency = 1
+	lsub.Text = "COMPUTER MEGASTORE"
+	lsub.Font = Enum.Font.GothamBold
+	lsub.TextScaled = true
+	lsub.TextColor3 = TEAL
+	lsub.Parent = lsg
+
+	-- ===== Ceiling trusses (warehouse structure) =====
+	for i = 0, 4 do
+		local bz = frontZ - 4 - i * ((L - 8) / 4)
+		local t = makePart("PCW_Truss" .. i, Vector3.new(W, 0.5, 0.5), Vector3.new(cx, ceilingY - 0.7, bz), STEEL, Enum.Material.Metal, lobbyFolder)
+		t.CanCollide = false
+	end
+	for _, ox in ipairs({ -6, 6 }) do
+		local tl = makePart("PCW_TrussLong" .. (ox > 0 and "R" or "L"), Vector3.new(0.5, 0.5, L - 6), Vector3.new(cx + ox, ceilingY - 0.7, cz), STEEL, Enum.Material.Metal, lobbyFolder)
+		tl.CanCollide = false
+	end
+
+	-- ===== Floor: a runner down the aisle + entrance mat =====
+	local runner = makePart("PCW_Runner", Vector3.new(6.5, 0.08, L - 6), Vector3.new(cx, FLOOR_TOP + 0.06, cz), Color3.fromRGB(44, 52, 68), Enum.Material.SmoothPlastic, lobbyFolder)
+	runner.CanCollide = false
+	for _, ox in ipairs({ -3.25, 3.25 }) do
+		local edge = makePart("PCW_RunnerEdge" .. (ox > 0 and "R" or "L"), Vector3.new(0.35, 0.09, L - 6), Vector3.new(cx + ox, FLOOR_TOP + 0.07, cz), TEAL, Enum.Material.SmoothPlastic, lobbyFolder)
+		edge.CanCollide = false
+	end
+	local mat = makePart("PCW_Mat", Vector3.new(8, 0.08, 3), Vector3.new(cx, FLOOR_TOP + 0.06, frontZ - 2.5), ORANGE, Enum.Material.SmoothPlastic, lobbyFolder)
+	mat.CanCollide = false
+
+	-- ===== Stocked shelf racks flanking the logo on the back wall =====
+	local function shelfRack(nm, center)
+		local w, h, d = 5, 6.5, 1.4
+		for _, ox in ipairs({ -w / 2 + 0.15, w / 2 - 0.15 }) do
+			for _, oz in ipairs({ -d / 2 + 0.15, d / 2 - 0.15 }) do
+				local post = makePart(nm .. "Post", Vector3.new(0.2, h, 0.2), center + Vector3.new(ox, h / 2, oz), STEEL, Enum.Material.Metal, lobbyFolder)
+				post.CanCollide = false
+			end
+		end
+		for s = 1, 4 do
+			local sy = 1.5 * s
+			local shelf = makePart(nm .. "Shelf" .. s, Vector3.new(w, 0.15, d), center + Vector3.new(0, sy, 0), Color3.fromRGB(120, 92, 62), Enum.Material.WoodPlanks, lobbyFolder)
+			shelf.CanCollide = false
+			for b = 0, 3 do
+				local col = BOX_COLORS[((s + b) % #BOX_COLORS) + 1]
+				local bx = makePart(nm .. "Box" .. s .. "_" .. b, Vector3.new(0.9, 1.1, 0.9), center + Vector3.new(-w / 2 + 0.85 + b * 1.1, sy + 0.63, 0), col, Enum.Material.SmoothPlastic, lobbyFolder)
+				bx.CanCollide = false
+			end
+		end
+	end
+	shelfRack("PCW_RackL", Vector3.new(cx - 8.5, FLOOR_TOP, backZ + 1.1))
+	shelfRack("PCW_RackR", Vector3.new(cx + 8.5, FLOOR_TOP, backZ + 1.1))
+
+	-- ===== Wall posters (parody ads) in the gaps between counters =====
+	local function poster(nm, x, z, faceLeft, title, sub, col)
+		local p = makePart(nm, Vector3.new(0.25, 4.2, 3.2), Vector3.new(x, FLOOR_TOP + 5.5, z), Color3.fromRGB(18, 18, 24), Enum.Material.SmoothPlastic, lobbyFolder)
+		p.CanCollide = false
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = faceLeft and Enum.NormalId.Left or Enum.NormalId.Right
+		sg.CanvasSize = Vector2.new(320, 420)
+		sg.LightInfluence = 0
+		sg.Parent = p
+		local bar = Instance.new("Frame")
+		bar.Size = UDim2.fromScale(1, 1)
+		bar.BackgroundColor3 = col
+		bar.BorderSizePixel = 0
+		bar.Parent = sg
+		local tt = Instance.new("TextLabel")
+		tt.Size = UDim2.new(1, -20, 0.4, 0)
+		tt.Position = UDim2.new(0, 10, 0.08, 0)
+		tt.BackgroundTransparency = 1
+		tt.Text = title
+		tt.Font = Enum.Font.FredokaOne
+		tt.TextScaled = true
+		tt.TextColor3 = Color3.fromRGB(255, 255, 255)
+		tt.TextWrapped = true
+		tt.Parent = bar
+		local ss = Instance.new("TextLabel")
+		ss.Size = UDim2.new(1, -20, 0.22, 0)
+		ss.Position = UDim2.new(0, 10, 0.66, 0)
+		ss.BackgroundTransparency = 1
+		ss.Text = sub
+		ss.Font = Enum.Font.GothamBold
+		ss.TextScaled = true
+		ss.TextColor3 = Color3.fromRGB(20, 20, 28)
+		ss.Parent = bar
+	end
+	local wallL = cx - W / 2 + 0.45
+	local wallR = cx + W / 2 - 0.45
+	poster("PCW_PosterA", wallL, frontZ - 11, false, "MYFORCE RTX", "4K BEAST", Color3.fromRGB(60, 170, 230))
+	poster("PCW_PosterB", wallL, frontZ - 31, false, "AZUS ULTRAWIDE", "-30% TODAY", Color3.fromRGB(230, 90, 170))
+	poster("PCW_PosterC", wallR, frontZ - 26, true, "RYZEM 9", "IN STOCK", Color3.fromRGB(240, 150, 60))
+
+	-- ===== Checkout desk in the OPEN right-entrance zone (clear of counters;
+	-- the first right counter is ~8 studs deeper). Long axis along Z, register
+	-- facing the aisle. =====
+	local ckX = cx + W / 2 - 2.2
+	local ckZ = frontZ - 3
+	local desk = makePart("PCW_Checkout", Vector3.new(2.4, 2.4, 4.4), Vector3.new(ckX, FLOOR_TOP + 1.2, ckZ), Color3.fromRGB(226, 226, 232), Enum.Material.SmoothPlastic, lobbyFolder)
+	desk.CanCollide = true
+	local dskirt = makePart("PCW_CheckoutSkirt", Vector3.new(2.6, 0.7, 4.6), Vector3.new(ckX, FLOOR_TOP + 0.35, ckZ), ORANGE, Enum.Material.SmoothPlastic, lobbyFolder)
+	dskirt.CanCollide = false
+	local reg = makePart("PCW_Register", Vector3.new(1.0, 0.9, 1.2), Vector3.new(ckX, FLOOR_TOP + 2.85, ckZ - 1.0), Color3.fromRGB(38, 40, 48), Enum.Material.SmoothPlastic, lobbyFolder)
+	reg.CanCollide = false
+	local regScr = makePart("PCW_RegisterScreen", Vector3.new(0.12, 0.7, 1.0), Vector3.new(ckX - 0.55, FLOOR_TOP + 3.0, ckZ - 1.0), TEAL, Enum.Material.SmoothPlastic, lobbyFolder)
+	regScr.CanCollide = false
+
+	-- ===== Cardboard box clutter (corners) =====
+	local function boxStack(nm, x, z)
+		local b1 = makePart(nm .. "1", Vector3.new(1.7, 1.7, 1.7), Vector3.new(x, FLOOR_TOP + 0.85, z), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		local b2 = makePart(nm .. "2", Vector3.new(1.4, 1.4, 1.4), Vector3.new(x + 0.3, FLOOR_TOP + 2.4, z + 0.2), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		local b3 = makePart(nm .. "3", Vector3.new(1.3, 1.3, 1.3), Vector3.new(x - 0.25, FLOOR_TOP + 3.5, z - 0.15), CARDBOARD, Enum.Material.SmoothPlastic, lobbyFolder)
+		b1.CanCollide, b2.CanCollide, b3.CanCollide = true, false, false
+	end
+	boxStack("PCW_BoxesA", cx - W / 2 + 1.6, frontZ - 20) -- left wall, gap between counters
+	boxStack("PCW_BoxesB", cx + W / 2 - 1.6, frontZ - 14) -- right wall, gap between counters
+end
+
 -- The physical PC Store is a bright warehouse: a long hall you walk down with
 -- product counters on both sides (one per PC-part category), hanging category
 -- signs, warm walls + ceiling lights, plants, and a shopkeeper. Buying is still
@@ -2621,14 +2771,17 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 		buildPCStation(lobbyFolder, part, counterX, spot[2], faceYaw, ceilingY)
 	end
 
-	-- Shopkeeper NPC just inside the entrance (flavour; buying is at the counters).
-	local pal = NPC_PALETTE[1]
-	local keeper = buildNPC(lobbyFolder, "PCW_Keeper", Vector3.new(cx - 7, FLOOR_TOP, frontZ - 4), pal.shirt, pal.pants, pal.skin, def.color)
-	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(90), 0))
+	-- Stock, signage, ceiling, floor and clutter so it reads as a real store.
+	buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, ceilingY)
 
-	-- Plants flanking the entrance.
-	buildPCPlant(lobbyFolder, "PCW_PlantL", cx - W / 2 + 2, frontZ - 2)
-	buildPCPlant(lobbyFolder, "PCW_PlantR", cx + W / 2 - 2, frontZ - 2)
+	-- Shopkeeper NPC greeting by the checkout (open right-entrance area, facing
+	-- the door so customers see them on the way in).
+	local pal = NPC_PALETTE[1]
+	local keeper = buildNPC(lobbyFolder, "PCW_Keeper", Vector3.new(cx + 6.5, FLOOR_TOP, frontZ - 2), pal.shirt, pal.pants, pal.skin, def.color)
+	keeper:PivotTo(keeper:GetPivot() * CFrame.Angles(0, math.rad(90), 0)) -- face the aisle
+
+	-- A plant by the left of the entrance.
+	buildPCPlant(lobbyFolder, "PCW_PlantL", cx - W / 2 + 2, frontZ - 2.5)
 
 	-- Invisible zone spanning the interior: stepping inside rolls the deal.
 	local zone = makePart("PCStoreZone", Vector3.new(W - 2, H - 2, L - 4), Vector3.new(cx, wallY, cz), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic, lobbyFolder)

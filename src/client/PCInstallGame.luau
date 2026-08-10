@@ -53,10 +53,13 @@ local function buildPart(partId, tier, worldCF)
 	return model
 end
 
--- Drag `model` on a horizontal plane at height planeY until the mouse/touch is
--- released, then return the drop position. Yields.
-local function dragUntilRelease(model, planeY, camera)
-	local dropPos
+-- Drag `model` on a horizontal plane at height planeY. Nothing moves until the
+-- player presses (press-and-hold); UI-handled inputs (e.g. the Cancel button)
+-- are ignored. Returns the drop position, or the model's current position if the
+-- round was cancelled. Yields.
+local function dragUntilRelease(model, planeY, camera, shouldCancel)
+	local dropPos = model:GetPivot().Position
+	local dragging = false
 	local released = false
 
 	local function screenToPlane(x, y)
@@ -69,7 +72,21 @@ local function dragUntilRelease(model, planeY, camera)
 		return ray.Origin + ray.Direction * tparam
 	end
 
-	local moveConn = UserInputService.InputChanged:Connect(function(input)
+	local beginConn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dropPos = screenToPlane(input.Position.X, input.Position.Y)
+			model:PivotTo(CFrame.new(dropPos.X, planeY, dropPos.Z))
+		end
+	end)
+	local moveConn = UserInputService.InputChanged:Connect(function(input, gameProcessed)
+		if not dragging or gameProcessed then
+			return
+		end
 		if input.UserInputType == Enum.UserInputType.MouseMovement
 			or input.UserInputType == Enum.UserInputType.Touch then
 			local pos = screenToPlane(input.Position.X, input.Position.Y)
@@ -77,7 +94,10 @@ local function dragUntilRelease(model, planeY, camera)
 			dropPos = pos
 		end
 	end)
-	local upConn = UserInputService.InputEnded:Connect(function(input)
+	local upConn = UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		if not dragging then
+			return
+		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch then
 			dropPos = screenToPlane(input.Position.X, input.Position.Y)
@@ -85,19 +105,23 @@ local function dragUntilRelease(model, planeY, camera)
 		end
 	end)
 
-	while not released do
+	while not released and not shouldCancel() do
 		RunService.Heartbeat:Wait()
 	end
+	beginConn:Disconnect()
 	moveConn:Disconnect()
 	upConn:Disconnect()
-	return dropPos or model:GetPivot().Position
+	return dropPos
 end
 
--- Ease a model to a target CFrame over a few frames.
-local function easeTo(model, cf)
+-- Ease a model to a target CFrame over a few frames; stops early if cancelled.
+local function easeTo(model, cf, shouldCancel)
 	local start = model:GetPivot()
 	local steps = 12
 	for i = 1, steps do
+		if shouldCancel and shouldCancel() then
+			return
+		end
 		model:PivotTo(start:Lerp(cf, i / steps))
 		RunService.Heartbeat:Wait()
 	end
@@ -118,7 +142,7 @@ local function runRound(scene, camera, partId, oldTier, newTier, shouldCancel)
 		if oldModel then
 			oldModel.Parent = scene
 			highlight(oldModel, Color3.fromRGB(255, 170, 60))
-			dragUntilRelease(oldModel, planeY, camera)
+			dragUntilRelease(oldModel, planeY, camera, shouldCancel)
 			if shouldCancel() then
 				return false
 			end
@@ -141,17 +165,17 @@ local function runRound(scene, camera, partId, oldTier, newTier, shouldCancel)
 	highlight(newModel, Color3.fromRGB(90, 220, 255))
 
 	while true do
-		local drop = dragUntilRelease(newModel, planeY, camera)
+		local drop = dragUntilRelease(newModel, planeY, camera, shouldCancel)
 		if shouldCancel() then
 			return false
 		end
 		if PCInstall.isWithinSnap(drop, slotWorld.Position, snap) then
-			easeTo(newModel, slotWorld)
+			easeTo(newModel, slotWorld, shouldCancel)
 			marker.Transparency = 1
 			task.wait(0.3)
 			return true
 		else
-			easeTo(newModel, trayWorld) -- eases back, try again
+			easeTo(newModel, trayWorld, shouldCancel) -- eases back, try again
 		end
 	end
 end
@@ -217,12 +241,14 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local done = runRound(scene, camera, partId, oldTier, newTier, function() return cancelled end)
+		local okRun, done = pcall(runRound, scene, camera, partId, oldTier, newTier, function()
+			return cancelled
+		end)
 		cleanup()
-		if cancelled or not done then
-			Remotes.PCInstallCancel:FireServer(partId)
-		else
+		if okRun and done and not cancelled then
 			Remotes.PCInstallComplete:FireServer(partId)
+		else
+			Remotes.PCInstallCancel:FireServer(partId)
 		end
 	end)
 end

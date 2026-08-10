@@ -21,6 +21,10 @@ PCVisuals.TIERED = {
 	GPU = "PCGpu",
 	Monitor = "PCMonitor",
 	RGB = "PCTower",
+	CPU = "PCCpu",
+	RAM = "PCRam",
+	Storage = "PCStorage",
+	Cooling = "PCCooling",
 }
 
 -- Per-category display sizing on the shop counter (matches Lobby PC_SHELF_MODELS).
@@ -29,6 +33,10 @@ PCVisuals.DISPLAY = {
 	GPU = { size = 2.6 },
 	Monitor = { size = 3.0, byWidth = true },
 	RGB = { size = 3.0 },
+	CPU = { size = 2.0 },
+	RAM = { size = 2.6 },
+	Storage = { size = 2.2 },
+	Cooling = { size = 2.6 },
 }
 
 -- Paint a GPU mesh part by its role name (shared so the counter and rig match).
@@ -96,10 +104,80 @@ function PCVisuals.paintTower(p)
 	end
 end
 
+-- Paint a CPU mesh part by role.
+function PCVisuals.paintCpu(p)
+	local n = p.Name
+	if n:find("IHS") then
+		p.Color, p.Material = Color3.fromRGB(190, 195, 205), Enum.Material.Metal -- heatspreader
+	elseif n:find("Gold") then
+		p.Color, p.Material = Color3.fromRGB(220, 182, 92), Enum.Material.Metal -- contacts / brand / notch
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Stand") then
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
+	else -- PCB substrate
+		p.Color, p.Material = Color3.fromRGB(28, 66, 48), Enum.Material.SmoothPlastic
+	end
+end
+
+-- Paint a RAM mesh part by role.
+local RAM_RGB = { Color3.fromRGB(90, 220, 255), Color3.fromRGB(150, 110, 255), Color3.fromRGB(240, 90, 170), Color3.fromRGB(90, 240, 150) }
+function PCVisuals.paintRam(p)
+	local n = p.Name
+	local ai = n:match("Accent(%d)")
+	if ai then
+		p.Color, p.Material = RAM_RGB[tonumber(ai)] or RAM_RGB[1], Enum.Material.SmoothPlastic -- RGB diffuser segment
+	elseif n:find("Contacts") then
+		p.Color, p.Material = Color3.fromRGB(218, 180, 90), Enum.Material.Metal -- gold pins
+	elseif n:find("Spreader") then
+		p.Color, p.Material = Color3.fromRGB(38, 40, 48), Enum.Material.Metal
+	elseif n:find("Chip") then
+		p.Color, p.Material = Color3.fromRGB(24, 26, 32), Enum.Material.SmoothPlastic
+	else -- PCB
+		p.Color, p.Material = Color3.fromRGB(26, 74, 48), Enum.Material.SmoothPlastic
+	end
+end
+
+-- Paint a Storage mesh part by role.
+function PCVisuals.paintStorage(p)
+	local n = p.Name
+	if n:find("Label") then
+		p.Color, p.Material = Color3.fromRGB(226, 228, 233), Enum.Material.SmoothPlastic -- sticker
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Contacts") then
+		p.Color, p.Material = Color3.fromRGB(220, 182, 92), Enum.Material.Metal -- gold connector
+	elseif n:find("Fins") then
+		p.Color, p.Material = Color3.fromRGB(70, 74, 84), Enum.Material.Metal
+	elseif n:find("PCB") then
+		p.Color, p.Material = Color3.fromRGB(26, 74, 48), Enum.Material.SmoothPlastic
+	elseif n:find("Chip") then
+		p.Color, p.Material = Color3.fromRGB(28, 30, 38), Enum.Material.SmoothPlastic
+	else -- Body (metal drive shell)
+		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
+	end
+end
+
+-- Paint a Cooling mesh part by role.
+function PCVisuals.paintCooling(p)
+	local n = p.Name
+	if n:find("Ring") or n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic -- cool blue RGB
+	elseif n:find("Fan") then
+		p.Color, p.Material = Color3.fromRGB(46, 49, 58), Enum.Material.SmoothPlastic
+	else -- Fins (heatsink)
+		p.Color, p.Material = Color3.fromRGB(170, 175, 185), Enum.Material.Metal
+	end
+end
+
 PCVisuals.PAINT = {
 	GPU = PCVisuals.paintGpu,
 	Monitor = PCVisuals.paintMonitor,
 	RGB = PCVisuals.paintTower,
+	CPU = PCVisuals.paintCpu,
+	RAM = PCVisuals.paintRam,
+	Storage = PCVisuals.paintStorage,
+	Cooling = PCVisuals.paintCooling,
 }
 
 local function assetTemplate(assetName)

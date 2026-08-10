@@ -7,6 +7,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local StudioModels = require(script.Parent.StudioModels)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
 
 -- The shared arrival hub -- confirmed against RoTube Life 2's actual
 -- structure ("the Park is where all players initially spawn... a
@@ -2449,6 +2450,10 @@ local PC_SHELF_MODELS = {
 	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu, tierPrefix = "T3_" }, -- interim: show the elite look until per-player tier-swap is wired
 	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor, tierPrefix = "T3_" },
 	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower, tierPrefix = "T3_" },
+	CPU = { asset = "PCCpu", size = 2.0, extraYaw = 0, paint = PCVisuals.paintCpu, tierPrefix = "T3_" },
+	RAM = { asset = "PCRam", size = 2.6, extraYaw = 0, paint = PCVisuals.paintRam, tierPrefix = "T3_" },
+	Storage = { asset = "PCStorage", size = 2.2, extraYaw = 0, paint = PCVisuals.paintStorage, tierPrefix = "T3_" },
+	Cooling = { asset = "PCCooling", size = 2.6, extraYaw = 0, paint = PCVisuals.paintCooling, tierPrefix = "T3_" },
 }
 
 -- Paint the Blender display counter by mesh-part name.

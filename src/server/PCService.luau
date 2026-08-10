@@ -1,6 +1,8 @@
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
+local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
+local Players = game:GetService("Players")
 
 local PCService = {}
 
@@ -11,6 +13,10 @@ local PCService = {}
 local currentDeal = {}
 local DEAL_CHANCE = 0.5
 local DEAL_DISCOUNTS = { 0.20, 0.25, 0.30, 0.40 }
+
+-- Reserved-but-not-yet-installed upgrades, keyed by Player:
+-- { partId = <id>, cost = <number>, targetLevel = <number> }. In-memory only.
+local pendingInstall = {}
 
 local function rollDeal(data)
 	if math.random() > DEAL_CHANCE then
@@ -86,56 +92,64 @@ function PCService.start()
 		Remotes.PCStoreOpen:FireClient(player, deal and deal.partId or nil, deal and deal.discount or nil)
 	end)
 
-	-- Buy the next model of a part. Money parts scale cash/game, follower parts
-	-- scale subscribers/release (GameData.getPCParts*Multiplier). A matching
-	-- shopkeeper deal discounts the price.
+	-- Buy the next model of a part: validate + RESERVE it (no charge yet), then
+	-- launch the install minigame. The upgrade is applied on PCInstallComplete.
 	Remotes.RequestUpgradePart.OnServerEvent:Connect(function(player, partId)
 		local data = PlayerData.get(player)
 		if not data then
 			return
 		end
-		local part = GameData.getPCPart(partId)
-		if not part then
-			Remotes.PCActionResult:FireClient(player, false)
-			return
-		end
-
 		data.pcParts = data.pcParts or {}
-		local level = data.pcParts[partId] or 0
-		if level >= GameData.getPCPartMaxLevel(partId) then
+		if pendingInstall[player] then
+			-- an install is already in flight; ignore
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end
-
-		local cost = GameData.getPCPartUpgradeCost(partId, level)
-		if not cost then
-			Remotes.PCActionResult:FireClient(player, false)
-			return
-		end
-		-- Apply the shopkeeper's deal if it's for this part.
 		local deal = currentDeal[player.UserId]
-		if deal and deal.partId == partId then
-			cost = math.floor(cost * (1 - deal.discount))
-		end
-		if data.cash < cost then
+		local ok, cost, targetLevel = PCService.reserveDecision(data, partId, deal)
+		if not ok then
 			Remotes.PCActionResult:FireClient(player, false)
 			return
 		end
+		pendingInstall[player] = { partId = partId, cost = cost, targetLevel = targetLevel }
+		local currentLevel = targetLevel - 1
+		local oldTier = currentLevel > 0 and PCVisuals.getVisualTier(currentLevel) or nil
+		local newTier = PCVisuals.getVisualTier(targetLevel)
+		Remotes.PCInstallStart:FireClient(player, partId, oldTier, newTier)
+	end)
 
-		data.cash -= cost
-		data.pcParts[partId] = level + 1
-
-		-- Parts that change the desk PC rig's look (case, GPU mesh, cooling fans,
-		-- monitor) trigger a room rebuild so the studio PC updates. Local require
-		-- avoids a boot load-order cycle.
+	-- Correct install reported by the client: re-validate and apply.
+	Remotes.PCInstallComplete.OnServerEvent:Connect(function(player, partId)
+		local data = PlayerData.get(player)
+		local pending = pendingInstall[player]
+		if not data or not pending or pending.partId ~= partId then
+			pendingInstall[player] = nil
+			Remotes.PCActionResult:FireClient(player, false)
+			return
+		end
+		local applied = PCService.applyInstall(data, pending)
+		pendingInstall[player] = nil
+		if not applied then
+			Remotes.PCActionResult:FireClient(player, false)
+			return
+		end
 		local RIG_VISUAL_PARTS = { Monitor = true, GPU = true, RGB = true, Cooling = true }
 		if RIG_VISUAL_PARTS[partId] then
 			local HomeService = require(script.Parent.HomeService)
 			HomeService.rebuildHome(player)
 		end
-
 		Remotes.PCActionResult:FireClient(player, true)
 		Remotes.PlayerStateUpdated:FireClient(player, data)
+	end)
+
+	-- Player cancelled or backed out: drop the reservation, nothing charged.
+	Remotes.PCInstallCancel.OnServerEvent:Connect(function(player)
+		pendingInstall[player] = nil
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		pendingInstall[player] = nil
+		currentDeal[player.UserId] = nil
 	end)
 end
 

@@ -2449,7 +2449,7 @@ local PC_SHELF_MODELS = {
 -- where the hanging sign hangs from.
 local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ceilingY)
 	-- Counter: a white body with an accent base skirt (the shop-display look).
-	makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(242, 242, 247), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(224, 224, 230), Enum.Material.SmoothPlastic, lobbyFolder)
 	local skirt = makePart("PCW_CounterBase_" .. part.id, Vector3.new(4.5, 0.7, 4.5), Vector3.new(counterX, FLOOR_TOP + 0.35, counterZ), Color3.fromRGB(232, 150, 92), Enum.Material.SmoothPlastic, lobbyFolder)
 	skirt.CanCollide = false
 	local topY = FLOOR_TOP + 2.6
@@ -2474,9 +2474,9 @@ local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ce
 	-- Per-player floating info label (text set on the client: owned tier / price / deal).
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Info"
-	bb.Size = UDim2.fromOffset(210, 96)
-	bb.StudsOffset = Vector3.new(0, 3.6, 0)
-	bb.MaxDistance = 55
+	bb.Size = UDim2.fromOffset(150, 62)
+	bb.StudsOffset = Vector3.new(0, 2.6, 0)
+	bb.MaxDistance = 24 -- only the counter you're standing at shows its label (no aisle overlap)
 	bb.Parent = anchor
 	local lbl = Instance.new("TextLabel")
 	lbl.Name = "Text"
@@ -2546,8 +2546,8 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 	local WALL = Color3.fromRGB(224, 152, 92)
 	local TRIM = Color3.fromRGB(206, 120, 70)
 
-	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(214, 210, 222), Enum.Material.Concrete, lobbyFolder)
-	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(238, 236, 232), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(198, 194, 206), Enum.Material.Concrete, lobbyFolder)
+	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(224, 222, 218), Enum.Material.SmoothPlastic, lobbyFolder)
 	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.Brick, lobbyFolder)
 	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
 	makePart("PCW_WallRight", Vector3.new(wt, H, L), Vector3.new(cx + W / 2, wallY, cz), WALL, Enum.Material.Brick, lobbyFolder)
@@ -2578,11 +2578,11 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 	-- Ceiling light bars down the hall (bright warm SmoothPlastic + soft lights).
 	for i = 0, 3 do
 		local lz = frontZ - 6 - i * ((L - 8) / 3)
-		local bar = makePart("PCW_Light" .. i, Vector3.new(6, 0.3, 1.6), Vector3.new(cx, ceilingY - 0.4, lz), Color3.fromRGB(255, 246, 220), Enum.Material.SmoothPlastic, lobbyFolder)
+		local bar = makePart("PCW_Light" .. i, Vector3.new(6, 0.3, 1.6), Vector3.new(cx, ceilingY - 0.4, lz), Color3.fromRGB(255, 244, 220), Enum.Material.SmoothPlastic, lobbyFolder)
 		bar.CanCollide = false
 		local pl = Instance.new("PointLight")
-		pl.Brightness = 1.6
-		pl.Range = 26
+		pl.Brightness = 0.45 -- kept low: 4 lights in an enclosed hall otherwise blow out to white
+		pl.Range = 16
 		pl.Color = Color3.fromRGB(255, 244, 214)
 		pl.Parent = bar
 	end

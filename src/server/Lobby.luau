@@ -2521,6 +2521,18 @@ local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ce
 	buy:SetAttribute("PartId", part.id)
 	buy.Parent = anchor
 
+	-- Retail spotlight: a small ceiling fixture beaming a warm cone down onto the
+	-- product, so it pops out of the ambient light (the "designed showroom" look).
+	local fixture = makePart("PCW_Spot_" .. part.id, Vector3.new(0.7, 0.3, 0.7), Vector3.new(counterX, ceilingY - 0.7, counterZ), Color3.fromRGB(36, 36, 42), Enum.Material.SmoothPlastic, lobbyFolder)
+	fixture.CanCollide = false
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Bottom
+	spot.Angle = 55
+	spot.Range = 22
+	spot.Brightness = 4
+	spot.Color = Color3.fromRGB(255, 244, 222)
+	spot.Parent = fixture
+
 	-- Hanging category sign from the ceiling above the counter (both faces).
 	local signBoard = makePart("PCW_Sign_" .. part.id, Vector3.new(4.6, 1.3, 0.2), Vector3.new(counterX, ceilingY - 1.6, counterZ), DARK_TRIM_COLOR, Enum.Material.SmoothPlastic, lobbyFolder)
 	signBoard.CanCollide = false -- default faces +/-Z so it reads as you walk down the aisle
@@ -2720,7 +2732,7 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 	local MULLION = Color3.fromRGB(96, 82, 66)
 	local ACCENT = Color3.fromRGB(240, 140, 60)
 
-	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(228, 226, 233), Enum.Material.SmoothPlastic, lobbyFolder)
+	makePart("PCW_Floor", Vector3.new(W + 2, 1, L + 2), Vector3.new(cx, FLOOR_TOP - 0.35, cz), Color3.fromRGB(230, 228, 234), Enum.Material.Marble, lobbyFolder)
 	makePart("PCW_Ceiling", Vector3.new(W + 2, 0.6, L + 2), Vector3.new(cx, ceilingY, cz), Color3.fromRGB(238, 235, 230), Enum.Material.SmoothPlastic, lobbyFolder)
 	makePart("PCW_WallBack", Vector3.new(W, H, wt), Vector3.new(cx, wallY, backZ), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
 	makePart("PCW_WallLeft", Vector3.new(wt, H, L), Vector3.new(cx - W / 2, wallY, cz), WALL, Enum.Material.SmoothPlastic, lobbyFolder)
@@ -2744,7 +2756,7 @@ local function buildPCWarehouse(lobbyFolder, center, def)
 		local cells = 4
 		for p = 0, cells do
 			local pz = frontZ - 1.6 - p * ((L - 3.2) / cells)
-			local col = makePart("PCW_Pillar" .. side .. p, Vector3.new(1.1, H, 1.1), Vector3.new(wx - sx * 0.35, wallY, pz), PILLAR, Enum.Material.SmoothPlastic, lobbyFolder)
+			local col = makePart("PCW_Pillar" .. side .. p, Vector3.new(1.1, H, 1.1), Vector3.new(wx - sx * 0.35, wallY, pz), PILLAR, Enum.Material.Marble, lobbyFolder)
 			col.CanCollide = false
 			if p < cells then
 				local wz = frontZ - 1.6 - (p + 0.5) * ((L - 3.2) / cells)

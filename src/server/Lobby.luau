@@ -100,10 +100,19 @@ end
 -- studs tall, spun to `yaw`, then runs paint(part) on each BasePart. Returns
 -- the Model, or nil if the asset isn't synced yet (caller falls back to a
 -- procedural build). Independent of the asset's import scale.
-local function placeProp(name, parent, worldBasePos, targetSize, yaw, paint, byWidth)
+local function placeProp(name, parent, worldBasePos, targetSize, yaw, paint, byWidth, tierPrefix)
 	local model = StudioModels.get(name)
 	if not model then
 		return nil
+	end
+	-- Tiered assets pack several "looks" (T1_/T2_/T3_ parts); keep only the
+	-- requested tier's parts so one clean variant shows instead of all stacked.
+	if tierPrefix then
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") and d.Name:match("^T%d+_") and d.Name:sub(1, #tierPrefix) ~= tierPrefix then
+				d:Destroy()
+			end
+		end
 	end
 	local _, size = model:GetBoundingBox()
 	-- Normally scale to a target HEIGHT (bounding Y); byWidth scales to a target
@@ -2437,7 +2446,7 @@ end
 -- `size` is a target HEIGHT in studs, unless `byWidth` (then it's a target WIDTH
 -- -- the ultrawide monitor scales by width so it doesn't tower over the shelf).
 local PC_SHELF_MODELS = {
-	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu },
+	GPU = { asset = "PCGpu", size = 2.6, extraYaw = 0, paint = paintPCGpu, tierPrefix = "T3_" }, -- interim: show the elite look until per-player tier-swap is wired
 	Monitor = { asset = "PCMonitor", size = 3.0, byWidth = true, extraYaw = 0, paint = paintPCMonitor },
 	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
 }
@@ -2483,7 +2492,7 @@ local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ce
 	-- Display model on the counter (detailed Blender model if synced, else box).
 	local cfg = PC_SHELF_MODELS[part.id]
 	local topWorld = Vector3.new(counterX, topY + 0.3, counterZ)
-	local model = cfg and placeProp(cfg.asset, lobbyFolder, topWorld, cfg.size, faceYaw + cfg.extraYaw, cfg.paint, cfg.byWidth)
+	local model = cfg and placeProp(cfg.asset, lobbyFolder, topWorld, cfg.size, faceYaw + cfg.extraYaw, cfg.paint, cfg.byWidth, cfg.tierPrefix)
 	if model then
 		model.Name = "PCShelfProp_" .. part.id
 	else

@@ -159,4 +159,23 @@ t:assertEqual(wc.Z, 2, "cell 0 centre z = CELL/2")
 local wc2 = GameData.homeCellToWorld(0, 0, 0, 2, 0, 2, 1)
 t:assertEqual(wc2.X, 12, "cell gx=2 w=2 centre x = 2*4 + 2*4/2 = 12")
 
+-- PC install minigame: snap + layout coverage
+local PCInstall = require(script.Parent.Parent.PCInstall)
+t:assertEqual(PCInstall.isWithinSnap(Vector3.new(0, 0, 0), Vector3.new(0, 0, 1), 2), true, "snap: within radius is true")
+t:assertEqual(PCInstall.isWithinSnap(Vector3.new(0, 0, 0), Vector3.new(0, 0, 3), 2), false, "snap: beyond radius is false")
+t:assertEqual(PCInstall.isWithinSnap(Vector3.new(0, 0, 0), Vector3.new(0, 0, 2), 2), true, "snap: exactly at radius is true")
+local missing = {}
+for _, p in ipairs(GameData.PCParts) do
+	if not PCInstall.Layout[p.id] then
+		missing[#missing + 1] = p.id
+	end
+end
+t:assertEqual(#missing, 0, "every PC part has a bench layout entry")
+for _, p in ipairs(GameData.PCParts) do
+	local e = PCInstall.Layout[p.id]
+	if e then
+		t:assertEqual(e.snap > 0, true, ("layout %s has a positive snap radius"):format(p.id))
+	end
+end
+
 t:summary()

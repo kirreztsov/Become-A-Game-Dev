@@ -2442,16 +2442,37 @@ local PC_SHELF_MODELS = {
 	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower },
 }
 
--- Build ONE product station on a counter: the counter block, a display model
+-- Paint the Blender display counter by mesh-part name.
+local function paintPCCounter(p)
+	local n = p.Name
+	if n:find("Chrome") then
+		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
+	elseif n:find("Top") then
+		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic -- dark display tray
+	elseif n:find("Accent") then
+		p.Color, p.Material = Color3.fromRGB(240, 140, 60), Enum.Material.SmoothPlastic
+	elseif n:find("Screen") then
+		p.Color, p.Material = Color3.fromRGB(70, 205, 225), Enum.Material.SmoothPlastic
+	else -- Body
+		p.Color, p.Material = Color3.fromRGB(234, 234, 240), Enum.Material.SmoothPlastic
+	end
+	p.CanCollide = true
+end
+
+-- Build ONE product station on a counter: the counter, a display model
 -- (or fallback box) on top facing the aisle, the per-player floating info label,
--- a hanging category sign, and the "Buy" prompt. `topPos` is the counter-top
--- centre in world; `faceYaw` turns the product toward the aisle; `ceilingY` is
--- where the hanging sign hangs from.
+-- a hanging category sign, and the "Buy" prompt. `faceYaw` turns things toward
+-- the aisle; `ceilingY` is where the hanging sign hangs from.
 local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ceilingY)
-	-- Counter: a white body with an accent base skirt (the shop-display look).
-	makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(224, 224, 230), Enum.Material.SmoothPlastic, lobbyFolder)
-	local skirt = makePart("PCW_CounterBase_" .. part.id, Vector3.new(4.5, 0.7, 4.5), Vector3.new(counterX, FLOOR_TOP + 0.35, counterZ), Color3.fromRGB(232, 150, 92), Enum.Material.SmoothPlastic, lobbyFolder)
-	skirt.CanCollide = false
+	-- Counter: a detailed Blender display stand if synced, else the plain box.
+	local counter = placeProp("PCCounter", lobbyFolder, Vector3.new(counterX, FLOOR_TOP, counterZ), 2.85, faceYaw, paintPCCounter)
+	if counter then
+		counter.Name = "PCW_Counter_" .. part.id
+	else
+		makePart("PCW_Counter_" .. part.id, Vector3.new(4.2, 2.6, 4.2), Vector3.new(counterX, FLOOR_TOP + 1.3, counterZ), Color3.fromRGB(224, 224, 230), Enum.Material.SmoothPlastic, lobbyFolder)
+		local skirt = makePart("PCW_CounterBase_" .. part.id, Vector3.new(4.5, 0.7, 4.5), Vector3.new(counterX, FLOOR_TOP + 0.35, counterZ), Color3.fromRGB(232, 150, 92), Enum.Material.SmoothPlastic, lobbyFolder)
+		skirt.CanCollide = false
+	end
 	local topY = FLOOR_TOP + 2.6
 
 	-- The named anchor the client billboard + buy prompt hang off (thin plate on

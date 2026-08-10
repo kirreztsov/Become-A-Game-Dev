@@ -2474,16 +2474,36 @@ local function buildPCStation(lobbyFolder, part, counterX, counterZ, faceYaw, ce
 	-- Per-player floating info label (text set on the client: owned tier / price / deal).
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Info"
-	bb.Size = UDim2.fromOffset(150, 62)
-	bb.StudsOffset = Vector3.new(0, 2.6, 0)
-	bb.MaxDistance = 24 -- only the counter you're standing at shows its label (no aisle overlap)
+	bb.Size = UDim2.fromOffset(168, 74)
+	bb.StudsOffset = Vector3.new(0, 3.7, 0) -- float clearly ABOVE the product
+	bb.MaxDistance = 26 -- only the counter you're standing at shows its label (no aisle overlap)
 	bb.Parent = anchor
+	-- A dark rounded "price tag" chip behind the text so the name + price stay
+	-- readable against the lit brick wall (not washed out).
+	local bg = Instance.new("Frame")
+	bg.Name = "BG"
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.fromRGB(26, 26, 34)
+	bg.BackgroundTransparency = 0.12
+	bg.BorderSizePixel = 0
+	bg.ZIndex = 1
+	bg.Parent = bb
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = bg
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Transparency = 0.75
+	stroke.Thickness = 1.5
+	stroke.Parent = bg
 	local lbl = Instance.new("TextLabel")
 	lbl.Name = "Text"
-	lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Size = UDim2.new(1, -14, 1, -10)
+	lbl.Position = UDim2.new(0, 7, 0, 5)
 	lbl.BackgroundTransparency = 1
 	lbl.RichText = true
 	lbl.TextScaled = true
+	lbl.ZIndex = 2
 	lbl.Font = Enum.Font.FredokaOne
 	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
 	lbl.TextStrokeTransparency = 0.35

@@ -145,10 +145,14 @@ function PCVisuals.paintStorage(p)
 		p.Color, p.Material = Color3.fromRGB(226, 228, 233), Enum.Material.SmoothPlastic -- sticker
 	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
+	elseif n:find("Contacts") then
+		p.Color, p.Material = Color3.fromRGB(220, 182, 92), Enum.Material.Metal -- gold connector
 	elseif n:find("Fins") then
-		p.Color, p.Material = Color3.fromRGB(60, 63, 72), Enum.Material.Metal
-	elseif n:find("Stand") then
-		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
+		p.Color, p.Material = Color3.fromRGB(70, 74, 84), Enum.Material.Metal
+	elseif n:find("PCB") then
+		p.Color, p.Material = Color3.fromRGB(26, 74, 48), Enum.Material.SmoothPlastic
+	elseif n:find("Chip") then
+		p.Color, p.Material = Color3.fromRGB(28, 30, 38), Enum.Material.SmoothPlastic
 	else -- Body (metal drive shell)
 		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
 	end

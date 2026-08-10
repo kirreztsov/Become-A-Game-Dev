@@ -1,14 +1,14 @@
 """
 Tiered Storage display model -> PCStorage.fbx, parts named T1_/T2_/T3_.
+Form-factor progression: HDD -> SSD -> NVMe.
 
-  T1 basic: chunky 3.5" HDD (metal box + label) on a stand.
-  T2 RGB:   slim 2.5" SSD (flatter box + label + brand accent) on a stand.
-  T3 elite: M.2 NVMe stick with a finned RGB heatsink.
+  T1 basic: 3.5" HDD -- metal box, label, corner screws.
+  T2 RGB:   2.5" SSD -- slim metal box, label, accent stripe.
+  T3 elite: M.2 NVMe -- PCB + gold connector + finned heatsink + front RGB strip.
 
-Drives stand upright on a small stand so they read on the counter, FRONT (label
-face) toward -Y, base at z = 0, the three looks stacked at the origin. Run in
-Blender (Scripting -> Open -> Reload -> Run) -> blender/out/PCStorage.fbx;
-import + save assets/studio/PCStorage.rbxm.
+FRONT (label / heatsink face) toward -Y, base at z = 0; the three looks stacked
+at the origin. Run in Blender (Scripting -> Open -> Reload -> Run) ->
+blender/out/PCStorage.fbx; import + save assets/studio/PCStorage.rbxm.
 """
 
 import bpy
@@ -67,40 +67,40 @@ def export(filename):
 def build_storage():
     clear_scene()
 
-    # ---- T1 basic: 3.5" HDD on a stand ----
-    st, bd, lb = [], [], []
-    box((1.1, 0.7, 0.45), (0, 0, 0.22), st)             # stand
-    box((2.4, 0.55, 1.55), (0, 0, 1.25), bd)            # HDD metal body (standing)
-    for sx in (-1.0, 1.0):                               # corner screws
-        for sz in (0.6, 1.9):
-            box((0.14, 0.1, 0.14), (sx, -0.28, sz), bd)
-    box((1.8, 0.06, 1.0), (0, -0.3, 1.35), lb)          # label
-    join_bevel(st, "T1_Stand", 0.03)
+    # ---- T1: 3.5" HDD ----
+    bd, lb = [], []
+    box((2.0, 0.62, 1.5), (0, 0, 0.8), bd)                     # metal body
+    box((2.02, 0.64, 0.1), (0, 0, 1.5), bd)                    # top lid seam
+    for sx in (-0.85, 0.85):                                    # corner screws
+        for sz in (0.2, 1.4):
+            box((0.14, 0.1, 0.14), (sx, -0.32, sz), bd)
+    box((1.4, 0.06, 0.85), (0, -0.33, 0.85), lb)               # paper label
     join_bevel(bd, "T1_Body", 0.03)
     join_bevel(lb, "T1_Label", 0.02)
 
-    # ---- T2: slim 2.5" SSD on a stand ----
-    st2, bd2, lb2, ac2 = [], [], [], []
-    box((1.1, 0.7, 0.45), (0, 0, 0.22), st2)
-    box((2.0, 0.32, 1.35), (0, 0, 1.15), bd2)           # slim body
-    box((1.6, 0.06, 0.9), (0, -0.19, 1.25), lb2)        # label
-    box((1.6, 0.07, 0.12), (0, -0.19, 0.7), ac2)        # brand accent strip
-    join_bevel(st2, "T2_Stand", 0.03)
+    # ---- T2: 2.5" SSD ----
+    bd2, lb2, ac2 = [], [], []
+    box((1.7, 0.32, 1.15), (0, 0, 0.65), bd2)                  # slim body
+    box((1.2, 0.06, 0.6), (0, -0.17, 0.75), lb2)               # label
+    box((1.2, 0.07, 0.1), (0, -0.17, 0.4), ac2)                # accent stripe
     join_bevel(bd2, "T2_Body", 0.03)
     join_bevel(lb2, "T2_Label", 0.02)
     join_bevel(ac2, "T2_Accent", 0.02)
 
-    # ---- T3 elite: M.2 NVMe stick + finned RGB heatsink ----
-    st3, bd3, fn3, ac3 = [], [], [], []
-    box((0.9, 0.6, 0.4), (0, 0, 0.2), st3)              # small stand
-    box((0.75, 0.14, 2.6), (0, 0.06, 1.4), bd3)         # NVMe PCB stick
-    box((0.8, 0.3, 2.1), (0, -0.08, 1.55), fn3)         # heatsink block
-    for k in range(6):                                   # heatsink fin grooves
-        box((0.82, 0.32, 0.06), (0, -0.08, 0.7 + k * 0.32), st3)
-    box((0.6, 0.34, 0.35), (0, -0.06, 2.75), ac3)       # RGB strip on top
-    join_bevel(st3, "T3_Stand", 0.02)
-    join_bevel(bd3, "T3_Body", 0.02)
-    join_bevel(fn3, "T3_Fins", 0.02)
+    # ---- T3: M.2 NVMe with finned RGB heatsink ----
+    pcb, co, ch, fn, ac3 = [], [], [], [], []
+    box((0.72, 0.16, 2.5), (0, 0, 1.35), pcb)                  # PCB
+    box((0.6, 0.22, 0.22), (0, 0, 0.15), co)                   # gold connector
+    box((0.14, 0.24, 0.24), (0.02, 0, 0.15), pcb)              # connector notch
+    box((0.5, 0.16, 0.32), (0, -0.1, 0.55), ch)                # exposed controller chip
+    box((0.82, 0.3, 1.7), (0, -0.08, 1.65), fn)                # heatsink block
+    for k in range(7):                                          # fin grooves
+        box((0.86, 0.34, 0.06), (0, -0.08, 0.9 + k * 0.24), fn)
+    box((0.12, 0.09, 1.4), (0, -0.26, 1.65), ac3)              # RGB strip on the FRONT
+    join_bevel(pcb, "T3_PCB", 0.02)
+    join_bevel(co, "T3_Contacts", 0.02)
+    join_bevel(ch, "T3_Chip", 0.02)
+    join_bevel(fn, "T3_Fins", 0.02)
     join_bevel(ac3, "T3_Accent", 0.02)
 
     export("PCStorage.fbx")

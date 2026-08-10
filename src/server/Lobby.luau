@@ -2452,6 +2452,7 @@ local PC_SHELF_MODELS = {
 	RGB = { asset = "PCTower", size = 3.0, extraYaw = 0, paint = paintPCTower, tierPrefix = "T3_" },
 	CPU = { asset = "PCCpu", size = 2.0, extraYaw = 0, paint = PCVisuals.paintCpu, tierPrefix = "T3_" },
 	RAM = { asset = "PCRam", size = 2.6, extraYaw = 0, paint = PCVisuals.paintRam, tierPrefix = "T3_" },
+	Storage = { asset = "PCStorage", size = 2.2, extraYaw = 0, paint = PCVisuals.paintStorage, tierPrefix = "T3_" },
 }
 
 -- Paint the Blender display counter by mesh-part name.

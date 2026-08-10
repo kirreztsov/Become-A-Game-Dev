@@ -108,15 +108,15 @@ end
 function PCVisuals.paintCpu(p)
 	local n = p.Name
 	if n:find("IHS") then
-		p.Color, p.Material = Color3.fromRGB(182, 187, 197), Enum.Material.Metal -- heatspreader
+		p.Color, p.Material = Color3.fromRGB(190, 195, 205), Enum.Material.Metal -- heatspreader
+	elseif n:find("Gold") then
+		p.Color, p.Material = Color3.fromRGB(220, 182, 92), Enum.Material.Metal -- contacts / brand / notch
 	elseif n:find("Accent") then
 		p.Color, p.Material = Color3.fromRGB(90, 220, 255), Enum.Material.SmoothPlastic
-	elseif n:find("Fins") then
-		p.Color, p.Material = Color3.fromRGB(150, 155, 165), Enum.Material.Metal
 	elseif n:find("Stand") then
 		p.Color, p.Material = Color3.fromRGB(40, 42, 50), Enum.Material.SmoothPlastic
-	else -- Chip substrate
-		p.Color, p.Material = Color3.fromRGB(34, 36, 44), Enum.Material.SmoothPlastic
+	else -- PCB substrate
+		p.Color, p.Material = Color3.fromRGB(28, 66, 48), Enum.Material.SmoothPlastic
 	end
 end
 

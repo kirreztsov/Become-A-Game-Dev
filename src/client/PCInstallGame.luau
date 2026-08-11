@@ -65,8 +65,8 @@ local function buildCase(benchCF, scene)
 	slot.Transparency = 0.3
 	local slotLight = Instance.new("PointLight")
 	slotLight.Color = WHITE
-	slotLight.Brightness = 3
-	slotLight.Range = 11
+	slotLight.Brightness = 1.1
+	slotLight.Range = 7
 	slotLight.Parent = slot
 	TweenService:Create(slot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.65 }):Play()
 	-- warm interior fill light so the parts read clearly (fixes the dark look)
@@ -74,8 +74,8 @@ local function buildCase(benchCF, scene)
 	anchor.Transparency = 1
 	local fill = Instance.new("PointLight")
 	fill.Color = Color3.fromRGB(255, 248, 235)
-	fill.Brightness = 2.6
-	fill.Range = 13
+	fill.Brightness = 0.7
+	fill.Range = 9
 	fill.Parent = anchor
 	return model, slot.CFrame
 end
@@ -118,7 +118,6 @@ local function waitForClick(model, shouldCancel)
 		if p:IsA("BasePart") then
 			local cd = Instance.new("ClickDetector")
 			cd.MaxActivationDistance = 1000
-			cd.CursorIcon = "rbxasset://textures/GunCursor.png"
 			cd.Parent = p
 			conns[#conns + 1] = cd.MouseClick:Connect(function()
 				clicked = true

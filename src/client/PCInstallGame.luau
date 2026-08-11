@@ -116,29 +116,33 @@ end
 -- Make every part of the model clickable; resolves when clicked (or cancelled).
 local function waitForClick(model, shouldCancel)
 	local clicked = false
-	local conns = {}
 	local glow = Instance.new("Highlight")
 	glow.FillColor = Color3.fromRGB(120, 220, 255)
 	glow.FillTransparency = 0.5
 	glow.OutlineColor = WHITE
 	glow.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	glow.Parent = model
-	for _, p in ipairs(model:GetDescendants()) do
-		if p:IsA("BasePart") then
-			local cd = Instance.new("ClickDetector")
-			cd.MaxActivationDistance = 1000
-			cd.Parent = p
-			conns[#conns + 1] = cd.MouseClick:Connect(function()
-				clicked = true
-			end)
-		end
-	end
+	-- one big invisible click target around the whole part, so even small parts
+	-- (RAM/Storage) are easy to click
+	local cf, size = model:GetBoundingBox()
+	local hit = Instance.new("Part")
+	hit.Anchored = true
+	hit.CanCollide = false
+	hit.Transparency = 1
+	hit.Size = size + Vector3.new(1.5, 1.5, 1.5)
+	hit.CFrame = cf
+	hit.Parent = model
+	local cd = Instance.new("ClickDetector")
+	cd.MaxActivationDistance = 1000
+	cd.Parent = hit
+	local conn = cd.MouseClick:Connect(function()
+		clicked = true
+	end)
 	while not clicked and not shouldCancel() do
 		RunService.Heartbeat:Wait()
 	end
-	for _, c in ipairs(conns) do
-		c:Disconnect()
-	end
+	conn:Disconnect()
+	hit:Destroy()
 	if glow then
 		glow:Destroy()
 	end

@@ -163,6 +163,27 @@ local function flyThrough(model, cfs, shouldCancel, camera, camOffset)
 	end
 end
 
+-- Press a part down into its slot with a small overshoot + settle ("click in").
+local function pressIn(model, slotCF, shouldCancel)
+	local overshoot = slotCF * CFrame.new(0, -0.14, 0)
+	local a = model:GetPivot()
+	for i = 1, 9 do -- push down (a touch past the slot)
+		if shouldCancel and shouldCancel() then
+			return
+		end
+		model:PivotTo(a:Lerp(overshoot, i / 9))
+		RunService.Heartbeat:Wait()
+	end
+	for i = 1, 7 do -- settle back up into place
+		if shouldCancel and shouldCancel() then
+			return
+		end
+		model:PivotTo(overshoot:Lerp(slotCF, i / 7))
+		RunService.Heartbeat:Wait()
+	end
+	model:PivotTo(slotCF)
+end
+
 -- A spark burst at a world CFrame (satisfying "it clicked in" payoff).
 local function seatBurst(cf, scene)
 	local fx = newPart("FX", Vector3.new(0.4, 0.4, 0.4), cf, WHITE, Enum.Material.Neon, scene)
@@ -265,8 +286,9 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 		return false
 	end
 	local stopReach2 = playReach(char)
-	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel, camera, camOff) -- camera follows it in
+	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.2), slotCF * CFrame.new(0, 0.55, 0) }, shouldCancel, camera, camOff) -- arc to just above the slot
 	stopReach2()
+	pressIn(newModel, slotCF, shouldCancel) -- push it down into place with a settle
 	seatBurst(slotCF, scene) -- spark burst payoff
 	tweenCam(camera, overviewCF, 0.6) -- zoom back to 3rd person
 	prompt.Text = "Installed!"

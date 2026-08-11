@@ -1,12 +1,11 @@
--- 3D "install the part" minigame, played AT the workbench. When it starts the
--- camera moves to the bench, your character is placed at the bench facing it, a
--- real open PC tower sits on the bench with a glowing white NEON slot inside,
--- plus a parts tray and a recycle bin. Drag the old (or basic stock) part out to
--- the bin, then drag the new part into the slot; parts animate as they move.
+-- 3D "install the part" minigame at the workbench. Click-to-install: click the
+-- part in the case and it flies from the slot to your character's hand and into
+-- the recycle bin; then click the new part on the tray and it flies through your
+-- hand into the glowing white NEON slot. Your character reaches as it happens.
 -- Cannot fail. The server applies the upgrade only when the round completes.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PCInstall = require(game.ReplicatedStorage.Shared.PCInstall)
@@ -15,7 +14,6 @@ local GameData = require(game.ReplicatedStorage.Shared.GameData)
 
 local PCInstallGame = {}
 local active = false
-
 local WHITE = Color3.fromRGB(255, 255, 255)
 
 function PCInstallGame.isActive()
@@ -27,7 +25,7 @@ local function partName(partId)
 	return (p and (p.name or p.label)) or partId
 end
 
-local function newPart(name, size, cf, color, material, parent, scene)
+local function newPart(name, size, cf, color, material, parent)
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Anchored = true
@@ -36,32 +34,28 @@ local function newPart(name, size, cf, color, material, parent, scene)
 	p.CFrame = cf
 	p.Color = color
 	p.Material = material
-	p.Parent = parent or scene
+	p.Parent = parent
 	return p
 end
 
--- Build a simple open PC tower (back + bottom + top + left + a motherboard),
--- front and right left open so the interior + slot are visible. Returns the
--- interior slot's world CFrame.
 local function buildCase(benchCF, scene)
 	local model = Instance.new("Model")
 	model.Name = "InstallCase"
 	model.Parent = scene
 	local caseColor = Color3.fromRGB(30, 32, 40)
-	-- interior origin: sits on the bench top, pushed slightly back
 	local o = benchCF * CFrame.new(0, 1.7, -0.2)
 	newPart("CaseBack", Vector3.new(3.2, 3.4, 0.2), o * CFrame.new(0, 0, -1.3), caseColor, Enum.Material.SmoothPlastic, model)
 	newPart("CaseBottom", Vector3.new(3.2, 0.2, 2.6), o * CFrame.new(0, -1.7, 0), caseColor, Enum.Material.SmoothPlastic, model)
 	newPart("CaseTop", Vector3.new(3.2, 0.2, 2.6), o * CFrame.new(0, 1.7, 0), caseColor, Enum.Material.SmoothPlastic, model)
 	newPart("CaseLeft", Vector3.new(0.2, 3.4, 2.6), o * CFrame.new(-1.5, 0, 0), caseColor, Enum.Material.SmoothPlastic, model)
 	newPart("CaseBoard", Vector3.new(2.6, 3.0, 0.15), o * CFrame.new(0, 0, -1.1), Color3.fromRGB(28, 66, 48), Enum.Material.SmoothPlastic, model)
-	-- glowing white NEON slot marker on the motherboard
 	local slot = newPart("Slot", Vector3.new(1.7, 1.7, 0.12), o * CFrame.new(0, 0, -0.95), WHITE, Enum.Material.Neon, model)
-	slot.Transparency = 0.35
-	return model, slot.CFrame, o
+	slot.Transparency = 0.3
+	-- pulse the neon slot
+	TweenService:Create(slot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.65 }):Play()
+	return model, slot.CFrame
 end
 
--- A pad (tray / bin) on the bench.
 local function buildPad(name, cf, color, scene)
 	local pad = newPart(name, Vector3.new(2.2, 0.15, 2.2), cf, color, Enum.Material.SmoothPlastic, scene)
 	pad.Transparency = 0.2
@@ -86,141 +80,118 @@ local function buildPartModel(partId, tier, worldCF)
 	return m
 end
 
--- Drag a model on the horizontal plane at planeY. Press-and-hold to grab;
--- ignores UI-handled inputs; returns the drop position. Cancel-aware.
-local function dragModel(model, planeY, camera, shouldCancel)
-	local dropPos = model:GetPivot().Position
-	local dragging = false
-	local released = false
-
-	local function toPlane(x, y)
-		local ray = camera:ViewportPointToRay(x, y)
-		local dy = ray.Direction.Y
-		if math.abs(dy) < 1e-4 then
-			return model:GetPivot().Position
+-- Make every part of the model clickable; resolves when clicked (or cancelled).
+local function waitForClick(model, shouldCancel)
+	local clicked = false
+	local conns = {}
+	local glow = Instance.new("Highlight")
+	glow.FillColor = Color3.fromRGB(120, 220, 255)
+	glow.FillTransparency = 0.5
+	glow.OutlineColor = WHITE
+	glow.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	glow.Parent = model
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			local cd = Instance.new("ClickDetector")
+			cd.MaxActivationDistance = 1000
+			cd.CursorIcon = "rbxasset://textures/GunCursor.png"
+			cd.Parent = p
+			conns[#conns + 1] = cd.MouseClick:Connect(function()
+				clicked = true
+			end)
 		end
-		local t = (planeY - ray.Origin.Y) / dy
-		return ray.Origin + ray.Direction * t
 	end
-
-	local beginConn = UserInputService.InputBegan:Connect(function(input, gp)
-		if gp then
-			return
-		end
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dropPos = toPlane(input.Position.X, input.Position.Y)
-			model:PivotTo(CFrame.new(dropPos.X, planeY, dropPos.Z))
-		end
-	end)
-	local moveConn = UserInputService.InputChanged:Connect(function(input, gp)
-		if not dragging or gp then
-			return
-		end
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dropPos = toPlane(input.Position.X, input.Position.Y)
-			model:PivotTo(CFrame.new(dropPos.X, planeY, dropPos.Z))
-		end
-	end)
-	local upConn = UserInputService.InputEnded:Connect(function(input)
-		if not dragging then
-			return
-		end
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dropPos = toPlane(input.Position.X, input.Position.Y)
-			released = true
-		end
-	end)
-
-	while not released and not shouldCancel() do
+	while not clicked and not shouldCancel() do
 		RunService.Heartbeat:Wait()
 	end
-	beginConn:Disconnect()
-	moveConn:Disconnect()
-	upConn:Disconnect()
-	return dropPos
-end
-
--- Slide a model to a target CFrame over a few frames; cancel-aware.
-local function slideTo(model, targetCF, shouldCancel)
-	local start = model:GetPivot()
-	for i = 1, 12 do
-		if shouldCancel and shouldCancel() then
-			return
-		end
-		model:PivotTo(start:Lerp(targetCF, i / 12))
-		RunService.Heartbeat:Wait()
+	for _, c in ipairs(conns) do
+		c:Disconnect()
 	end
-	model:PivotTo(targetCF)
+	if glow then
+		glow:Destroy()
+	end
+	return clicked and not shouldCancel()
 end
 
-local function near(a, b, r)
-	return (a - b).Magnitude <= r
+-- Slide a model smoothly through a list of world CFrames.
+local function flyThrough(model, cfs, shouldCancel)
+	for _, target in ipairs(cfs) do
+		local start = model:GetPivot()
+		for i = 1, 14 do
+			if shouldCancel and shouldCancel() then
+				return
+			end
+			model:PivotTo(start:Lerp(target, i / 14) * CFrame.Angles(0, math.rad(i * 6), 0))
+			RunService.Heartbeat:Wait()
+		end
+		model:PivotTo(target)
+	end
+end
+
+-- A quick "reach" lean of the character toward the bench and back.
+local function reach(hrp, baseCF)
+	if not hrp then
+		return
+	end
+	local fwd = baseCF * CFrame.Angles(math.rad(18), 0, 0)
+	TweenService:Create(hrp, TweenInfo.new(0.18), { CFrame = fwd }):Play()
+	task.delay(0.36, function()
+		if hrp and hrp.Parent then
+			TweenService:Create(hrp, TweenInfo.new(0.2), { CFrame = baseCF }):Play()
+		end
+	end)
 end
 
 -- One round. Returns true if installed, false if cancelled.
-local function runRound(scene, benchCF, camera, prompt, partId, oldTier, newTier, shouldCancel)
+local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, newTier, shouldCancel)
 	local _, slotCF = buildCase(benchCF, scene)
-	local trayCF = benchCF * CFrame.new(-2.6, 0.25, 1.6)
-	local binCF = benchCF * CFrame.new(2.6, 0.25, 1.6)
-	buildPad("Tray", trayCF, Color3.fromRGB(90, 200, 255), scene)
-	local binPad = buildPad("Bin", binCF, Color3.fromRGB(235, 120, 90), scene)
-	local planeY = slotCF.Position.Y
+	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
+	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
+	buildPad("Tray", benchCF * CFrame.new(-2.6, 0.25, 1.6), Color3.fromRGB(90, 200, 255), scene)
+	local binPad = buildPad("Bin", benchCF * CFrame.new(2.6, 0.25, 1.6), Color3.fromRGB(235, 120, 90), scene)
+	local handCF = benchCF * CFrame.new(0, 0.6, 2.4) -- roughly where the character's hands are
 
-	-- Step 1: remove the old (or basic stock) part sitting in the slot.
+	-- Step 1: click the old (or basic stock) part to pull it out.
 	local removeTier = oldTier or 1
 	local isStock = oldTier == nil
-	prompt.Text = isStock and ("Pull the basic " .. partName(partId) .. " out to the red pad")
-		or ("Pull the old " .. partName(partId) .. " out to the red pad")
+	prompt.Text = isStock and ("CLICK the basic " .. partName(partId) .. " to take it out")
+		or ("CLICK the old " .. partName(partId) .. " to take it out")
 	local oldModel = buildPartModel(partId, removeTier, slotCF)
 	if oldModel then
 		oldModel.Parent = scene
-		while true do
-			local drop = dragModel(oldModel, planeY, camera, shouldCancel)
-			if shouldCancel() then
-				return false
-			end
-			if near(drop, binCF.Position, 2.0) then
-				slideTo(oldModel, binCF * CFrame.new(0, 0.6, 0), shouldCancel)
-				for _, p in ipairs(oldModel:GetDescendants()) do
-					if p:IsA("BasePart") then
-						p.Transparency = 0.6
-					end
-				end
-				binPad.Color = Color3.fromRGB(120, 220, 130)
-				task.wait(0.2)
-				oldModel:Destroy()
-				break
-			else
-				slideTo(oldModel, slotCF, shouldCancel) -- snap back, try again
+		if not waitForClick(oldModel, shouldCancel) then
+			return false
+		end
+		reach(hrp, standCF)
+		flyThrough(oldModel, { handCF, binCF }, shouldCancel)
+		for _, p in ipairs(oldModel:GetDescendants()) do
+			if p:IsA("BasePart") then
+				p.Transparency = 0.6
 			end
 		end
+		binPad.Color = Color3.fromRGB(120, 220, 130)
+		task.wait(0.2)
+		oldModel:Destroy()
+	end
+	if shouldCancel() then
+		return false
 	end
 
-	-- Step 2: install the new part from the tray into the slot.
-	prompt.Text = "Now slide the new " .. partName(partId) .. " into the glowing slot"
-	local newModel = buildPartModel(partId, newTier, trayCF * CFrame.new(0, 0.8, 0))
+	-- Step 2: click the new part to install it into the glowing slot.
+	prompt.Text = "CLICK the new " .. partName(partId) .. " to install it"
+	local newModel = buildPartModel(partId, newTier, trayCF)
 	if not newModel then
 		return true
 	end
 	newModel.Parent = scene
-	while true do
-		local drop = dragModel(newModel, planeY, camera, shouldCancel)
-		if shouldCancel() then
-			return false
-		end
-		if near(drop, slotCF.Position, 2.0) then
-			slideTo(newModel, slotCF, shouldCancel)
-			prompt.Text = "Installed!"
-			task.wait(0.5)
-			return true
-		else
-			slideTo(newModel, trayCF * CFrame.new(0, 0.8, 0), shouldCancel)
-		end
+	if not waitForClick(newModel, shouldCancel) then
+		return false
 	end
+	reach(hrp, standCF)
+	flyThrough(newModel, { handCF, slotCF }, shouldCancel)
+	prompt.Text = "Installed!"
+	task.wait(0.6)
+	return true
 end
 
 function PCInstallGame.run(partId, oldTier, newTier)
@@ -238,7 +209,6 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	local camera = workspace.CurrentCamera
 	local benchCF = PCInstall.BenchCFrame
 
-	-- hide the HUD
 	local hidden = {}
 	for _, g in ipairs(playerGui:GetChildren()) do
 		if g:IsA("ScreenGui") and g.Enabled then
@@ -247,29 +217,27 @@ function PCInstallGame.run(partId, oldTier, newTier)
 		end
 	end
 
-	-- move the character to the bench (keep their Y so they don't fall), face it
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	local savedCF, savedAnchor
+	local savedCF, savedAnchor, standCF
 	if hrp then
 		savedCF = hrp.CFrame
 		savedAnchor = hrp.Anchored
 		local standPos = (benchCF * CFrame.new(0, 0, 3.2)).Position
-		hrp.CFrame = CFrame.lookAt(Vector3.new(standPos.X, savedCF.Position.Y, standPos.Z), benchCF.Position)
+		standCF = CFrame.lookAt(Vector3.new(standPos.X, savedCF.Position.Y, standPos.Z), benchCF.Position)
+		hrp.CFrame = standCF
 		hrp.Anchored = true
 	end
 
-	local prevCamType = camera.CameraType
-	local prevCamCF = camera.CFrame
+	local prevType, prevCF = camera.CameraType, camera.CFrame
 	camera.CameraType = Enum.CameraType.Scriptable
-	-- frame the bench + the character from front-right, slightly above
-	camera.CFrame = CFrame.lookAt((benchCF * CFrame.new(4.5, 3.2, 5.5)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
+	-- pulled back so the whole bench, case, pads and character are in frame
+	camera.CFrame = CFrame.lookAt((benchCF * CFrame.new(6.5, 4.5, 9)).Position, (benchCF * CFrame.new(0, 1.2, 0)).Position)
 
 	local scene = Instance.new("Folder")
 	scene.Name = "PCInstallScene"
 	scene.Parent = workspace
 
-	-- prompt + cancel UI
 	local ui = Instance.new("ScreenGui")
 	ui.Name = "PCInstallUI"
 	ui.ResetOnSpawn = false
@@ -308,8 +276,8 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	local function cleanup()
 		scene:Destroy()
 		ui:Destroy()
-		camera.CameraType = prevCamType
-		camera.CFrame = prevCamCF
+		camera.CameraType = prevType
+		camera.CFrame = prevCF
 		if hrp then
 			hrp.Anchored = savedAnchor
 			hrp.CFrame = savedCF
@@ -321,11 +289,11 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local okRun, done = pcall(runRound, scene, benchCF, camera, prompt, partId, oldTier, newTier, function()
+		local ok, done = pcall(runRound, scene, benchCF, prompt, hrp, standCF, partId, oldTier, newTier, function()
 			return cancelled
 		end)
 		cleanup()
-		if okRun and done and not cancelled then
+		if ok and done and not cancelled then
 			Remotes.PCInstallComplete:FireServer(partId)
 		else
 			Remotes.PCInstallCancel:FireServer(partId)

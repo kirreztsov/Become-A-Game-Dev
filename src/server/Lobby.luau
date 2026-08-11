@@ -8,6 +8,7 @@ local StudioModels = require(script.Parent.StudioModels)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
+local PCInstall = require(game.ReplicatedStorage.Shared.PCInstall)
 
 -- The shared arrival hub -- confirmed against RoTube Life 2's actual
 -- structure ("the Park is where all players initially spawn... a
@@ -2746,6 +2747,49 @@ local function buildWarehouseDressing(lobbyFolder, cx, cz, frontZ, backZ, W, L, 
 	boxStack("PCW_BoxesA", cx - W / 2 + 2.2, frontZ - 2.5)
 end
 
+-- A plain, static workbench that marks where installs happen. The interactive
+-- rig (open tower + slots) is built locally on the client during a round; this
+-- is just the always-there landmark, seated at PCInstall.BenchCFrame.
+local function buildAssemblyBench(parent)
+	local model = Instance.new("Model")
+	model.Name = "PCAssemblyBench"
+	local origin = PCInstall.BenchCFrame
+
+	local top = Instance.new("Part")
+	top.Name = "BenchTop"
+	top.Anchored = true
+	top.Size = Vector3.new(8, 0.4, 4)
+	top.CFrame = origin * CFrame.new(0, -0.2, 0)
+	top.Color = Color3.fromRGB(120, 90, 60)
+	top.Material = Enum.Material.Wood
+	top.Parent = model
+
+	for _, x in ipairs({ -3.6, 3.6 }) do
+		for _, z in ipairs({ -1.6, 1.6 }) do
+			local leg = Instance.new("Part")
+			leg.Name = "BenchLeg"
+			leg.Anchored = true
+			leg.Size = Vector3.new(0.4, 4.2, 0.4)
+			leg.CFrame = origin * CFrame.new(x, -2.5, z)
+			leg.Color = Color3.fromRGB(70, 70, 78)
+			leg.Material = Enum.Material.Metal
+			leg.Parent = model
+		end
+	end
+
+	local mat = Instance.new("Part")
+	mat.Name = "BenchMat"
+	mat.Anchored = true
+	mat.Size = Vector3.new(5, 0.06, 3)
+	mat.CFrame = origin * CFrame.new(0, 0.03, 0)
+	mat.Color = Color3.fromRGB(30, 32, 40)
+	mat.Material = Enum.Material.SmoothPlastic
+	mat.Parent = model
+
+	model.Parent = parent
+	return model
+end
+
 -- The physical PC Store is a bright warehouse: a long hall you walk down with
 -- product counters on both sides (one per PC-part category), hanging category
 -- signs, warm walls + ceiling lights, plants, and a shopkeeper. Buying is still
@@ -2875,6 +2919,7 @@ local function buildShops(lobbyFolder)
 		local p = SHOP_PLACEMENTS[i]
 		if def.physical then
 			buildPCWarehouse(lobbyFolder, Vector3.new(p.x, 0, p.z), def)
+			buildAssemblyBench(lobbyFolder)
 		else
 			buildShop(lobbyFolder, i, def, Vector3.new(p.x, 0, p.z), p.yaw)
 		end

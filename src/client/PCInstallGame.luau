@@ -152,6 +152,27 @@ local function flyThrough(model, cfs, shouldCancel)
 	end
 end
 
+-- A spark burst at a world CFrame (satisfying "it clicked in" payoff).
+local function seatBurst(cf, scene)
+	local fx = newPart("FX", Vector3.new(0.4, 0.4, 0.4), cf, WHITE, Enum.Material.Neon, scene)
+	fx.Transparency = 1
+	local att = Instance.new("Attachment")
+	att.Parent = fx
+	local pe = Instance.new("ParticleEmitter")
+	pe.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	pe.Rate = 0
+	pe.Lifetime = NumberRange.new(0.4, 0.7)
+	pe.Speed = NumberRange.new(7, 12)
+	pe.SpreadAngle = Vector2.new(180, 180)
+	pe.Color = ColorSequence.new(WHITE)
+	pe.Size = NumberSequence.new(0.6)
+	pe.Parent = att
+	pe:Emit(40)
+	task.delay(1.2, function()
+		fx:Destroy()
+	end)
+end
+
 -- Make the character reach toward the case by PLAYING a real animation through
 -- the Animator (priority Action, so it layers over the idle instead of fighting
 -- it -- fighting was the earlier "drugged" look). Uses a Roblox-owned public
@@ -203,7 +224,7 @@ local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, 
 			return false
 		end
 		local stopReach = playReach(char)
-		flyThrough(oldModel, { handCF, binCF }, shouldCancel)
+		flyThrough(oldModel, { benchCF * CFrame.new(0, 1.8, 1.0), binCF }, shouldCancel) -- lift out, arc to bin
 		stopReach()
 		for _, p in ipairs(oldModel:GetDescendants()) do
 			if p:IsA("BasePart") then
@@ -229,8 +250,9 @@ local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, 
 		return false
 	end
 	local stopReach2 = playReach(char)
-	flyThrough(newModel, { handCF, slotCF }, shouldCancel)
+	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel) -- arc up-and-over into the slot
 	stopReach2()
+	seatBurst(slotCF, scene) -- spark burst payoff
 	prompt.Text = "Installed!"
 	task.wait(0.6)
 	return true

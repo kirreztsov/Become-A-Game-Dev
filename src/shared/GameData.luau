@@ -431,6 +431,13 @@ function GameData.getBaseCash(devQuality)
 	return GameData.PayoutMultiplier * devQuality
 end
 
+-- Cash earned while offline: reduced room income (ratePerSec already halved by
+-- the caller) over the away time, clamped to [0, capSeconds]. Floored to whole cash.
+function GameData.getOfflineCash(ratePerSec, elapsedSeconds, capSeconds)
+	local secs = math.clamp(elapsedSeconds or 0, 0, capSeconds or 0)
+	return math.floor((ratePerSec or 0) * secs)
+end
+
 GameData.StudioLevelPerGames = 2
 GameData.StudioLevelPerSubs  = 50
 GameData.StudioLevelMax      = 50

@@ -306,4 +306,11 @@ t:assertEqual(PerkData.offlineCapBonusHours({ perks = { p_offline = 3 } }), 3, "
 t:assertEqual(PerkData.canBuy({ perkPoints = 1, perks = {} }, "p_offline"), true, "perk: offline perk buyable for 1 point")
 t:assertEqual(PerkData.isMaxed({ perks = { p_offline = 6 } }, "p_offline"), true, "perk: offline perk maxes at 6")
 
+-- GameData: offline cash formula (rate/sec, elapsed, cap)
+t:assertEqual(GameData.getOfflineCash(10, 100, 7200), 1000, "offline: rate*elapsed under cap")
+t:assertEqual(GameData.getOfflineCash(10, 999999, 7200), 72000, "offline: clamped to cap")
+t:assertEqual(GameData.getOfflineCash(10, -50, 7200), 0, "offline: negative elapsed -> 0")
+t:assertEqual(GameData.getOfflineCash(0, 7200, 7200), 0, "offline: zero rate -> 0")
+t:assertEqual(GameData.getOfflineCash(1.5, 10, 7200), 15, "offline: floors fractional cash")
+
 t:summary()

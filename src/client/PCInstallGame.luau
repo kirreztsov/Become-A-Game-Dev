@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
+local Sound = require(script.Parent.Sound)
 local PCInstall = require(game.ReplicatedStorage.Shared.PCInstall)
 local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
@@ -146,6 +147,7 @@ local function waitForClick(model, shouldCancel)
 	cd.Parent = hit
 	local conn = cd.MouseClick:Connect(function()
 		clicked = true
+		Sound.play("Click")
 	end)
 	while not clicked and not shouldCancel() do
 		RunService.Heartbeat:Wait()
@@ -250,6 +252,9 @@ local function driveScrew(slotCF, topLocalY, scene, shouldCancel)
 	for i = 1, turns do
 		if shouldCancel and shouldCancel() then
 			break
+		end
+		if i == 1 or i % 9 == 0 then
+			Sound.play("MinigameTap") -- ratchet taps as it screws in
 		end
 		local a = i / turns
 		model:PivotTo(startCF:Lerp(downCF, math.sin(a * math.pi)) * CFrame.Angles(0, a * math.pi * 4, 0)) -- 2 turns + dip
@@ -452,8 +457,10 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 	driveScrew(slotCF, math.min(partSize(partId), 1.4), scene, shouldCancel) -- screw it in (the payoff moment)
 	stopReach2()
 	seatBurst(slotCF, scene) -- spark burst payoff
+	Sound.play("Correct") -- satisfying "seated" ding
 	tweenCam(camera, overviewCF, 0.6) -- zoom back to 3rd person
 	prompt.Text = "Installed!"
+	Sound.play("Shipped") -- success chime
 	task.wait(0.5)
 	return true
 end
@@ -467,6 +474,7 @@ function PCInstallGame.run(partId, oldTier, newTier, ownedParts)
 		return
 	end
 	active = true
+	Sound.play("PanelOpen") -- the bench opens
 
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")

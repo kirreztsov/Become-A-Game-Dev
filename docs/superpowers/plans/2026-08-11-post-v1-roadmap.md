@@ -20,7 +20,7 @@ Players stay for *progression*. Right now the loop is: make game → earn → up
 ## Phase B — Retention & "come back tomorrow"
 - **B1. Login streak polish** — bigger streak rewards, a visible calendar, catch-up.
 - **B2. Limited-time event** — one seasonal/weekend event with an exclusive reward (a worker skin, a PC part, a title). Even one recurring event lifts retention a lot.
-- **B3. Offline earnings** — small passive cash while away (with a "welcome back" popup) → reason to return.
+- **B3. Offline earnings** — ✅ DONE (branch `feat/offline-earnings`). Owned money rooms earn 50% of their per-sec income while away, capped 2h (+1h per `p_offline` "Deep Sleep" perk, max 8h), granted via a "Welcome back" popup on join. Server-authoritative. Pure logic Studio-verified; live Play-test still pending.
 
 ## Phase C — Social (retention ~3x when friends play together)
 - **C1. Visit friends' studios** — teleport to a friend's plot to see their setup.

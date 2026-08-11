@@ -20,13 +20,15 @@ local WHITE = Color3.fromRGB(255, 255, 255)
 -- origin `o`. The Z (depth) differs per part, so the camera/hand goes deeper for
 -- some parts than others.
 local SLOT_OFFSETS = {
-	CPU = CFrame.new(-0.7, 0.45, -0.9),
-	Cooling = CFrame.new(-0.7, 0.45, -0.45),
-	RAM = CFrame.new(0.8, 0.7, -0.9),
-	GPU = CFrame.new(0.0, -0.55, -0.5),
-	Storage = CFrame.new(1.05, -0.95, -0.8),
-	Monitor = CFrame.new(0.0, 0.2, -0.9),
-	RGB = CFrame.new(0.0, 0.0, -0.95),
+	-- INSIDE the tower, laid out like a real motherboard (viewed from the open side):
+	CPU = CFrame.new(-0.5, 0.6, -0.9), -- socket, upper area
+	Cooling = CFrame.new(-0.5, 0.6, -0.5), -- sits on the CPU, a bit forward
+	RAM = CFrame.new(0.55, 0.75, -0.9), -- sticks, right of the CPU
+	GPU = CFrame.new(0.0, -0.5, -0.7), -- long card, lower area
+	Storage = CFrame.new(1.0, -0.95, -0.85), -- drive, bottom corner
+	-- OUTSIDE the tower: a monitor sits beside the PC; the "case" IS the tower, so it swaps in beside it.
+	Monitor = CFrame.new(3.1, -0.4, 0.8),
+	RGB = CFrame.new(-3.1, -0.6, 0.8),
 }
 
 function PCInstallGame.isActive()
@@ -75,14 +77,7 @@ local function buildCase(benchCF, scene, currentPartId)
 	newPart("CaseRGB", Vector3.new(3.0, 0.16, 0.16), o * CFrame.new(0, 1.6, 1.25), Color3.fromRGB(120, 220, 255), Enum.Material.SmoothPlastic, model)
 	-- glowing white NEON slot (white neon reads as a bright glow, as requested)
 	local slotOff = SLOT_OFFSETS[currentPartId] or CFrame.new(0, 0.25, -0.95)
-	local slot = newPart("Slot", Vector3.new(1.5, 1.5, 0.12), o * slotOff, WHITE, Enum.Material.Neon, model)
-	slot.Transparency = 0.3
-	local slotLight = Instance.new("PointLight")
-	slotLight.Color = WHITE
-	slotLight.Brightness = 1.1
-	slotLight.Range = 7
-	slotLight.Parent = slot
-	TweenService:Create(slot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.65 }):Play()
+	local slotCF = o * slotOff -- destination for the part; no visible marker (click-to-install, no dragging)
 	-- warm interior fill light so the parts read clearly (fixes the dark look)
 	local anchor = newPart("CaseLightAnchor", Vector3.new(0.2, 0.2, 0.2), o * CFrame.new(0, 0.4, 0.6), caseColor, Enum.Material.SmoothPlastic, model)
 	anchor.Transparency = 1
@@ -91,7 +86,7 @@ local function buildCase(benchCF, scene, currentPartId)
 	fill.Brightness = 0.7
 	fill.Range = 9
 	fill.Parent = anchor
-	return model, slot.CFrame, o
+	return model, slotCF, o
 end
 
 local function buildPad(name, cf, color, scene)

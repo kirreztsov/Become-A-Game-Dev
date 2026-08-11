@@ -244,6 +244,15 @@ local function playReach(char)
 	end
 end
 
+-- Display size per part: internal parts stay small so they fit inside the tower
+-- (no poking through the walls); Monitor + Case sit outside, so they can be big.
+local function partSize(id)
+	if id == "Monitor" or id == "RGB" then
+		return 2.2
+	end
+	return 1.25
+end
+
 -- One round. Returns true if installed, false if cancelled.
 local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, ownedParts, shouldCancel)
 	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
@@ -254,7 +263,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 	if ownedParts then
 		for id, level in pairs(ownedParts) do
 			if id ~= partId and level and level > 0 and SLOT_OFFSETS[id] and PCVisuals.TIERED[id] then
-				local decor = buildPartModel(id, PCVisuals.getVisualTier(level), o * SLOT_OFFSETS[id], 1.1)
+				local decor = buildPartModel(id, PCVisuals.getVisualTier(level), o * SLOT_OFFSETS[id], partSize(id))
 				if decor then
 					decor.Parent = scene
 				end
@@ -272,7 +281,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 	local isStock = oldTier == nil
 	prompt.Text = isStock and ("CLICK the basic " .. partName(partId) .. " to take it out")
 		or ("CLICK the old " .. partName(partId) .. " to take it out")
-	local oldModel = buildPartModel(partId, removeTier, slotCF)
+	local oldModel = buildPartModel(partId, removeTier, slotCF, partSize(partId))
 	if oldModel then
 		oldModel.Parent = scene
 		if not waitForClick(oldModel, shouldCancel) then
@@ -297,7 +306,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 
 	-- Step 2: click the new part to install it into the glowing slot.
 	prompt.Text = "CLICK the new " .. partName(partId) .. " to install it"
-	local newModel = buildPartModel(partId, newTier, trayCF)
+	local newModel = buildPartModel(partId, newTier, trayCF, partSize(partId))
 	if not newModel then
 		return true
 	end

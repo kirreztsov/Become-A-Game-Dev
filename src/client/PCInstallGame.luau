@@ -143,18 +143,19 @@ end
 
 -- Slide a model smoothly through a list of world CFrames. If `camera` is given,
 -- the camera follows the moving part (a little behind + above) for a cinematic.
-local function flyThrough(model, cfs, shouldCancel, camera)
+local FLY_STEPS = 40 -- higher = slower, smoother movement
+local function flyThrough(model, cfs, shouldCancel, camera, camOffset)
 	for _, target in ipairs(cfs) do
 		local start = model:GetPivot()
-		for i = 1, 18 do
+		for i = 1, FLY_STEPS do
 			if shouldCancel and shouldCancel() then
 				return
 			end
-			model:PivotTo(start:Lerp(target, i / 18))
-			if camera then
+			model:PivotTo(start:Lerp(target, i / FLY_STEPS))
+			if camera and camOffset then
 				local p = model:GetPivot().Position
-				-- smoothly ease toward the follow pose instead of snapping (no jerk)
-				camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(p + Vector3.new(3, 2, 3), p), 0.15)
+				-- follow from the FRONT (aisle side), easing smoothly (no jerk)
+				camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(p + camOffset, p), 0.15)
 			end
 			RunService.Heartbeat:Wait()
 		end
@@ -216,6 +217,8 @@ end
 -- One round. Returns true if installed, false if cancelled.
 local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, shouldCancel)
 	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
+	-- follow-camera offset on the FRONT (aisle) side, a bit up and back toward the player
+	local camOff = (benchCF * CFrame.new(0, 2, 6)).Position - benchCF.Position
 	local _, slotCF = buildCase(benchCF, scene)
 	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
 	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
@@ -235,7 +238,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 			return false
 		end
 		local stopReach = playReach(char)
-		flyThrough(oldModel, { benchCF * CFrame.new(0, 1.8, 1.0), binCF }, shouldCancel, camera) -- camera follows the part out
+		flyThrough(oldModel, { benchCF * CFrame.new(0, 1.8, 1.0), binCF }, shouldCancel, camera, camOff) -- camera follows the part out
 		stopReach()
 		tweenCam(camera, overviewCF, 0.5) -- zoom back to 3rd person
 		for _, p in ipairs(oldModel:GetDescendants()) do
@@ -262,7 +265,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 		return false
 	end
 	local stopReach2 = playReach(char)
-	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel, camera) -- camera follows it in
+	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel, camera, camOff) -- camera follows it in
 	stopReach2()
 	seatBurst(slotCF, scene) -- spark burst payoff
 	tweenCam(camera, overviewCF, 0.6) -- zoom back to 3rd person

@@ -273,10 +273,9 @@ function PCInstallGame.run(partId, oldTier, newTier)
 
 	local prevType, prevCF = camera.CameraType, camera.CFrame
 	camera.CameraType = Enum.CameraType.Scriptable
-	-- FIRST PERSON: sit at the character's eyes looking into the open case, so
-	-- you see your own arm reach in. standCF's -Z faces the case.
-	local eyeCF = (standCF or benchCF * CFrame.new(0, 0, 3.2)) * CFrame.new(0, 1.5, -0.6)
-	camera.CFrame = CFrame.lookAt(eyeCF.Position, (benchCF * CFrame.new(0, 1.6, -0.2)).Position)
+	-- pulled-back 3rd-person so the case, pads and character are all in frame and
+	-- nothing clips into the camera
+	camera.CFrame = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
 
 	local scene = Instance.new("Folder")
 	scene.Name = "PCInstallScene"

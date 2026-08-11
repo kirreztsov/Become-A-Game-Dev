@@ -136,15 +136,25 @@ local function waitForClick(model, shouldCancel)
 	return clicked and not shouldCancel()
 end
 
--- Slide a model smoothly through a list of world CFrames.
-local function flyThrough(model, cfs, shouldCancel)
+-- Smoothly tween the scriptable camera to a target CFrame.
+local function tweenCam(camera, targetCF, time)
+	TweenService:Create(camera, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = targetCF }):Play()
+end
+
+-- Slide a model smoothly through a list of world CFrames. If `camera` is given,
+-- the camera follows the moving part (a little behind + above) for a cinematic.
+local function flyThrough(model, cfs, shouldCancel, camera)
 	for _, target in ipairs(cfs) do
 		local start = model:GetPivot()
-		for i = 1, 14 do
+		for i = 1, 18 do
 			if shouldCancel and shouldCancel() then
 				return
 			end
-			model:PivotTo(start:Lerp(target, i / 14))
+			model:PivotTo(start:Lerp(target, i / 18))
+			if camera then
+				local p = model:GetPivot().Position
+				camera.CFrame = CFrame.lookAt(p + Vector3.new(2.6, 1.7, 2.6), p)
+			end
 			RunService.Heartbeat:Wait()
 		end
 		model:PivotTo(target)
@@ -203,7 +213,8 @@ local function playReach(char)
 end
 
 -- One round. Returns true if installed, false if cancelled.
-local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, shouldCancel)
+local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, shouldCancel)
+	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
 	local _, slotCF = buildCase(benchCF, scene)
 	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
 	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
@@ -223,8 +234,9 @@ local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, 
 			return false
 		end
 		local stopReach = playReach(char)
-		flyThrough(oldModel, { benchCF * CFrame.new(0, 1.8, 1.0), binCF }, shouldCancel) -- lift out, arc to bin
+		flyThrough(oldModel, { benchCF * CFrame.new(0, 1.8, 1.0), binCF }, shouldCancel, camera) -- camera follows the part out
 		stopReach()
+		tweenCam(camera, overviewCF, 0.5) -- zoom back to 3rd person
 		for _, p in ipairs(oldModel:GetDescendants()) do
 			if p:IsA("BasePart") then
 				p.Transparency = 0.6
@@ -249,9 +261,10 @@ local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, 
 		return false
 	end
 	local stopReach2 = playReach(char)
-	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel) -- arc up-and-over into the slot
+	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.0), slotCF }, shouldCancel, camera) -- camera follows it in
 	stopReach2()
 	seatBurst(slotCF, scene) -- spark burst payoff
+	tweenCam(camera, overviewCF, 0.6) -- zoom back to 3rd person
 	prompt.Text = "Installed!"
 	task.wait(0.6)
 	return true
@@ -353,7 +366,7 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local ok, done = pcall(runRound, scene, benchCF, prompt, char, partId, oldTier, newTier, function()
+		local ok, done = pcall(runRound, scene, benchCF, camera, prompt, char, partId, oldTier, newTier, function()
 			return cancelled
 		end)
 		cleanup()

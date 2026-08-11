@@ -153,7 +153,8 @@ local function flyThrough(model, cfs, shouldCancel, camera)
 			model:PivotTo(start:Lerp(target, i / 18))
 			if camera then
 				local p = model:GetPivot().Position
-				camera.CFrame = CFrame.lookAt(p + Vector3.new(2.6, 1.7, 2.6), p)
+				-- smoothly ease toward the follow pose instead of snapping (no jerk)
+				camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(p + Vector3.new(3, 2, 3), p), 0.15)
 			end
 			RunService.Heartbeat:Wait()
 		end
@@ -300,7 +301,9 @@ function PCInstallGame.run(partId, oldTier, newTier)
 		savedCF = hrp.CFrame
 		savedAnchor = hrp.Anchored
 		local standPos = (benchCF * CFrame.new(0, 0, 3.2)).Position
-		standCF = CFrame.lookAt(Vector3.new(standPos.X, savedCF.Position.Y, standPos.Z), benchCF.Position)
+		local eye = Vector3.new(standPos.X, savedCF.Position.Y, standPos.Z)
+		-- look at the bench at the SAME height, so the character stays upright (no tilt)
+		standCF = CFrame.lookAt(eye, Vector3.new(benchCF.Position.X, savedCF.Position.Y, benchCF.Position.Z))
 		hrp.CFrame = standCF
 		hrp.Anchored = true
 	end

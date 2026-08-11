@@ -51,6 +51,10 @@ local function defaultData()
 		dailyStreak = 0,
 		-- How many times the player has prestiged/rebirthed (permanent bonus).
 		prestigeLevel = 0,
+		-- Rebirth perk tree (see PerkData): unspent Prestige Points + bought perk
+		-- levels (perkId -> level). Points are earned on each rebirth.
+		perkPoints = 0,
+		perks = {},
 		-- Case pity counters (spins since the last guaranteed drop).
 		normalPity = 0,
 		luckyPity = 0,
@@ -115,6 +119,8 @@ function PlayerData.load(player)
 			data.lastDailyClaim = data.lastDailyClaim or 0
 			data.dailyStreak = data.dailyStreak or 0
 			data.prestigeLevel = data.prestigeLevel or 0
+			data.perkPoints = data.perkPoints or 0
+			data.perks = data.perks or {}
 			data.normalPity = data.normalPity or 0
 			data.luckyPity = data.luckyPity or 0
 			data.normalSpinsOwned = data.normalSpinsOwned or 0

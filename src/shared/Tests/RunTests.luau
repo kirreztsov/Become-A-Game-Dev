@@ -274,4 +274,30 @@ ChallengeData.rolloverIfNeeded(cd, 11)
 t:assertEqual(cd.challengeClaimed.d_release_3, nil, "challenge: new day clears claims")
 t:assertEqual(ChallengeData.progress(cd, rel3), 0, "challenge: new day resets progress to 0")
 
+-- PerkData: multipliers + buy logic
+local PerkData = require(script.Parent.Parent.PerkData)
+
+local pd = { perkPoints = 3, perks = {} }
+t:assertEqual(PerkData.cashMult(pd), 1, "perk: no perks -> 1x cash")
+t:assertEqual(PerkData.canBuy(pd, "p_cash"), true, "perk: can buy with points")
+t:assertEqual(PerkData.applyBuy(pd, "p_cash"), true, "perk: buy succeeds")
+t:assertEqual(pd.perks.p_cash, 1, "perk: level incremented")
+t:assertEqual(pd.perkPoints, 2, "perk: points deducted")
+t:assertEqual(math.abs(PerkData.cashMult(pd) - 1.10) < 1e-9, true, "perk: 1 cash level -> 1.10x")
+PerkData.applyBuy(pd, "p_cash")
+t:assertEqual(math.abs(PerkData.cashMult(pd) - 1.20) < 1e-9, true, "perk: 2 cash levels -> 1.20x")
+t:assertEqual(pd.perkPoints, 1, "perk: two buys cost two points")
+
+t:assertEqual(PerkData.canBuy(pd, "p_headstart"), false, "perk: cannot afford 2-cost perk with 1 point")
+t:assertEqual(PerkData.applyBuy(pd, "p_headstart"), false, "perk: unaffordable buy fails")
+
+local maxed = { perkPoints = 100, perks = { p_speed = 5 } }
+t:assertEqual(PerkData.isMaxed(maxed, "p_speed"), true, "perk: at maxLevel is maxed")
+t:assertEqual(PerkData.canBuy(maxed, "p_speed"), false, "perk: cannot buy past max")
+t:assertEqual(math.abs(PerkData.speedMult(maxed) - 1.40) < 1e-9, true, "perk: speed 5 -> 1.40x")
+
+local hs = { perks = { p_headstart = 3 } }
+t:assertEqual(PerkData.startCashBonus(hs), 3000, "perk: head start bonus = level*value")
+t:assertEqual(PerkData.applyBuy({ perkPoints = 0, perks = {} }, "unknown"), false, "perk: unknown id -> false")
+
 t:summary()

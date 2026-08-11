@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local DecorBuilder = require(game.ReplicatedStorage.Shared.DecorBuilder)
 local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
@@ -2305,7 +2306,10 @@ function PlotManager.start()
 
 		data.prestigeLevel = (data.prestigeLevel or 0) + 1
 		PlayerData.addWeekly(data, "prestigeLevel", 1, os.time())
-		data.cash = GameData.StartingCash
+		-- Rebirth grants Prestige Points to spend in the perk tree (A4).
+		data.perkPoints = (data.perkPoints or 0) + PerkData.POINTS_PER_PRESTIGE
+		-- Head Start perks let you keep a little cash through the reset.
+		data.cash = GameData.StartingCash + PerkData.startCashBonus(data)
 		data.gamesReleased = 0
 		data.houseTier = 0
 		data.pcTier = 0

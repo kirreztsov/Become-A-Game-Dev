@@ -1,5 +1,6 @@
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
 local TrendMatch = require(game.ReplicatedStorage.Shared.TrendMatch)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
@@ -265,7 +266,7 @@ local function runPhase(player, data, phase)
 		Remotes.PhaseStarted:FireClient(player, phase, true)
 		-- Rarer workers finish faster and produce higher quality; the Faster
 		-- Workers game pass speeds them up further.
-		local speed = GameData.getRaritySpeed(worker.rarity) * GameData.getPassWorkerSpeedMultiplier(data)
+		local speed = GameData.getRaritySpeed(worker.rarity) * GameData.getPassWorkerSpeedMultiplier(data) * PerkData.speedMult(data)
 		local mult = GameData.getRarityMultiplier(worker.rarity)
 		local dur = GameData.WorkerAutoCompleteSeconds / speed
 		PlotManager.playWorkerTyping(player, phase, dur) -- typing animation while they work
@@ -384,7 +385,7 @@ function DevelopmentService.start()
 			-- active shop boost multiplies on top of that.
 			-- Subscribers give a permanent multiplier on cash you earn, on top
 			-- of the PC / floor / boost multipliers.
-			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data))
+			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data) * PerkData.cashMult(data))
 
 			data.cash += cash
 			data.gamesReleased += 1
@@ -394,7 +395,7 @@ function DevelopmentService.start()
 			-- Releasing a game grows your channel: more subscribers for a better
 			-- game, with a big bonus when it matched a trend. This can cross a
 			-- Play Button milestone (bonus cash + a trophy in the studio).
-			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data) * GameData.getPCPartsSubsMultiplier(data.pcParts))
+			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data) * GameData.getPCPartsSubsMultiplier(data.pcParts) * PerkData.subsMult(data))
 			local milestoneReached = PlotManager.grantSubscribers(player, data, subsGained)
 
 			Remotes.DevelopmentComplete:FireClient(player, cash, classification == "copy", hitBonus)

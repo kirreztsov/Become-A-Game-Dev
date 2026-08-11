@@ -23,9 +23,9 @@ local SLOT_OFFSETS = {
 	-- INSIDE the tower, laid out like a real motherboard (viewed from the open side):
 	CPU = CFrame.new(-0.5, 0.6, -0.9), -- socket, upper area
 	Cooling = CFrame.new(-0.5, 0.6, -0.5), -- sits on the CPU, a bit forward
-	RAM = CFrame.new(0.55, 0.75, -0.9), -- sticks, right of the CPU
+	RAM = CFrame.new(0.45, 0.45, -0.95), -- sticks, right of the CPU, pulled in against the board
 	GPU = CFrame.new(0.0, -0.5, -0.7), -- long card, lower area
-	Storage = CFrame.new(1.0, -0.95, -0.85), -- drive, bottom corner
+	Storage = CFrame.new(0.7, -0.85, -0.95), -- drive, bottom, pulled in against the board
 	-- OUTSIDE the tower: a monitor sits beside the PC; the "case" IS the tower, so it swaps in beside it.
 	Monitor = CFrame.new(3.1, -0.4, 0.8),
 	RGB = CFrame.new(-3.1, -0.6, 0.8),
@@ -249,6 +249,9 @@ end
 local function partSize(id)
 	if id == "Monitor" or id == "RGB" then
 		return 2.2
+	end
+	if id == "RAM" or id == "Storage" then
+		return 0.9
 	end
 	return 1.25
 end

@@ -115,7 +115,7 @@ function PCService.start()
 		local currentLevel = targetLevel - 1
 		local oldTier = currentLevel > 0 and PCVisuals.getVisualTier(currentLevel) or nil
 		local newTier = PCVisuals.getVisualTier(targetLevel)
-		Remotes.PCInstallStart:FireClient(player, partId, oldTier, newTier)
+		Remotes.PCInstallStart:FireClient(player, partId, oldTier, newTier, data.pcParts)
 	end)
 
 	-- Correct install reported by the client: re-validate and apply.

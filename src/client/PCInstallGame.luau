@@ -16,6 +16,19 @@ local PCInstallGame = {}
 local active = false
 local WHITE = Color3.fromRGB(255, 255, 255)
 
+-- Where each part sits inside the case, as a LOCAL offset from the case interior
+-- origin `o`. The Z (depth) differs per part, so the camera/hand goes deeper for
+-- some parts than others.
+local SLOT_OFFSETS = {
+	CPU = CFrame.new(-0.7, 0.45, -0.9),
+	Cooling = CFrame.new(-0.7, 0.45, -0.45),
+	RAM = CFrame.new(0.8, 0.7, -0.9),
+	GPU = CFrame.new(0.0, -0.55, -0.5),
+	Storage = CFrame.new(1.05, -0.95, -0.8),
+	Monitor = CFrame.new(0.0, 0.2, -0.9),
+	RGB = CFrame.new(0.0, 0.0, -0.95),
+}
+
 function PCInstallGame.isActive()
 	return active
 end
@@ -38,7 +51,7 @@ local function newPart(name, size, cf, color, material, parent)
 	return p
 end
 
-local function buildCase(benchCF, scene)
+local function buildCase(benchCF, scene, currentPartId)
 	local model = Instance.new("Model")
 	model.Name = "InstallCase"
 	model.Parent = scene
@@ -61,7 +74,8 @@ local function buildCase(benchCF, scene)
 	-- RGB accent bar (SmoothPlastic -- Neon blooms to white in this game's lighting)
 	newPart("CaseRGB", Vector3.new(3.0, 0.16, 0.16), o * CFrame.new(0, 1.6, 1.25), Color3.fromRGB(120, 220, 255), Enum.Material.SmoothPlastic, model)
 	-- glowing white NEON slot (white neon reads as a bright glow, as requested)
-	local slot = newPart("Slot", Vector3.new(1.7, 1.7, 0.12), o * CFrame.new(0, 0.25, -0.95), WHITE, Enum.Material.Neon, model)
+	local slotOff = SLOT_OFFSETS[currentPartId] or CFrame.new(0, 0.25, -0.95)
+	local slot = newPart("Slot", Vector3.new(1.5, 1.5, 0.12), o * slotOff, WHITE, Enum.Material.Neon, model)
 	slot.Transparency = 0.3
 	local slotLight = Instance.new("PointLight")
 	slotLight.Color = WHITE
@@ -77,7 +91,7 @@ local function buildCase(benchCF, scene)
 	fill.Brightness = 0.7
 	fill.Range = 9
 	fill.Parent = anchor
-	return model, slot.CFrame
+	return model, slot.CFrame, o
 end
 
 local function buildPad(name, cf, color, scene)
@@ -91,13 +105,13 @@ local function buildPad(name, cf, color, scene)
 	return pad
 end
 
-local function buildPartModel(partId, tier, worldCF)
+local function buildPartModel(partId, tier, worldCF, size)
 	local asset = PCVisuals.TIERED[partId]
 	if not asset then
 		return nil
 	end
 	local byWidth = PCVisuals.DISPLAY[partId] and PCVisuals.DISPLAY[partId].byWidth
-	local m = PCVisuals.buildTierDisplay(asset, tier, worldCF.Position, 1.9, 0, PCVisuals.PAINT[partId], byWidth)
+	local m = PCVisuals.buildTierDisplay(asset, tier, worldCF.Position, size or 1.9, 0, PCVisuals.PAINT[partId], byWidth)
 	if m then
 		m:PivotTo(worldCF)
 	end
@@ -236,11 +250,22 @@ local function playReach(char)
 end
 
 -- One round. Returns true if installed, false if cancelled.
-local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, shouldCancel)
+local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, ownedParts, shouldCancel)
 	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
 	-- follow-camera offset on the FRONT (aisle) side, a bit up and back toward the player
 	local camOff = (benchCF * CFrame.new(0, 2, 6)).Position - benchCF.Position
-	local _, slotCF = buildCase(benchCF, scene)
+	local _, slotCF, o = buildCase(benchCF, scene, partId)
+	-- show the parts you already OWN inside the case (all except the one being installed)
+	if ownedParts then
+		for id, level in pairs(ownedParts) do
+			if id ~= partId and level and level > 0 and SLOT_OFFSETS[id] and PCVisuals.TIERED[id] then
+				local decor = buildPartModel(id, PCVisuals.getVisualTier(level), o * SLOT_OFFSETS[id], 1.1)
+				if decor then
+					decor.Parent = scene
+				end
+			end
+		end
+	end
 	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
 	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
 	buildPad("Tray", benchCF * CFrame.new(-2.6, 0.25, 1.6), Color3.fromRGB(90, 200, 255), scene)
@@ -296,7 +321,7 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 	return true
 end
 
-function PCInstallGame.run(partId, oldTier, newTier)
+function PCInstallGame.run(partId, oldTier, newTier, ownedParts)
 	if active then
 		return
 	end
@@ -394,7 +419,7 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local ok, done = pcall(runRound, scene, benchCF, camera, prompt, char, partId, oldTier, newTier, function()
+		local ok, done = pcall(runRound, scene, benchCF, camera, prompt, char, partId, oldTier, newTier, ownedParts, function()
 			return cancelled
 		end)
 		cleanup()

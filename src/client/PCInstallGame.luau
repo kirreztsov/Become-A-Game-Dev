@@ -128,22 +128,54 @@ local function flyThrough(model, cfs, shouldCancel)
 	end
 end
 
--- A quick "reach" lean of the character toward the bench and back.
-local function reach(hrp, baseCF)
-	if not hrp then
-		return
+-- Make the character reach its right arm toward the case. We disable the idle
+-- animation (the "Animate" script + any playing tracks) so it doesn't fight and
+-- override our pose -- that fighting was the earlier "drugged" look. Returns a
+-- function that puts the arm back and re-enables the idle.
+local function playReach(char)
+	if not char then
+		return function() end
 	end
-	local fwd = baseCF * CFrame.Angles(math.rad(18), 0, 0)
-	TweenService:Create(hrp, TweenInfo.new(0.18), { CFrame = fwd }):Play()
-	task.delay(0.36, function()
-		if hrp and hrp.Parent then
-			TweenService:Create(hrp, TweenInfo.new(0.2), { CFrame = baseCF }):Play()
+	local animate = char:FindFirstChild("Animate")
+	if animate then
+		animate.Disabled = true
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local animator = hum and hum:FindFirstChildOfClass("Animator")
+	if animator then
+		for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
+			t:Stop(0.1)
 		end
-	end)
+	end
+	-- find the right-shoulder motor for R15 or R6
+	local motor
+	local rua = char:FindFirstChild("RightUpperArm")
+	if rua then
+		motor = rua:FindFirstChild("RightShoulder")
+	end
+	if not motor then
+		local torso = char:FindFirstChild("Torso")
+		motor = torso and torso:FindFirstChild("Right Shoulder")
+	end
+	local orig
+	if motor then
+		orig = motor.C0
+		TweenService:Create(motor, TweenInfo.new(0.25), { C0 = orig * CFrame.Angles(math.rad(-80), 0, 0) }):Play()
+	end
+	return function()
+		if motor and orig then
+			TweenService:Create(motor, TweenInfo.new(0.2), { C0 = orig }):Play()
+		end
+		task.delay(0.25, function()
+			if animate then
+				animate.Disabled = false
+			end
+		end)
+	end
 end
 
 -- One round. Returns true if installed, false if cancelled.
-local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, newTier, shouldCancel)
+local function runRound(scene, benchCF, prompt, char, partId, oldTier, newTier, shouldCancel)
 	local _, slotCF = buildCase(benchCF, scene)
 	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
 	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
@@ -162,7 +194,9 @@ local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, n
 		if not waitForClick(oldModel, shouldCancel) then
 			return false
 		end
+		local stopReach = playReach(char)
 		flyThrough(oldModel, { handCF, binCF }, shouldCancel)
+		stopReach()
 		for _, p in ipairs(oldModel:GetDescendants()) do
 			if p:IsA("BasePart") then
 				p.Transparency = 0.6
@@ -186,7 +220,9 @@ local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, n
 	if not waitForClick(newModel, shouldCancel) then
 		return false
 	end
+	local stopReach2 = playReach(char)
 	flyThrough(newModel, { handCF, slotCF }, shouldCancel)
+	stopReach2()
 	prompt.Text = "Installed!"
 	task.wait(0.6)
 	return true
@@ -287,7 +323,7 @@ function PCInstallGame.run(partId, oldTier, newTier)
 	end
 
 	task.spawn(function()
-		local ok, done = pcall(runRound, scene, benchCF, prompt, hrp, standCF, partId, oldTier, newTier, function()
+		local ok, done = pcall(runRound, scene, benchCF, prompt, char, partId, oldTier, newTier, function()
 			return cancelled
 		end)
 		cleanup()

@@ -20,15 +20,16 @@ local WHITE = Color3.fromRGB(255, 255, 255)
 -- origin `o`. The Z (depth) differs per part, so the camera/hand goes deeper for
 -- some parts than others.
 local SLOT_OFFSETS = {
-	-- INSIDE the tower, laid out like a real motherboard (viewed from the open side):
-	CPU = CFrame.new(-0.5, 0.6, -0.9), -- socket, upper area
-	Cooling = CFrame.new(-0.5, 0.6, -0.5), -- sits on the CPU, a bit forward
-	RAM = CFrame.new(0.45, 0.45, -0.95), -- sticks, right of the CPU, pulled in against the board
-	GPU = CFrame.new(0.0, -0.5, -0.7), -- long card, lower area
-	Storage = CFrame.new(0.7, -0.85, -0.95), -- drive, bottom, pulled in against the board
-	-- OUTSIDE the tower: a monitor sits beside the PC; the "case" IS the tower, so it swaps in beside it.
-	Monitor = CFrame.new(3.1, -0.4, 0.8),
-	RGB = CFrame.new(-3.1, -0.6, 0.8),
+	-- INSIDE the tower, spread out like a real motherboard (viewed from the open
+	-- side). These meshes pivot at their BASE, so Y is the base height. Tuned so
+	-- each part sits in its own zone -- no overlaps, nothing poking through walls.
+	CPU = CFrame.new(-0.7, 0.25, -0.7), -- socket, upper-left against the board
+	Cooling = CFrame.new(-0.7, -0.1, 0.3), -- cooler, in front of the CPU
+	RAM = CFrame.new(0.5, 0.2, -0.7), -- sticks, upper-right against the board
+	GPU = CFrame.new(0.1, -1.15, -0.15), -- long card, lower-center
+	Storage = CFrame.new(1.0, -1.2, -0.55), -- drive, bottom-right by the glass
+	-- Monitor + RGB are NOT installed inside the tower: they have their own actions
+	-- (Monitor -> mounts on a stand in front; RGB -> swaps the whole tower). See runRound.
 }
 
 function PCInstallGame.isActive()
@@ -86,6 +87,13 @@ local function buildCase(benchCF, scene, currentPartId)
 	fill.Brightness = 0.7
 	fill.Range = 9
 	fill.Parent = anchor
+	-- shell/glass must NOT block clicks -- otherwise the glass panel eats the click
+	-- meant for the part behind it (you had to aim off the part to click it).
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.CanQuery = false
+		end
+	end
 	return model, slotCF, o
 end
 
@@ -122,16 +130,17 @@ local function waitForClick(model, shouldCancel)
 	glow.OutlineColor = WHITE
 	glow.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	glow.Parent = model
-	-- one big invisible click target around the whole part, so even small parts
-	-- (RAM/Storage) are easy to click
+	-- invisible click target sized to the part itself. Parented OUTSIDE the model
+	-- so the Highlight above traces only the real mesh (not a big box). A small
+	-- margin keeps tiny parts (RAM/Storage) easy to click.
 	local cf, size = model:GetBoundingBox()
 	local hit = Instance.new("Part")
 	hit.Anchored = true
 	hit.CanCollide = false
 	hit.Transparency = 1
-	hit.Size = size + Vector3.new(1.5, 1.5, 1.5)
+	hit.Size = size + Vector3.new(0.2, 0.2, 0.2)
 	hit.CFrame = cf
-	hit.Parent = model
+	hit.Parent = model.Parent
 	local cd = Instance.new("ClickDetector")
 	cd.MaxActivationDistance = 1000
 	cd.Parent = hit
@@ -222,72 +231,186 @@ end
 -- the Animator (priority Action, so it layers over the idle instead of fighting
 -- it -- fighting was the earlier "drugged" look). Uses a Roblox-owned public
 -- animation, so nothing needs uploading. Returns a stop() function.
+-- A chunky screwdriver that descends onto the just-seated part at the slot and
+-- twists it in (a couple of turns with a little dip), then lifts away. This is
+-- the camera's focal point, so it's always visible -- no hand-rig guesswork.
+-- `topLocalY` is how far above the slot base the part's top sits.
+local function driveScrew(slotCF, topLocalY, scene, shouldCancel)
+	local tipPos = slotCF.Position + Vector3.new(0, topLocalY, 0)
+	local model = Instance.new("Model")
+	model.Name = "ScrewIn"
+	model.Parent = scene
+	-- built pointing DOWN (-Y): tip at tipPos, handle above it
+	newPart("SDHandle", Vector3.new(0.26, 0.7, 0.26), CFrame.new(tipPos + Vector3.new(0, 0.95, 0)), Color3.fromRGB(225, 70, 70), Enum.Material.SmoothPlastic, model)
+	newPart("SDShaft", Vector3.new(0.1, 0.62, 0.1), CFrame.new(tipPos + Vector3.new(0, 0.46, 0)), Color3.fromRGB(190, 195, 205), Enum.Material.Metal, model)
+	newPart("SDTip", Vector3.new(0.15, 0.16, 0.15), CFrame.new(tipPos + Vector3.new(0, 0.09, 0)), Color3.fromRGB(150, 155, 165), Enum.Material.Metal, model)
+	local startCF = model:GetPivot()
+	local downCF = startCF * CFrame.new(0, -0.22, 0) -- press down as it turns
+	local turns = 26
+	for i = 1, turns do
+		if shouldCancel and shouldCancel() then
+			break
+		end
+		local a = i / turns
+		model:PivotTo(startCF:Lerp(downCF, math.sin(a * math.pi)) * CFrame.Angles(0, a * math.pi * 4, 0)) -- 2 turns + dip
+		RunService.Heartbeat:Wait()
+	end
+	-- lift away
+	local up = startCF * CFrame.new(0, 1.5, 0)
+	for i = 1, 10 do
+		if shouldCancel and shouldCancel() then
+			break
+		end
+		model:PivotTo(model:GetPivot():Lerp(up, i / 10))
+		RunService.Heartbeat:Wait()
+	end
+	model:Destroy()
+end
+
 local REACH_ANIM_ID = "rbxassetid://507770453" -- Roblox "Point": arm extends forward
 local function playReach(char)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local animator = hum and hum:FindFirstChildOfClass("Animator")
-	if not animator then
-		return function() end
-	end
-	local anim = Instance.new("Animation")
-	anim.AnimationId = REACH_ANIM_ID
-	local ok, track = pcall(function()
-		return animator:LoadAnimation(anim)
-	end)
-	if not ok or not track then
-		return function() end
-	end
-	track.Priority = Enum.AnimationPriority.Action
-	track.Looped = true
-	track:Play(0.15)
-	return function()
-		track:Stop(0.25)
-		task.delay(0.4, function()
-			anim:Destroy()
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+	-- Body lean: the anchored character leans forward + dips slightly toward the
+	-- bench so the reach reads as effort, then eases back on stop. Runs regardless
+	-- of whether the emote track loads.
+	local restCF = hrp and hrp.CFrame
+	local leanConn
+	if hrp and restCF then
+		local target = restCF * CFrame.new(0, -0.12, -0.5) * CFrame.Angles(math.rad(-10), 0, 0)
+		local t = 0
+		leanConn = RunService.Heartbeat:Connect(function(dt)
+			t = math.min(1, t + dt * 4)
+			hrp.CFrame = restCF:Lerp(target, t)
 		end)
+	end
+
+	local anim, track
+	if animator then
+		anim = Instance.new("Animation")
+		anim.AnimationId = REACH_ANIM_ID
+		local ok, loaded = pcall(function()
+			return animator:LoadAnimation(anim)
+		end)
+		if ok and loaded then
+			track = loaded
+			track.Priority = Enum.AnimationPriority.Action
+			track.Looped = true
+			track:Play(0.15)
+		end
+	end
+
+	return function()
+		if leanConn then
+			leanConn:Disconnect()
+		end
+		if hrp and restCF then
+			-- ease back to the resting pose
+			local from = hrp.CFrame
+			task.spawn(function()
+				for i = 1, 10 do
+					hrp.CFrame = from:Lerp(restCF, i / 10)
+					RunService.Heartbeat:Wait()
+				end
+				hrp.CFrame = restCF
+			end)
+		end
+		if track then
+			track:Stop(0.25)
+		end
+		if anim then
+			task.delay(0.4, function()
+				anim:Destroy()
+			end)
+		end
 	end
 end
 
 -- Display size per part: internal parts stay small so they fit inside the tower
 -- (no poking through the walls); Monitor + Case sit outside, so they can be big.
 local function partSize(id)
-	if id == "Monitor" or id == "RGB" then
-		return 2.2
+	if id == "RGB" then
+		return 3.0 -- the whole tower, swapped as one piece
+	end
+	if id == "Monitor" then
+		return 2.4 -- mounts on its own stand out front
 	end
 	if id == "RAM" or id == "Storage" then
 		return 0.9
+	end
+	if id == "Cooling" then
+		return 1.05
 	end
 	return 1.25
 end
 
 -- One round. Returns true if installed, false if cancelled.
+-- Three flavors of install: internal parts seat INSIDE the tower; the Monitor
+-- mounts on its own stand out front; the RGB case SWAPS the whole tower.
 local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, newTier, ownedParts, shouldCancel)
-	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
+	local overviewCF = CFrame.lookAt((benchCF * CFrame.new(6.5, 2.7, 3.8)).Position, (benchCF * CFrame.new(0, 1.2, -0.1)).Position)
 	-- follow-camera offset on the FRONT (aisle) side, a bit up and back toward the player
 	local camOff = (benchCF * CFrame.new(0, 2, 6)).Position - benchCF.Position
-	local _, slotCF, o = buildCase(benchCF, scene, partId)
-	-- show the parts you already OWN inside the case (all except the one being installed)
-	if ownedParts then
-		for id, level in pairs(ownedParts) do
-			if id ~= partId and level and level > 0 and SLOT_OFFSETS[id] and PCVisuals.TIERED[id] then
-				local decor = buildPartModel(id, PCVisuals.getVisualTier(level), o * SLOT_OFFSETS[id], partSize(id))
-				if decor then
-					decor.Parent = scene
+
+	local mode = (partId == "RGB" and "tower") or (partId == "Monitor" and "monitor") or "internal"
+	local o = benchCF * CFrame.new(0, 1.7, -0.2) -- tower interior origin (matches buildCase)
+	local slotCF
+
+	if mode == "tower" then
+		-- Swapping the WHOLE tower: no small shell -- the tower mesh IS the case.
+		-- These meshes pivot at their BASE, so seat the base on the bench (Y ~= bench top).
+		slotCF = benchCF * CFrame.new(0, 0.02, -0.2)
+		local anchor = newPart("SceneLight", Vector3.new(0.2, 0.2, 0.2), o * CFrame.new(0, 0.4, 1.4), WHITE, Enum.Material.SmoothPlastic, scene)
+		anchor.Transparency = 1
+		local fill = Instance.new("PointLight")
+		fill.Color = Color3.fromRGB(255, 248, 235)
+		fill.Brightness = 0.8
+		fill.Range = 13
+		fill.Parent = anchor
+	else
+		local _, innerSlot = buildCase(benchCF, scene, partId)
+		-- Monitor stands on the bench NEXT TO the tower (to its left), on its own
+		-- base (pivot at base -> Y ~= bench top), facing the player; internal parts
+		-- seat inside the tower at innerSlot.
+		slotCF = (mode == "monitor") and (benchCF * CFrame.new(-2.9, 0.02, 0.2) * CFrame.Angles(0, math.rad(180), 0)) or innerSlot
+		-- Fill EVERY other internal slot so the tower always looks like a full PC:
+		-- show your upgraded part if you own one, else a basic (tier 1) part. The
+		-- slot being installed is skipped (its own basic part is shown to remove).
+		if ownedParts then
+			for id in pairs(SLOT_OFFSETS) do
+				if id ~= partId and PCVisuals.TIERED[id] then
+					local level = ownedParts[id] or 0
+					local tier = (level > 0) and PCVisuals.getVisualTier(level) or 1
+					local decor = buildPartModel(id, tier, o * SLOT_OFFSETS[id], partSize(id))
+					if decor then
+						-- decor must not block clicks meant for the part being installed
+						for _, p in ipairs(decor:GetDescendants()) do
+							if p:IsA("BasePart") then
+								p.CanQuery = false
+							end
+						end
+						decor.Parent = scene
+					end
 				end
 			end
 		end
 	end
+
 	local trayCF = benchCF * CFrame.new(-2.6, 0.9, 1.6)
 	local binCF = benchCF * CFrame.new(2.6, 0.9, 1.6)
 	buildPad("Tray", benchCF * CFrame.new(-2.6, 0.25, 1.6), Color3.fromRGB(90, 200, 255), scene)
 	local binPad = buildPad("Bin", benchCF * CFrame.new(2.6, 0.25, 1.6), Color3.fromRGB(235, 120, 90), scene)
-	local handCF = benchCF * CFrame.new(0, 0.6, 2.4) -- roughly where the character's hands are
 
-	-- Step 1: click the old (or basic stock) part to pull it out.
+	-- Human-readable noun for the prompts.
+	local noun = (mode == "tower" and "case") or (mode == "monitor" and "monitor") or partName(partId)
+
+	-- Step 1: click the old (or basic stock) piece to take it out / off.
 	local removeTier = oldTier or 1
 	local isStock = oldTier == nil
-	prompt.Text = isStock and ("CLICK the basic " .. partName(partId) .. " to take it out")
-		or ("CLICK the old " .. partName(partId) .. " to take it out")
+	local verb = (mode == "tower") and "unplug" or (mode == "monitor") and "take off" or "take out"
+	prompt.Text = (isStock and "CLICK the basic " or "CLICK the old ") .. noun .. " to " .. verb
 	local oldModel = buildPartModel(partId, removeTier, slotCF, partSize(partId))
 	if oldModel then
 		oldModel.Parent = scene
@@ -311,8 +434,8 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 		return false
 	end
 
-	-- Step 2: click the new part to install it into the glowing slot.
-	prompt.Text = "CLICK the new " .. partName(partId) .. " to install it"
+	-- Step 2: click the new piece to install it.
+	prompt.Text = "CLICK the new " .. noun .. " to install it"
 	local newModel = buildPartModel(partId, newTier, trayCF, partSize(partId))
 	if not newModel then
 		return true
@@ -322,13 +445,16 @@ local function runRound(scene, benchCF, camera, prompt, char, partId, oldTier, n
 		return false
 	end
 	local stopReach2 = playReach(char)
-	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.2), slotCF * CFrame.new(0, 0.55, 0) }, shouldCancel, camera, camOff) -- arc to just above the slot
-	stopReach2()
+	-- internal parts drop straight down into the slot; the monitor/tower arc in from the front
+	local approach = (mode == "internal") and (slotCF * CFrame.new(0, 0.55, 0)) or (slotCF * CFrame.new(0, 1.1, 0.5))
+	flyThrough(newModel, { benchCF * CFrame.new(0, 2.0, 1.2), approach }, shouldCancel, camera, camOff)
 	pressIn(newModel, slotCF, shouldCancel) -- push it down into place with a settle
+	driveScrew(slotCF, math.min(partSize(partId), 1.4), scene, shouldCancel) -- screw it in (the payoff moment)
+	stopReach2()
 	seatBurst(slotCF, scene) -- spark burst payoff
 	tweenCam(camera, overviewCF, 0.6) -- zoom back to 3rd person
 	prompt.Text = "Installed!"
-	task.wait(0.6)
+	task.wait(0.5)
 	return true
 end
 
@@ -361,7 +487,7 @@ function PCInstallGame.run(partId, oldTier, newTier, ownedParts)
 	if hrp then
 		savedCF = hrp.CFrame
 		savedAnchor = hrp.Anchored
-		local standPos = (benchCF * CFrame.new(0, 0, 3.2)).Position
+		local standPos = (benchCF * CFrame.new(0, 0, 2.6)).Position
 		local eye = Vector3.new(standPos.X, savedCF.Position.Y, standPos.Z)
 		-- look at the bench at the SAME height, so the character stays upright (no tilt)
 		standCF = CFrame.lookAt(eye, Vector3.new(benchCF.Position.X, savedCF.Position.Y, benchCF.Position.Z))
@@ -373,7 +499,7 @@ function PCInstallGame.run(partId, oldTier, newTier, ownedParts)
 	camera.CameraType = Enum.CameraType.Scriptable
 	-- pulled-back 3rd-person so the case, pads and character are all in frame and
 	-- nothing clips into the camera
-	camera.CFrame = CFrame.lookAt((benchCF * CFrame.new(5.5, 4, 8)).Position, (benchCF * CFrame.new(0, 1.3, 0)).Position)
+	camera.CFrame = CFrame.lookAt((benchCF * CFrame.new(6.5, 2.7, 3.8)).Position, (benchCF * CFrame.new(0, 1.2, -0.1)).Position)
 
 	local scene = Instance.new("Folder")
 	scene.Name = "PCInstallScene"

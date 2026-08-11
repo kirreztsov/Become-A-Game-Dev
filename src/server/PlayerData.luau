@@ -69,6 +69,9 @@ local function defaultData()
 		-- has been bought. Passes are re-verified from Roblox on join.
 		passes = {},
 		starterPackBought = false,
+		-- Robux receipt PurchaseIds already granted (dedupe so a retried receipt
+		-- never double-grants). Set by MonetizationService.ProcessReceipt.
+		processedReceipts = {},
 		-- Global-leaderboard "this week" gains (reset on week rollover) and the
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
@@ -124,6 +127,7 @@ function PlayerData.load(player)
 			if data.starterPackBought == nil then
 				data.starterPackBought = false
 			end
+			data.processedReceipts = data.processedReceipts or {}
 			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
 			if data.weekAnchor == nil then
 				data.weekAnchor = GameDataMod.getWeekIndex(os.time())
@@ -168,25 +172,34 @@ function PlayerData.loadFailed(player)
 	return failedLoads[player.UserId] == true
 end
 
+-- Returns true only if the data was actually written to the DataStore. Callers
+-- that gate a Robux grant on a successful save (ProcessReceipt) rely on this.
 function PlayerData.save(player)
 	-- Refuse to save if the most recent load failed; prevents overwriting real data with defaults
 	if failedLoads[player.UserId] then
 		warn(("Refusing to save data for %s: the most recent load failed; will not overwrite DataStore until a successful load clears this flag"):format(player.Name))
-		return
+		return false
 	end
 
 	local data = cache[player.UserId]
 	if not data then
-		return
+		return false
 	end
 
-	local success, err = pcall(function()
-		playerStore:SetAsync("Player_" .. player.UserId, data)
-	end)
-
-	if not success then
-		warn(("Failed to save data for %s: %s"):format(player.Name, tostring(err)))
+	-- retry a few times so a transient throttle doesn't silently drop progress
+	local success, err
+	for attempt = 1, 4 do
+		success, err = pcall(function()
+			playerStore:SetAsync("Player_" .. player.UserId, data)
+		end)
+		if success then
+			return true
+		end
+		task.wait(attempt * 0.6) -- backoff before retrying
 	end
+
+	warn(("Failed to save data for %s after retries: %s"):format(player.Name, tostring(err)))
+	return false
 end
 
 function PlayerData.remove(player)

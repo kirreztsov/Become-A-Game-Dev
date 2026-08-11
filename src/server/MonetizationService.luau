@@ -122,29 +122,47 @@ function MonetizationService.start()
 		if not data then
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
-		local id = receiptInfo.ProductId
+		-- Don't grant onto default data from a failed load (it can't be saved and
+		-- would be discarded). Ask Roblox to retry later.
+		if PlayerData.loadFailed(player) then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
 
+		-- Idempotency: if we already granted this exact purchase, just acknowledge
+		-- so Roblox stops retrying -- never grant it twice.
+		local pid = receiptInfo.PurchaseId
+		data.processedReceipts = data.processedReceipts or {}
+		if data.processedReceipts[pid] then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+
+		local id = receiptInfo.ProductId
+		local handled = false
 		local luckyGrant = GameData.LuckyCaseProducts[id]
 		if luckyGrant then
 			WorkerCaseService.grantLuckySpins(data, luckyGrant)
-			Remotes.PlayerStateUpdated:FireClient(player, data)
-			return Enum.ProductPurchaseDecision.PurchaseGranted
-		end
-
-		if id ~= 0 and id == GameData.Products.StarterPack.id then
+			handled = true
+		elseif id ~= 0 and id == GameData.Products.StarterPack.id then
 			grantStarterPack(player, data)
-			Remotes.PlayerStateUpdated:FireClient(player, data)
-			return Enum.ProductPurchaseDecision.PurchaseGranted
-		end
-
-		if id ~= 0 and id == GameData.Products.MegaBoost.id then
+			handled = true
+		elseif id ~= 0 and id == GameData.Products.MegaBoost.id then
 			local mb = GameData.Products.MegaBoost
 			GameData.applyBoost(data, mb.boostMult, mb.boostDur, mb.icon, "Mega Boost", Workspace:GetServerTimeNow())
-			Remotes.PlayerStateUpdated:FireClient(player, data)
-			return Enum.ProductPurchaseDecision.PurchaseGranted
+			handled = true
+		end
+		if not handled then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 
-		return Enum.ProductPurchaseDecision.NotProcessedYet
+		-- Mark processed, then PERSIST before acknowledging. If the save fails we
+		-- must NOT tell Roblox it's granted (else a crash loses a paid item with
+		-- no recovery) -- return NotProcessedYet so Roblox re-delivers later.
+		data.processedReceipts[pid] = true
+		if not PlayerData.save(player) then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		Remotes.PlayerStateUpdated:FireClient(player, data)
+		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
 
 	-- Live game-pass purchase completes.

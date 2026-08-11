@@ -42,17 +42,41 @@ local function buildCase(benchCF, scene)
 	local model = Instance.new("Model")
 	model.Name = "InstallCase"
 	model.Parent = scene
-	local caseColor = Color3.fromRGB(30, 32, 40)
+	local caseColor = Color3.fromRGB(38, 40, 50)
 	local o = benchCF * CFrame.new(0, 1.7, -0.2)
-	newPart("CaseBack", Vector3.new(3.2, 3.4, 0.2), o * CFrame.new(0, 0, -1.3), caseColor, Enum.Material.SmoothPlastic, model)
-	newPart("CaseBottom", Vector3.new(3.2, 0.2, 2.6), o * CFrame.new(0, -1.7, 0), caseColor, Enum.Material.SmoothPlastic, model)
-	newPart("CaseTop", Vector3.new(3.2, 0.2, 2.6), o * CFrame.new(0, 1.7, 0), caseColor, Enum.Material.SmoothPlastic, model)
-	newPart("CaseLeft", Vector3.new(0.2, 3.4, 2.6), o * CFrame.new(-1.5, 0, 0), caseColor, Enum.Material.SmoothPlastic, model)
-	newPart("CaseBoard", Vector3.new(2.6, 3.0, 0.15), o * CFrame.new(0, 0, -1.1), Color3.fromRGB(28, 66, 48), Enum.Material.SmoothPlastic, model)
-	local slot = newPart("Slot", Vector3.new(1.7, 1.7, 0.12), o * CFrame.new(0, 0, -0.95), WHITE, Enum.Material.Neon, model)
+	-- shell (front + right stay open so you can reach in and see the slot)
+	newPart("CaseBack", Vector3.new(3.3, 3.5, 0.2), o * CFrame.new(0, 0, -1.3), caseColor, Enum.Material.Metal, model)
+	newPart("CaseBottom", Vector3.new(3.5, 0.25, 2.8), o * CFrame.new(0, -1.78, 0), caseColor, Enum.Material.Metal, model)
+	newPart("CaseTop", Vector3.new(3.5, 0.25, 2.8), o * CFrame.new(0, 1.78, 0), caseColor, Enum.Material.Metal, model)
+	newPart("CaseLeft", Vector3.new(0.2, 3.5, 2.8), o * CFrame.new(-1.55, 0, 0), caseColor, Enum.Material.Metal, model)
+	-- tinted glass right side panel
+	local glass = newPart("CaseGlass", Vector3.new(0.12, 3.2, 2.5), o * CFrame.new(1.55, 0, 0.1), Color3.fromRGB(150, 205, 235), Enum.Material.Glass, model)
+	glass.Transparency = 0.55
+	glass.Reflectance = 0.15
+	-- motherboard + chip detail
+	newPart("CaseBoard", Vector3.new(2.7, 3.1, 0.15), o * CFrame.new(0, 0, -1.1), Color3.fromRGB(22, 58, 42), Enum.Material.SmoothPlastic, model)
+	for i = -1, 1 do
+		newPart("Chip" .. i, Vector3.new(0.5, 0.5, 0.08), o * CFrame.new(i * 0.85, -1.05, -1.0), Color3.fromRGB(18, 20, 26), Enum.Material.SmoothPlastic, model)
+	end
+	-- RGB accent bar (SmoothPlastic -- Neon blooms to white in this game's lighting)
+	newPart("CaseRGB", Vector3.new(3.0, 0.16, 0.16), o * CFrame.new(0, 1.6, 1.25), Color3.fromRGB(120, 220, 255), Enum.Material.SmoothPlastic, model)
+	-- glowing white NEON slot (white neon reads as a bright glow, as requested)
+	local slot = newPart("Slot", Vector3.new(1.7, 1.7, 0.12), o * CFrame.new(0, 0.25, -0.95), WHITE, Enum.Material.Neon, model)
 	slot.Transparency = 0.3
-	-- pulse the neon slot
+	local slotLight = Instance.new("PointLight")
+	slotLight.Color = WHITE
+	slotLight.Brightness = 3
+	slotLight.Range = 11
+	slotLight.Parent = slot
 	TweenService:Create(slot, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Transparency = 0.65 }):Play()
+	-- warm interior fill light so the parts read clearly (fixes the dark look)
+	local anchor = newPart("CaseLightAnchor", Vector3.new(0.2, 0.2, 0.2), o * CFrame.new(0, 0.4, 0.6), caseColor, Enum.Material.SmoothPlastic, model)
+	anchor.Transparency = 1
+	local fill = Instance.new("PointLight")
+	fill.Color = Color3.fromRGB(255, 248, 235)
+	fill.Brightness = 2.6
+	fill.Range = 13
+	fill.Parent = anchor
 	return model, slot.CFrame
 end
 

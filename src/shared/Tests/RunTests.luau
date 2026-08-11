@@ -240,4 +240,38 @@ t:assertEqual(QuestData.progress(qPc, QuestData.get("pc_power_10")), 10, "quest:
 
 t:assertEqual(QuestData.applyClaim({ gamesReleased = 0, questsClaimed = {} }, "unknown_quest_id"), nil, "quest: unknown id -> nil")
 
+-- ChallengeData: daily rollover + delta progress + claim
+local ChallengeData = require(script.Parent.Parent.ChallengeData)
+
+t:assertEqual(ChallengeData.dayIndex(0), 0, "challenge: day index at epoch is 0")
+t:assertEqual(ChallengeData.dayIndex(86400), 1, "challenge: day index rolls at 24h")
+t:assertEqual(ChallengeData.secondsUntilReset(86400 * 3 + 100), 86300, "challenge: seconds until reset")
+t:assertEqual(#ChallengeData.dailySet(0), 3, "challenge: 3 per day")
+t:assertEqual(ChallengeData.dailySet(0)[1].id ~= ChallengeData.dailySet(1)[1].id, true, "challenge: set rotates by day")
+
+local cd = { gamesReleased = 5, subscribers = 100, challengeDay = -1 }
+local changed = ChallengeData.rolloverIfNeeded(cd, 10)
+t:assertEqual(changed, true, "challenge: rollover on stale day")
+t:assertEqual(cd.challengeDay, 10, "challenge: rollover sets the day")
+t:assertEqual(cd.challengeBaseline.games, 5, "challenge: baseline snapshots games")
+t:assertEqual(cd.challengeBaseline.subs, 100, "challenge: baseline snapshots subs")
+t:assertEqual(ChallengeData.rolloverIfNeeded(cd, 10), false, "challenge: no rollover on same day")
+
+local rel3 = ChallengeData.get("d_release_3")
+t:assertEqual(ChallengeData.progress(cd, rel3), 0, "challenge: 0 progress right after baseline")
+cd.gamesReleased = 7 -- released 2 today
+t:assertEqual(ChallengeData.progress(cd, rel3), 2, "challenge: progress = today's delta")
+t:assertEqual(ChallengeData.isComplete(cd, rel3), false, "challenge: 2 of 3 incomplete")
+cd.gamesReleased = 9 -- 4 today, capped at 3
+t:assertEqual(ChallengeData.progress(cd, rel3), 3, "challenge: progress caps at target")
+t:assertEqual(ChallengeData.canClaim(cd, "d_release_3"), true, "challenge: complete + unclaimed claimable")
+local rew = ChallengeData.applyClaim(cd, "d_release_3")
+t:assertEqual(rew and rew.cash, 3000, "challenge: applyClaim returns reward")
+t:assertEqual(ChallengeData.canClaim(cd, "d_release_3"), false, "challenge: cannot claim twice")
+
+-- a new day wipes claims + resets the baseline
+ChallengeData.rolloverIfNeeded(cd, 11)
+t:assertEqual(cd.challengeClaimed.d_release_3, nil, "challenge: new day clears claims")
+t:assertEqual(ChallengeData.progress(cd, rel3), 0, "challenge: new day resets progress to 0")
+
 t:summary()

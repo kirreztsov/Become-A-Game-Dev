@@ -74,6 +74,12 @@ local function defaultData()
 		processedReceipts = {},
 		-- Quest/achievement ids the player has claimed the reward for (see QuestData).
 		questsClaimed = {},
+		-- Daily challenges (see ChallengeData): the day index the current set +
+		-- baseline belong to, the stat snapshot taken at that day's start, and
+		-- which of today's challenges have been claimed. -1 forces a fresh roll.
+		challengeDay = -1,
+		challengeBaseline = { games = 0, subs = 0 },
+		challengeClaimed = {},
 		-- Global-leaderboard "this week" gains (reset on week rollover) and the
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
@@ -131,6 +137,11 @@ function PlayerData.load(player)
 			end
 			data.processedReceipts = data.processedReceipts or {}
 			data.questsClaimed = data.questsClaimed or {}
+			if data.challengeDay == nil then
+				data.challengeDay = -1
+			end
+			data.challengeBaseline = data.challengeBaseline or { games = 0, subs = 0 }
+			data.challengeClaimed = data.challengeClaimed or {}
 			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
 			if data.weekAnchor == nil then
 				data.weekAnchor = GameDataMod.getWeekIndex(os.time())

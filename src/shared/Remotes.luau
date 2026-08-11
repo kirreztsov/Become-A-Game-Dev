@@ -49,6 +49,7 @@ local REMOTE_NAMES = {
 	"LeaderboardData",
 	"RequestClaimQuest",
 	"QuestsUpdated",
+	"RequestClaimChallenge",
 	"RequestEnterHome",
 	"RequestLeaveHome",
 	"RequestPlaceHomeItem",

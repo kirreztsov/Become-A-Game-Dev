@@ -128,48 +128,32 @@ local function flyThrough(model, cfs, shouldCancel)
 	end
 end
 
--- Make the character reach its right arm toward the case. We disable the idle
--- animation (the "Animate" script + any playing tracks) so it doesn't fight and
--- override our pose -- that fighting was the earlier "drugged" look. Returns a
--- function that puts the arm back and re-enables the idle.
+-- Make the character reach toward the case by PLAYING a real animation through
+-- the Animator (priority Action, so it layers over the idle instead of fighting
+-- it -- fighting was the earlier "drugged" look). Uses a Roblox-owned public
+-- animation, so nothing needs uploading. Returns a stop() function.
+local REACH_ANIM_ID = "rbxassetid://507770453" -- Roblox "Point": arm extends forward
 local function playReach(char)
-	if not char then
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local animator = hum and hum:FindFirstChildOfClass("Animator")
+	if not animator then
 		return function() end
 	end
-	local animate = char:FindFirstChild("Animate")
-	if animate then
-		animate.Disabled = true
+	local anim = Instance.new("Animation")
+	anim.AnimationId = REACH_ANIM_ID
+	local ok, track = pcall(function()
+		return animator:LoadAnimation(anim)
+	end)
+	if not ok or not track then
+		return function() end
 	end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	local animator = hum and hum:FindFirstChildOfClass("Animator")
-	if animator then
-		for _, t in ipairs(animator:GetPlayingAnimationTracks()) do
-			t:Stop(0.1)
-		end
-	end
-	-- find the right-shoulder motor for R15 or R6
-	local motor
-	local rua = char:FindFirstChild("RightUpperArm")
-	if rua then
-		motor = rua:FindFirstChild("RightShoulder")
-	end
-	if not motor then
-		local torso = char:FindFirstChild("Torso")
-		motor = torso and torso:FindFirstChild("Right Shoulder")
-	end
-	local orig
-	if motor then
-		orig = motor.C0
-		TweenService:Create(motor, TweenInfo.new(0.25), { C0 = orig * CFrame.Angles(math.rad(-80), 0, 0) }):Play()
-	end
+	track.Priority = Enum.AnimationPriority.Action
+	track.Looped = true
+	track:Play(0.15)
 	return function()
-		if motor and orig then
-			TweenService:Create(motor, TweenInfo.new(0.2), { C0 = orig }):Play()
-		end
-		task.delay(0.25, function()
-			if animate then
-				animate.Disabled = false
-			end
+		track:Stop(0.25)
+		task.delay(0.4, function()
+			anim:Destroy()
 		end)
 	end
 end

@@ -24,9 +24,13 @@ function QuestService.start()
 			return
 		end
 		local data = PlayerData.get(player)
-		if not data or PlayerData.loadFailed(player) then
+		if not data then
 			return
 		end
+		-- Note: unlike Robux receipts, a quest reward is just in-game cash, so we
+		-- grant it even if the DataStore load failed (e.g. Studio, where the API is
+		-- off). PlayerData.save below no-ops on a failed load, so it just won't
+		-- persist -- which is fine; the quest stays unclaimed next session.
 		-- applyClaim re-checks completion + not-already-claimed and marks it.
 		local reward = QuestData.applyClaim(data, questId)
 		if not reward then

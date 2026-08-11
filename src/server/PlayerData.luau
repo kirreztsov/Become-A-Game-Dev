@@ -51,6 +51,9 @@ local function defaultData()
 		dailyStreak = 0,
 		-- How many times the player has prestiged/rebirthed (permanent bonus).
 		prestigeLevel = 0,
+		-- os.time() of the player's last save (for offline earnings). 0 = no
+		-- baseline yet, so the first-ever session never pays out.
+		lastOnline = 0,
 		-- Rebirth perk tree (see PerkData): unspent Prestige Points + bought perk
 		-- levels (perkId -> level). Points are earned on each rebirth.
 		perkPoints = 0,
@@ -121,6 +124,7 @@ function PlayerData.load(player)
 			data.prestigeLevel = data.prestigeLevel or 0
 			data.perkPoints = data.perkPoints or 0
 			data.perks = data.perks or {}
+			data.lastOnline = data.lastOnline or 0
 			data.normalPity = data.normalPity or 0
 			data.luckyPity = data.luckyPity or 0
 			data.normalSpinsOwned = data.normalSpinsOwned or 0
@@ -205,6 +209,10 @@ function PlayerData.save(player)
 	if not data then
 		return false
 	end
+
+	-- Freshen the "last seen online" stamp so next join can pay offline earnings
+	-- for the gap since this save. (Save runs on autosave, leave, and BindToClose.)
+	data.lastOnline = os.time()
 
 	-- retry a few times so a transient throttle doesn't silently drop progress
 	local success, err

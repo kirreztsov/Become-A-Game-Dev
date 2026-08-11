@@ -51,6 +51,8 @@ local REMOTE_NAMES = {
 	"QuestsUpdated",
 	"RequestClaimChallenge",
 	"RequestBuyPerk",
+	"OfflineEarningsReady",
+	"CollectOfflineEarnings",
 	"RequestEnterHome",
 	"RequestLeaveHome",
 	"RequestPlaceHomeItem",

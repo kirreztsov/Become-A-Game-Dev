@@ -2110,6 +2110,19 @@ end
 local IDLE_TICK = 3
 local IDLE_RATES = { Arcade = ROOM_PER_TICK.Arcade / 3, Merch = ROOM_PER_TICK.Merch / 3 } -- cash/sec
 
+-- Total per-second idle income of the rooms this player owns (before boosts).
+-- Single source of truth shared with OfflineEarnings so the two never drift.
+function PlotManager.roomIncomePerSec(data)
+	local owned = data.roomsOwned or {}
+	local rate = 0
+	for room, perSec in pairs(IDLE_RATES) do
+		if owned[room] then
+			rate += perSec
+		end
+	end
+	return rate
+end
+
 local function idlePool(data, room)
 	data.idle = data.idle or { Arcade = 0, Merch = 0 }
 	data.idle[room] = data.idle[room] or 0

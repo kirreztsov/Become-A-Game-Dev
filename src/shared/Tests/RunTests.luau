@@ -300,4 +300,10 @@ local hs = { perks = { p_headstart = 3 } }
 t:assertEqual(PerkData.startCashBonus(hs), 3000, "perk: head start bonus = level*value")
 t:assertEqual(PerkData.applyBuy({ perkPoints = 0, perks = {} }, "unknown"), false, "perk: unknown id -> false")
 
+-- PerkData: offline cap perk
+t:assertEqual(PerkData.offlineCapBonusHours({ perks = {} }), 0, "perk: no offline perk -> 0h bonus")
+t:assertEqual(PerkData.offlineCapBonusHours({ perks = { p_offline = 3 } }), 3, "perk: 3 offline levels -> +3h")
+t:assertEqual(PerkData.canBuy({ perkPoints = 1, perks = {} }, "p_offline"), true, "perk: offline perk buyable for 1 point")
+t:assertEqual(PerkData.isMaxed({ perks = { p_offline = 6 } }, "p_offline"), true, "perk: offline perk maxes at 6")
+
 t:summary()

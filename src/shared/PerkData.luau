@@ -16,6 +16,7 @@ PerkData.PERKS = {
 	{ id = "p_subs", name = "Fame Boost", desc = "+10% subscribers from every release", icon = "⭐", kind = "subs", value = 0.10, maxLevel = 10, cost = 1 },
 	{ id = "p_speed", name = "Fast Hands", desc = "+8% worker speed", icon = "⚡", kind = "workerSpeed", value = 0.08, maxLevel = 5, cost = 1 },
 	{ id = "p_headstart", name = "Head Start", desc = "Start each rebirth with +$1,000", icon = "🚀", kind = "startCash", value = 1000, maxLevel = 5, cost = 2 },
+	{ id = "p_offline", name = "Deep Sleep", desc = "+1h offline earnings cap", icon = "😴", kind = "offlineCap", value = 1, maxLevel = 6, cost = 1 },
 }
 
 local byId = {}
@@ -59,6 +60,17 @@ function PerkData.startCashBonus(data)
 	local bonus = 0
 	for _, p in ipairs(PerkData.PERKS) do
 		if p.kind == "startCash" then
+			bonus += PerkData.level(data, p.id) * p.value
+		end
+	end
+	return bonus
+end
+
+-- Extra offline-earnings cap hours from Deep Sleep perks (0 if none).
+function PerkData.offlineCapBonusHours(data)
+	local bonus = 0
+	for _, p in ipairs(PerkData.PERKS) do
+		if p.kind == "offlineCap" then
 			bonus += PerkData.level(data, p.id) * p.value
 		end
 	end

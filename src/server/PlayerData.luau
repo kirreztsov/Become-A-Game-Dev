@@ -72,6 +72,8 @@ local function defaultData()
 		-- Robux receipt PurchaseIds already granted (dedupe so a retried receipt
 		-- never double-grants). Set by MonetizationService.ProcessReceipt.
 		processedReceipts = {},
+		-- Quest/achievement ids the player has claimed the reward for (see QuestData).
+		questsClaimed = {},
 		-- Global-leaderboard "this week" gains (reset on week rollover) and the
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
@@ -128,6 +130,7 @@ function PlayerData.load(player)
 				data.starterPackBought = false
 			end
 			data.processedReceipts = data.processedReceipts or {}
+			data.questsClaimed = data.questsClaimed or {}
 			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
 			if data.weekAnchor == nil then
 				data.weekAnchor = GameDataMod.getWeekIndex(os.time())

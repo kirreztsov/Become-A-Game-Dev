@@ -47,6 +47,8 @@ local REMOTE_NAMES = {
 	"RequestSetSkin",
 	"RequestLeaderboardData",
 	"LeaderboardData",
+	"RequestClaimQuest",
+	"QuestsUpdated",
 	"RequestEnterHome",
 	"RequestLeaveHome",
 	"RequestPlaceHomeItem",

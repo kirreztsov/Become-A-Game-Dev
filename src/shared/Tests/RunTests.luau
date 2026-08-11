@@ -213,4 +213,31 @@ local poor = { cash = 1, pcParts = {} }
 t:assertEqual(PCService.applyInstall(poor, { partId = "CPU", cost = cpuCost0, targetLevel = 1 }), false, "apply: not enough cash at apply time -> false")
 t:assertEqual(poor.pcParts.CPU, nil, "apply: rejected install does not upgrade")
 
+-- QuestData: pure progress + claim logic
+local QuestData = require(script.Parent.Parent.QuestData)
+
+local qGames = { gamesReleased = 0, questsClaimed = {} }
+t:assertEqual(QuestData.isComplete(qGames, QuestData.get("first_game")), false, "quest: 0 games -> first_game incomplete")
+t:assertEqual(QuestData.canClaim(qGames, "first_game"), false, "quest: incomplete cannot claim")
+qGames.gamesReleased = 1
+t:assertEqual(QuestData.isComplete(qGames, QuestData.get("first_game")), true, "quest: 1 game -> first_game complete")
+t:assertEqual(QuestData.canClaim(qGames, "first_game"), true, "quest: complete + unclaimed -> claimable")
+
+local reward = QuestData.applyClaim(qGames, "first_game")
+t:assertEqual(reward and reward.cash, 100, "quest: applyClaim returns the reward")
+t:assertEqual(qGames.questsClaimed.first_game, true, "quest: applyClaim marks claimed")
+t:assertEqual(QuestData.canClaim(qGames, "first_game"), false, "quest: cannot claim twice")
+t:assertEqual(QuestData.applyClaim(qGames, "first_game"), nil, "quest: second applyClaim returns nil")
+
+t:assertEqual(QuestData.progress({ subscribers = 500 }, QuestData.get("subs_1k")), 500, "quest: progress reads the stat")
+t:assertEqual(QuestData.progress({ subscribers = 5000 }, QuestData.get("subs_1k")), 1000, "quest: progress caps at target")
+
+local qWork = { workers = { A = { hired = true }, B = { hired = true }, C = { hired = false } } }
+t:assertEqual(QuestData.progress(qWork, QuestData.get("workers_all")), 2, "quest: workersHired counts only hired")
+
+local qPc = { pcParts = { CPU = 4, GPU = 6, RAM = 0 } }
+t:assertEqual(QuestData.progress(qPc, QuestData.get("pc_power_10")), 10, "quest: pcPower sums part levels (capped)")
+
+t:assertEqual(QuestData.applyClaim({ gamesReleased = 0, questsClaimed = {} }, "unknown_quest_id"), nil, "quest: unknown id -> nil")
+
 t:summary()

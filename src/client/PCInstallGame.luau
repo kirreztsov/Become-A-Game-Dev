@@ -121,7 +121,7 @@ local function flyThrough(model, cfs, shouldCancel)
 			if shouldCancel and shouldCancel() then
 				return
 			end
-			model:PivotTo(start:Lerp(target, i / 14) * CFrame.Angles(0, math.rad(i * 6), 0))
+			model:PivotTo(start:Lerp(target, i / 14))
 			RunService.Heartbeat:Wait()
 		end
 		model:PivotTo(target)
@@ -162,7 +162,6 @@ local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, n
 		if not waitForClick(oldModel, shouldCancel) then
 			return false
 		end
-		reach(hrp, standCF)
 		flyThrough(oldModel, { handCF, binCF }, shouldCancel)
 		for _, p in ipairs(oldModel:GetDescendants()) do
 			if p:IsA("BasePart") then
@@ -187,7 +186,6 @@ local function runRound(scene, benchCF, prompt, hrp, standCF, partId, oldTier, n
 	if not waitForClick(newModel, shouldCancel) then
 		return false
 	end
-	reach(hrp, standCF)
 	flyThrough(newModel, { handCF, slotCF }, shouldCancel)
 	prompt.Text = "Installed!"
 	task.wait(0.6)

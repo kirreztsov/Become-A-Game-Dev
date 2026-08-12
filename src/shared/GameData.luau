@@ -587,7 +587,7 @@ function GameData.getPCPartUpgradeCost(id, currentLevel)
 	return nextModel and nextModel.price or nil
 end
 
-local function _pcPartsMultiplier(pcParts, kind)
+local function _pcPartsMultiplier(pcParts, kind, eventParts)
 	pcParts = pcParts or {}
 	local m = 1
 	for _, p in ipairs(GameData.PCParts) do
@@ -598,17 +598,29 @@ local function _pcPartsMultiplier(pcParts, kind)
 			end
 		end
 	end
+	-- Champion parts (event reward): a permanent bonus per part, added on top of
+	-- the shop level, in the same money/followers split.
+	if eventParts then
+		for id, bonus in pairs(eventParts) do
+			local p = _pcPartById[id]
+			if p and p.kind == kind then
+				m += bonus
+			end
+		end
+	end
 	return m
 end
 
--- Cash-per-game multiplier from the money categories (CPU/RAM/Storage/Cooling).
-function GameData.getPCPartsCashMultiplier(pcParts)
-	return _pcPartsMultiplier(pcParts, "money")
+-- Cash-per-game multiplier from the money categories (CPU/RAM/Storage/Cooling),
+-- plus any Champion (event) parts in those categories.
+function GameData.getPCPartsCashMultiplier(pcParts, eventParts)
+	return _pcPartsMultiplier(pcParts, "money", eventParts)
 end
 
--- Subscribers-per-release multiplier from the follower categories (GPU/Monitor/RGB).
-function GameData.getPCPartsSubsMultiplier(pcParts)
-	return _pcPartsMultiplier(pcParts, "followers")
+-- Subscribers-per-release multiplier from the follower categories
+-- (GPU/Monitor/RGB), plus any Champion (event) parts in those categories.
+function GameData.getPCPartsSubsMultiplier(pcParts, eventParts)
+	return _pcPartsMultiplier(pcParts, "followers", eventParts)
 end
 
 -- ---- Subscribers -----------------------------------------------------------

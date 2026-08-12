@@ -377,4 +377,11 @@ t:assertEqual(nilId, nil, "event: nil when all 7 champion parts owned")
 local _, freshBonus = EventData.rollChampionPart({ pcParts = {}, eventParts = {} }, function() return 1 end)
 t:assertEqual(math.abs(freshBonus - EventData.MIN_CHAMPION_BONUS) < 1e-9, true, "event: fresh winner gets the minimum bonus floor")
 
+-- Champion parts fold into the PC-parts multipliers (money vs followers split)
+local baseCash = GameData.getPCPartsCashMultiplier({ CPU = 0 })
+t:assertEqual(math.abs(GameData.getPCPartsCashMultiplier({ CPU = 0 }, { CPU = 0.5 }) - (baseCash + 0.5)) < 1e-9, true, "champion: CPU (money) adds to cash multiplier")
+t:assertEqual(math.abs(GameData.getPCPartsSubsMultiplier({ GPU = 0 }, { CPU = 0.5 }) - GameData.getPCPartsSubsMultiplier({ GPU = 0 })) < 1e-9, true, "champion: a money part does NOT touch the subs multiplier")
+t:assertEqual(math.abs(GameData.getPCPartsSubsMultiplier({ GPU = 0 }, { GPU = 0.4 }) - (GameData.getPCPartsSubsMultiplier({ GPU = 0 }) + 0.4)) < 1e-9, true, "champion: GPU (followers) adds to subs multiplier")
+t:assertEqual(GameData.getPCPartsCashMultiplier({ CPU = 0 }, nil), baseCash, "champion: nil eventParts behaves as before")
+
 t:summary()

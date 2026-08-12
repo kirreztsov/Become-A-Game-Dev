@@ -1,5 +1,5 @@
 -- Offline earnings (roadmap B3). While a player is away, their owned money rooms
--- earn 50% of their normal per-second income, up to a cap (2h + Deep Sleep perk
+-- earn 15% of their normal per-second income, up to a cap (2h + Deep Sleep perk
 -- hours). Computed once at join from the loaded lastOnline stamp; granted on
 -- Collect (server-authoritative -- the client's message carries no amount).
 local Players = game:GetService("Players")
@@ -10,7 +10,10 @@ local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
 local PlayerData = require(script.Parent.PlayerData)
 local PlotManager = require(script.Parent.PlotManager)
 
-local OFFLINE_FRACTION = 0.5
+-- Fraction of a room's normal per-second income that keeps accruing while the
+-- player is away. Deliberately well under half: coming back should feel like a
+-- nice top-up, never a better way to earn than actually playing.
+local OFFLINE_FRACTION = 0.15
 local BASE_CAP_HOURS = 2
 
 local OfflineEarnings = {}

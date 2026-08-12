@@ -91,6 +91,19 @@ local function defaultData()
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
 		weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 },
+		-- Sunday Showdown event (see EventData): the day index the current arc's
+		-- baseline belongs to, the stat snapshot taken at that Sunday's start,
+		-- which quests are claimed, the permanently-collected Champion parts
+		-- (partId -> bonus), and the frozen per-arc scale. -1 forces a fresh
+		-- roll. Plus two lifetime counters the event's cash/trendy quests
+		-- measure deltas from.
+		eventDay = -1,
+		eventBaseline = { games = 0, subs = 0, cash = 0, hits = 0 },
+		eventQuestsClaimed = {},
+		eventParts = {},
+		eventScale = 1,
+		totalCashEarned = 0,
+		trendyHits = 0,
 		-- Placed furniture in the player's private Home room.
 		homeItems = {},
 	}
@@ -152,6 +165,15 @@ function PlayerData.load(player)
 			end
 			data.challengeBaseline = data.challengeBaseline or { games = 0, subs = 0 }
 			data.challengeClaimed = data.challengeClaimed or {}
+			if data.eventDay == nil then
+				data.eventDay = -1
+			end
+			data.eventBaseline = data.eventBaseline or { games = 0, subs = 0, cash = 0, hits = 0 }
+			data.eventQuestsClaimed = data.eventQuestsClaimed or {}
+			data.eventParts = data.eventParts or {}
+			data.eventScale = data.eventScale or 1
+			data.totalCashEarned = data.totalCashEarned or 0
+			data.trendyHits = data.trendyHits or 0
 			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
 			if data.weekAnchor == nil then
 				data.weekAnchor = GameDataMod.getWeekIndex(os.time())

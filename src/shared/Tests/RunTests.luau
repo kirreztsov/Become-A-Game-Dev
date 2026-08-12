@@ -313,4 +313,67 @@ t:assertEqual(GameData.getOfflineCash(10, -50, 7200), 0, "offline: negative elap
 t:assertEqual(GameData.getOfflineCash(0, 7200, 7200), 0, "offline: zero rate -> 0")
 t:assertEqual(GameData.getOfflineCash(1.5, 10, 7200), 15, "offline: floors fractional cash")
 
+-- EventData: Sunday gating, scaling, sequential claims, champion roll
+local EventData = require(script.Parent.Parent.EventData)
+
+-- Sunday detection (Unix day 0 = Thursday; day 3 = Sunday)
+t:assertEqual(EventData.isEventActive(0), false, "event: epoch (Thursday) is not active")
+t:assertEqual(EventData.isEventActive(2 * 86400), false, "event: Saturday is not active")
+t:assertEqual(EventData.isEventActive(3 * 86400), true, "event: Sunday IS active")
+t:assertEqual(EventData.isEventActive(3 * 86400 + 5000), true, "event: still Sunday later in the day")
+t:assertEqual(EventData.isEventActive(4 * 86400), false, "event: Monday is not active")
+t:assertEqual(EventData.isEventActive(10 * 86400), true, "event: a later Sunday is active")
+t:assertEqual(EventData.secondsUntilEnd(3 * 86400 + 100), 86300, "event: seconds until day ends")
+
+-- Scaling is continuous and monotonic in subscribers
+t:assertEqual(math.abs(EventData.scale({ subscribers = 0 }) - 1) < 1e-9, true, "event: scale at 0 subs is 1")
+t:assertEqual(EventData.scale({ subscribers = 50000 }) > EventData.scale({ subscribers = 0 }), true, "event: scale rises with subs")
+t:assertEqual(EventData.target({ subscribers = 50000 }, 1) >= EventData.target({ subscribers = 0 }, 1), true, "event: target scales up with subs")
+t:assertEqual(EventData.target({ subscribers = 0 }, 1), 5, "event: quest 1 base target is 5 at scale 1")
+t:assertEqual(EventData.target({ subscribers = 1e9 }, 5), 3, "event: trendy-hit target is capped at 3")
+
+-- Rollover snapshots baseline + clears claims; progress is today's delta
+local ed = { gamesReleased = 4, subscribers = 100, totalCashEarned = 500, trendyHits = 2, eventDay = -1 }
+t:assertEqual(EventData.rolloverIfNeeded(ed, 3), true, "event: rollover on stale day")
+t:assertEqual(ed.eventDay, 3, "event: rollover sets the day")
+t:assertEqual(ed.eventBaseline.games, 4, "event: baseline snapshots games")
+t:assertEqual(ed.eventBaseline.cash, 500, "event: baseline snapshots totalCashEarned")
+t:assertEqual(EventData.rolloverIfNeeded(ed, 3), false, "event: no rollover on same day")
+t:assertEqual(EventData.progress(ed, 1), 0, "event: 0 progress right after baseline")
+ed.gamesReleased = 6 -- released 2 today
+t:assertEqual(EventData.progress(ed, 1), 2, "event: progress = today's delta")
+
+-- Sequential claiming: quest 2 locked until quest 1 claimed
+ed.gamesReleased = ed.eventBaseline.games + EventData.target(ed, 1) -- complete quest 1
+t:assertEqual(EventData.canClaim(ed, 1), true, "event: quest 1 complete -> claimable")
+ed.subscribers = ed.eventBaseline.subs + EventData.target(ed, 2) -- also complete quest 2
+t:assertEqual(EventData.canClaim(ed, 2), false, "event: quest 2 locked until quest 1 claimed")
+local r1 = EventData.applyQuestClaim(ed, 1)
+t:assertEqual(r1 ~= nil and r1.final, false, "event: quest 1 claim is not final")
+t:assertEqual(EventData.isClaimed(ed, 1), true, "event: quest 1 marked claimed")
+t:assertEqual(EventData.canClaim(ed, 1), false, "event: cannot claim quest 1 twice")
+t:assertEqual(EventData.canClaim(ed, 2), true, "event: quest 2 unlocks after quest 1")
+
+-- Final quest reports final = true
+local edF = { eventDay = 3, eventBaseline = { games = 0, subs = 0, cash = 0, hits = 0 }, eventQuestsClaimed = { [1]=true,[2]=true,[3]=true,[4]=true,[5]=true }, totalCashEarned = 0, subscribers = 0 }
+edF.totalCashEarned = EventData.target(edF, 6)
+local r6 = EventData.applyQuestClaim(edF, 6)
+t:assertEqual(r6 ~= nil and r6.final, true, "event: quest 6 claim is final")
+
+-- Champion part roll: locked bonus = 1.25 * best part, excludes owned, nil at 7
+local champData = { pcParts = { CPU = 5 }, eventParts = {} } -- CPU lvl 5 bonus 0.65
+t:assertEqual(math.abs(EventData.bestPartBonus(champData) - 0.65) < 1e-9, true, "event: best part bonus reads the top model")
+local pid, pbonus = EventData.rollChampionPart(champData, function() return 1 end)
+t:assertEqual(pid ~= nil, true, "event: rolls a part when some are unowned")
+t:assertEqual(math.abs(pbonus - 0.81) < 1e-9, true, "event: champion bonus = round2(1.25*0.65)=0.81")
+EventData.applyChampionGrant(champData, pid, pbonus)
+t:assertEqual(champData.eventParts[pid], pbonus, "event: grant stores the bonus")
+-- Fill all 7, then rolling returns nil
+for _, p in ipairs(GameData.PCParts) do champData.eventParts[p.id] = 0.5 end
+local nilId = EventData.rollChampionPart(champData, function() return 1 end)
+t:assertEqual(nilId, nil, "event: nil when all 7 champion parts owned")
+-- Minimum bonus floor for a fresh winner (no parts)
+local _, freshBonus = EventData.rollChampionPart({ pcParts = {}, eventParts = {} }, function() return 1 end)
+t:assertEqual(math.abs(freshBonus - EventData.MIN_CHAMPION_BONUS) < 1e-9, true, "event: fresh winner gets the minimum bonus floor")
+
 t:summary()

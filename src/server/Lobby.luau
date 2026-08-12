@@ -911,6 +911,10 @@ local function buildUmbrella(parent, name, x, z, canopyColor)
 		elseif n:find("CanopyB") then
 			part.Color, part.Material = Color3.fromRGB(248, 248, 244), Enum.Material.SmoothPlastic
 			part.CanCollide = false
+			-- Both canopy layers come out of the mesh at exactly the same height,
+			-- so their faces z-fight (the flickering on the parasols). Lift the
+			-- inner layer a hair so it sits cleanly on top.
+			part.Position = part.Position + Vector3.new(0, 0.03, 0)
 		else
 			part.Color, part.Material = Color3.fromRGB(235, 230, 222), Enum.Material.SmoothPlastic
 			part.CanCollide = false

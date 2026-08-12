@@ -246,7 +246,11 @@ function EventPanel.init(player, theme, playerState)
 		barLabel.Size = UDim2.fromScale(1, 1)
 		barLabel.BackgroundTransparency = 1
 		barLabel.Text = short(entry.progress) .. " / " .. short(entry.target)
-		barLabel.TextColor3 = Color3.fromRGB(60, 62, 72)
+		-- The track's colour changes between light and dark mode, so no single text
+		-- colour reads on both. White + a dark stroke is legible on either.
+		barLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		barLabel.TextStrokeColor3 = Color3.fromRGB(25, 27, 38)
+		barLabel.TextStrokeTransparency = 0.35
 		barLabel.Font = Enum.Font.GothamBold
 		barLabel.TextSize = 11
 		barLabel.Parent = track

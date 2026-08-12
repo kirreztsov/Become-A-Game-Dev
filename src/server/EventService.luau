@@ -26,7 +26,9 @@ end
 
 function EventService.start()
 	Remotes.RequestClaimEventQuest.OnServerEvent:Connect(function(player, index)
-		if type(index) ~= "number" then
+		-- Reject anything that isn't a real integer index: NaN (index ~= index),
+		-- infinities, and fractional values all pass a bare type() check.
+		if type(index) ~= "number" or index ~= index or index % 1 ~= 0 then
 			return
 		end
 		local data = PlayerData.get(player)

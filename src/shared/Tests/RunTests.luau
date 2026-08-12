@@ -355,6 +355,12 @@ t:assertEqual(EventData.isClaimed(ed, 1), true, "event: quest 1 marked claimed")
 t:assertEqual(EventData.canClaim(ed, 1), false, "event: cannot claim quest 1 twice")
 t:assertEqual(EventData.canClaim(ed, 2), true, "event: quest 2 unlocks after quest 1")
 
+-- Malformed indices must never be claimable (NaN passes a bare type check)
+t:assertEqual(EventData.canClaim(ed, 0 / 0), false, "event: NaN index is not claimable")
+t:assertEqual(EventData.canClaim(ed, -1), false, "event: negative index is not claimable")
+t:assertEqual(EventData.canClaim(ed, 999), false, "event: out-of-range index is not claimable")
+t:assertEqual(EventData.applyQuestClaim(ed, 0 / 0), nil, "event: NaN index cannot be claimed")
+
 -- Final quest reports final = true
 local edF = { eventDay = 3, eventBaseline = { games = 0, subs = 0, cash = 0, hits = 0 }, eventQuestsClaimed = { [1]=true,[2]=true,[3]=true,[4]=true,[5]=true }, totalCashEarned = 0, subscribers = 0 }
 edF.totalCashEarned = EventData.target(edF, 6)

@@ -111,7 +111,9 @@ end
 -- predecessor (if any) is already claimed. Time-gating (Sunday-only) is enforced
 -- by the server; this stays pure and time-independent.
 function EventData.canClaim(data, i)
-	if i < 1 or i > #EventData.QUESTS then
+	-- NaN fails every comparison, so check it explicitly (i ~= i) rather than
+	-- relying on the range test to reject it.
+	if type(i) ~= "number" or i ~= i or i < 1 or i > #EventData.QUESTS then
 		return false
 	end
 	if EventData.isClaimed(data, i) then

@@ -1907,6 +1907,14 @@ function UI.init()
 	ChallengePanel.init(player, Theme, playerState)
 	PerkPanel.init(player, Theme, playerState)
 	EventPanel.init(player, Theme, playerState)
+
+	-- The server flags a minigame round whose tap rhythm looks automated and
+	-- stops counting it. Say so on screen: a real player caught by a bad guess
+	-- would otherwise just watch a good round score badly with no explanation.
+	Remotes.MinigameFlagged.OnClientEvent:Connect(function()
+		Fx.celebrate("\240\159\164\150 That looked automated -- tap it yourself!", Color3.fromRGB(235, 145, 60))
+		Sound.play("Error")
+	end)
 	OfflineWelcome.init(player, Theme)
 	VIPChat.setup()
 	LeaderboardPanel.init(player)

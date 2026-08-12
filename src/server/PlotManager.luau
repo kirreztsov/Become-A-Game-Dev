@@ -178,7 +178,10 @@ local function buildPlotFloor(plotFolder, origin)
 
 	-- Entrance apron + path out the front door toward the street.
 	local apronDepth = 14
-	makePart("EntranceApron", Vector3.new(DOOR_WIDTH + 8, 1, apronDepth), base + Vector3.new(0, FLOOR_TOP - 0.5, -BUILDING_HALF_D - apronDepth / 2), Color3.fromRGB(150, 150, 155), Enum.Material.Concrete, plotFolder)
+	-- The apron overlaps the plot floor by a few studs where it meets the
+	-- building. Sitting at the SAME height made the two top faces z-fight (the
+	-- shimmering checkerboard on the ground), so lift it a hair to win cleanly.
+	makePart("EntranceApron", Vector3.new(DOOR_WIDTH + 8, 1, apronDepth), base + Vector3.new(0, FLOOR_TOP - 0.5 + 0.02, -BUILDING_HALF_D - apronDepth / 2), Color3.fromRGB(150, 150, 155), Enum.Material.Concrete, plotFolder)
 end
 
 -- Spawns just outside the studio door -- the studio (house) contains the

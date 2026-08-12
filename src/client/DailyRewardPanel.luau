@@ -1,5 +1,7 @@
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Sound = require(script.Parent.Sound)
+local MarketplaceService = game:GetService("MarketplaceService")
+local GameData = require(game.ReplicatedStorage.Shared.GameData)
 
 local DailyRewardPanel = {}
 
@@ -26,7 +28,7 @@ function DailyRewardPanel.init(player, theme)
 	backdrop.Parent = screenGui
 
 	local card = Instance.new("Frame")
-	card.Size = UDim2.fromOffset(360, 280)
+	card.Size = UDim2.fromOffset(470, 470) -- taller: it now holds a 30-cell grid
 	card.Position = UDim2.fromScale(0.5, 0.5)
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.BackgroundColor3 = theme.Panel
@@ -62,31 +64,66 @@ function DailyRewardPanel.init(player, theme)
 	streakLabel.TextSize = 15
 	streakLabel.Parent = card
 
-	-- 7 day-pips showing where in the weekly cycle we are.
-	local pipRow = Instance.new("Frame")
-	pipRow.Size = UDim2.fromOffset(7 * 34, 30)
-	pipRow.Position = UDim2.new(0.5, 0, 0, 90)
-	pipRow.AnchorPoint = Vector2.new(0.5, 0)
-	pipRow.BackgroundTransparency = 1
-	pipRow.Parent = card
-	local pips = {}
-	for i = 1, 7 do
-		local pip = Instance.new("TextLabel")
-		pip.Size = UDim2.fromOffset(28, 28)
-		pip.Position = UDim2.fromOffset((i - 1) * 34, 0)
-		pip.BackgroundColor3 = theme.Neutral
-		pip.Text = tostring(i)
-		pip.TextColor3 = theme.TextMuted
-		pip.Font = Enum.Font.FredokaOne
-		pip.TextSize = 14
-		pip.Parent = pipRow
-		corner(pip, 8)
-		pips[i] = pip
+	-- A 30-cell calendar: 6 columns x 5 rows. Each cell shows its day number,
+	-- with milestones (7/14/30) drawn larger and gold-ringed.
+	local GRID_COLS, CELL, GAP = 6, 62, 6
+	local gridRows = math.ceil(GameData.DailyCalendarDays / GRID_COLS)
+	local gridHeight = gridRows * CELL + (gridRows - 1) * GAP
+	local grid = Instance.new("Frame")
+	grid.Name = "Calendar"
+	grid.Size = UDim2.fromOffset(GRID_COLS * CELL + (GRID_COLS - 1) * GAP, gridHeight)
+	grid.Position = UDim2.new(0.5, 0, 0, 88)
+	grid.AnchorPoint = Vector2.new(0.5, 0)
+	grid.BackgroundTransparency = 1
+	grid.Parent = card
+
+	local cells = {}
+	for day = 1, GameData.DailyCalendarDays do
+		local reward = GameData.getDailyReward(day)
+		local col = (day - 1) % GRID_COLS
+		local row = math.floor((day - 1) / GRID_COLS)
+
+		local cell = Instance.new("TextLabel")
+		cell.Name = "Day" .. day
+		cell.Size = UDim2.fromOffset(CELL, CELL)
+		cell.Position = UDim2.fromOffset(col * (CELL + GAP), row * (CELL + GAP))
+		cell.BackgroundColor3 = theme.Neutral
+		cell.Text = tostring(day)
+		cell.TextColor3 = theme.TextMuted
+		cell.Font = Enum.Font.FredokaOne
+		cell.TextSize = reward.milestone and 20 or 15
+		cell.TextYAlignment = Enum.TextYAlignment.Top
+		cell.Parent = grid
+		corner(cell, 10)
+
+		-- Milestone days get a gold ring so the chase is visible at a glance.
+		if reward.milestone then
+			local ring = Instance.new("UIStroke")
+			ring.Color = theme.Gold
+			ring.Thickness = 2
+			ring.Transparency = 0.15
+			ring.Parent = cell
+		end
+
+		-- Small reward hint under the day number.
+		local hint = Instance.new("TextLabel")
+		hint.Name = "Hint"
+		hint.Size = UDim2.new(1, -6, 0, 26)
+		hint.Position = UDim2.fromOffset(3, CELL - 28)
+		hint.BackgroundTransparency = 1
+		hint.Text = GameData.describeDailyReward(reward)
+		hint.TextColor3 = theme.TextMuted
+		hint.Font = Enum.Font.GothamMedium
+		hint.TextSize = 9
+		hint.TextWrapped = true
+		hint.Parent = cell
+
+		cells[day] = { cell = cell, hint = hint }
 	end
 
 	local rewardLabel = Instance.new("TextLabel")
 	rewardLabel.Size = UDim2.new(1, -40, 0, 44)
-	rewardLabel.Position = UDim2.fromOffset(20, 132)
+	rewardLabel.Position = UDim2.fromOffset(20, 88 + gridHeight + 10)
 	rewardLabel.BackgroundTransparency = 1
 	rewardLabel.Text = "$500"
 	rewardLabel.TextColor3 = theme.Success
@@ -107,19 +144,56 @@ function DailyRewardPanel.init(player, theme)
 	claim.Parent = card
 	corner(claim, 12)
 
-	local function showFor(streakDay, rewardDesc)
-		streakLabel.Text = ("Day %d streak"):format(streakDay)
+	-- Shown only when a broken streak can be bought back.
+	local repairBtn = Instance.new("TextButton")
+	repairBtn.Name = "Repair"
+	repairBtn.Size = UDim2.fromOffset(240, 36)
+	repairBtn.Position = UDim2.new(0.5, 0, 1, -80)
+	repairBtn.AnchorPoint = Vector2.new(0.5, 1)
+	repairBtn.BackgroundColor3 = theme.Gold
+	repairBtn.TextColor3 = Color3.fromRGB(60, 40, 10)
+	repairBtn.Font = Enum.Font.FredokaOne
+	repairBtn.TextSize = 16
+	repairBtn.Text = "\240\159\148\167 Repair streak"
+	repairBtn.Visible = false
+	repairBtn.Parent = card
+	corner(repairBtn, 10)
+
+	repairBtn.MouseButton1Click:Connect(function()
+		local product = GameData.Products.StreakRepair
+		if not product or product.id == 0 then
+			repairBtn.Text = "Coming soon!"
+			return
+		end
+		MarketplaceService:PromptProductPurchase(player, product.id)
+	end)
+
+	local function showFor(streakDay, rewardDesc, repairOffered, brokenStreak)
+		if repairOffered and (brokenStreak or 0) > 0 then
+			streakLabel.Text = ("Streak broken at day %d!"):format(brokenStreak)
+			repairBtn.Visible = true
+			repairBtn.Text = "\240\159\148\167 Repair streak"
+		else
+			streakLabel.Text = ("Day %d of %d"):format(streakDay, GameData.DailyCalendarDays)
+			repairBtn.Visible = false
+		end
 		rewardLabel.Text = rewardDesc
-		local cycleIndex = ((streakDay - 1) % 7) + 1
-		for i, pip in ipairs(pips) do
-			if i <= cycleIndex then
-				pip.BackgroundColor3 = theme.Gold
-				pip.TextColor3 = Color3.fromRGB(60, 40, 10)
+
+		-- Past days are ticked off, today is highlighted, the rest stay dim.
+		for day, entry in pairs(cells) do
+			if day < streakDay then
+				entry.cell.BackgroundColor3 = theme.Success
+				entry.cell.TextColor3 = Color3.fromRGB(255, 255, 255)
+				entry.hint.Text = "\226\156\133"
+			elseif day == streakDay then
+				entry.cell.BackgroundColor3 = theme.Gold
+				entry.cell.TextColor3 = Color3.fromRGB(60, 40, 10)
 			else
-				pip.BackgroundColor3 = theme.Neutral
-				pip.TextColor3 = theme.TextMuted
+				entry.cell.BackgroundColor3 = theme.Neutral
+				entry.cell.TextColor3 = theme.TextMuted
 			end
 		end
+
 		claim.Text = "Claim!"
 		claim.Active = true
 		screenGui.Enabled = true
@@ -134,8 +208,8 @@ function DailyRewardPanel.init(player, theme)
 		Remotes.RequestClaimDaily:FireServer()
 	end)
 
-	Remotes.DailyRewardAvailable.OnClientEvent:Connect(function(streakDay, rewardDesc)
-		showFor(streakDay, rewardDesc)
+	Remotes.DailyRewardAvailable.OnClientEvent:Connect(function(streakDay, rewardDesc, repairOffered, brokenStreak)
+		showFor(streakDay, rewardDesc, repairOffered, brokenStreak)
 	end)
 
 	Remotes.DailyRewardClaimed.OnClientEvent:Connect(function()

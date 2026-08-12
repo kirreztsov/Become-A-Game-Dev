@@ -349,7 +349,8 @@ t:assertEqual(EventData.canClaim(ed, 1), true, "event: quest 1 complete -> claim
 ed.subscribers = ed.eventBaseline.subs + EventData.target(ed, 2) -- also complete quest 2
 t:assertEqual(EventData.canClaim(ed, 2), false, "event: quest 2 locked until quest 1 claimed")
 local r1 = EventData.applyQuestClaim(ed, 1)
-t:assertEqual(r1 ~= nil and r1.final, false, "event: quest 1 claim is not final")
+t:assertEqual(r1 ~= nil, true, "event: quest 1 is actually claimed")
+t:assertEqual(r1.final, false, "event: quest 1 claim is not final")
 t:assertEqual(EventData.isClaimed(ed, 1), true, "event: quest 1 marked claimed")
 t:assertEqual(EventData.canClaim(ed, 1), false, "event: cannot claim quest 1 twice")
 t:assertEqual(EventData.canClaim(ed, 2), true, "event: quest 2 unlocks after quest 1")

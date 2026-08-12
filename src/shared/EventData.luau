@@ -52,10 +52,18 @@ function EventData.scale(data)
 	return 1 + math.log(1 + subs / EventData.SUB_REF, 10)
 end
 
+-- The scale frozen at the start of the player's Sunday (data.eventScale, set by
+-- rolloverIfNeeded), or live scale if a rollover hasn't happened yet. Targets
+-- and rewards read this instead of live scale so a quest can't un-complete
+-- itself when subscribers grow later the same day.
+function EventData.frozenScale(data)
+	return (data and data.eventScale) or EventData.scale(data)
+end
+
 function EventData.target(data, i)
 	local q = EventData.QUESTS[i]
 	if not q then return 0 end
-	local t = math.ceil(q.base * EventData.scale(data))
+	local t = math.ceil(q.base * EventData.frozenScale(data))
 	if q.cap then
 		t = math.min(q.cap, t)
 	end
@@ -65,7 +73,7 @@ end
 function EventData.rewardCash(data, i)
 	local q = EventData.QUESTS[i]
 	if not q then return 0 end
-	return math.floor(q.rewardBase * EventData.scale(data))
+	return math.floor(q.rewardBase * EventData.frozenScale(data))
 end
 
 local function statCurrent(data, stat)
@@ -130,6 +138,7 @@ function EventData.rolloverIfNeeded(data, dayIndex)
 		cash = data.totalCashEarned or 0,
 		hits = data.trendyHits or 0,
 	}
+	data.eventScale = EventData.scale(data)
 	data.eventQuestsClaimed = {}
 	return true
 end

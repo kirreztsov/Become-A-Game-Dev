@@ -62,6 +62,11 @@ local function defaultData()
 		-- streak length (see DailyRewardService).
 		lastDailyClaim = 0,
 		dailyStreak = 0,
+		-- Login calendar (see GameData.evaluateDailyStreak): whether this
+		-- calendar's one free missed day has been used, and a streak being held
+		-- for a Robux repair (0 = none).
+		dailySkipUsed = false,
+		dailyBrokenStreak = 0,
 		-- How many times the player has prestiged/rebirthed (permanent bonus).
 		prestigeLevel = 0,
 		-- os.time() of the player's last save (for offline earnings). 0 = no
@@ -156,6 +161,10 @@ function PlayerData.load(player)
 			data.subAdAccum = data.subAdAccum or 0
 			data.lastDailyClaim = data.lastDailyClaim or 0
 			data.dailyStreak = data.dailyStreak or 0
+			if data.dailySkipUsed == nil then
+				data.dailySkipUsed = false
+			end
+			data.dailyBrokenStreak = data.dailyBrokenStreak or 0
 			data.prestigeLevel = data.prestigeLevel or 0
 			data.perkPoints = data.perkPoints or 0
 			data.perks = data.perks or {}

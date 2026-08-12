@@ -208,6 +208,7 @@ GameData.GamePasses = {
 GameData.Products = {
 	StarterPack = { id = 3611343811, order = 1, icon = "\240\159\142\129", name = "Starter Pack", desc = "$500 cash + a 2x boost (10 min) + a guaranteed Rare worker!", cash = 500, boostMult = 2, boostDur = 600, worker = "Rare" },
 	MegaBoost = { id = 3611343857, order = 2, icon = "\226\154\161", name = "Mega Boost", desc = "3x cash for 15 minutes. Buy anytime!", boostMult = 3, boostDur = 900 },
+	StreakRepair = { id = 0, order = 3, icon = "\240\159\148\167", name = "Streak Repair", desc = "Broke your login streak? Put it back and carry on where you left off.", repair = true },
 }
 
 -- Cash multiplier from owned passes (2x Cash and VIP stack multiplicatively).
@@ -749,35 +750,172 @@ end
 -- ---- Daily reward streak ---------------------------------------------------
 -- Come back each day for an escalating reward. A reward is claimable once the
 -- cooldown has passed; the streak keeps climbing if you return before the
--- reset window, otherwise it restarts at day 1. Rewards cycle every 7 days.
+-- reset window, otherwise it restarts at day 1. The ladder is a 30-day calendar:
+-- day 30 is the last entry, and finishing it restarts the calendar at day 1.
 GameData.DailyClaimCooldownSeconds = 20 * 3600 -- claimable ~once a day (20h)
 GameData.DailyStreakResetSeconds = 48 * 3600 -- miss ~2 days and the streak resets
 
--- Tuned to the current economy (a game pays ~$27): day 1 is a small welcome
--- that does NOT skip your first upgrades, escalating to a real week-long prize.
+-- A 30-day login calendar. Ordinary days pay cash or a boost; days 7, 14 and 30
+-- are milestones. `amount` is a BASE value -- it gets scaled to the player's
+-- progression by getScaledDailyReward, so day 12 is worth about the same
+-- relative amount to a new player and to someone on their fifth rebirth.
+-- Boost multipliers/durations and case spins are authored values and never scale.
+GameData.DailyCalendarDays = 30
 GameData.DailyRewards = {
 	{ kind = "cash", amount = 100 },
-	{ kind = "cash", amount = 300 },
+	{ kind = "cash", amount = 150 },
 	{ kind = "boost", mult = 2, dur = 300 },
+	{ kind = "cash", amount = 250 },
+	{ kind = "cash", amount = 450 },
+	{ kind = "boost", mult = 2, dur = 600 },
+	-- Day 7 milestone: cash AND a long boost.
+	{ kind = "cash", amount = 1500, mult = 3, dur = 900, milestone = true },
+	{ kind = "cash", amount = 600 },
 	{ kind = "cash", amount = 800 },
-	{ kind = "cash", amount = 2000 },
-	{ kind = "boost", mult = 3, dur = 300 },
+	{ kind = "boost", mult = 2, dur = 900 },
+	{ kind = "cash", amount = 1100 },
+	{ kind = "cash", amount = 1400 },
+	{ kind = "boost", mult = 3, dur = 600 },
+	-- Day 14 milestone: a Lucky Case spin.
+	{ kind = "case", spins = 1, milestone = true },
+	{ kind = "cash", amount = 1800 },
+	{ kind = "cash", amount = 2100 },
+	{ kind = "boost", mult = 3, dur = 900 },
+	{ kind = "cash", amount = 2500 },
+	{ kind = "cash", amount = 2900 },
+	{ kind = "boost", mult = 3, dur = 900 },
+	{ kind = "cash", amount = 3300 },
+	{ kind = "cash", amount = 3800 },
+	{ kind = "boost", mult = 3, dur = 1200 },
+	{ kind = "cash", amount = 4300 },
+	{ kind = "cash", amount = 4800 },
+	{ kind = "boost", mult = 3, dur = 1200 },
+	{ kind = "cash", amount = 5500 },
 	{ kind = "cash", amount = 6000 },
+	{ kind = "boost", mult = 3, dur = 1200 },
+	-- Day 30 grand prize: a random Champion PC part (see DailyRewardService).
+	{ kind = "champion", milestone = true },
 }
 
--- Reward for a given streak day (1-based; cycles every #DailyRewards days).
+-- The authored reward for a calendar day. Clamps into 1..30 rather than wrapping
+-- (the calendar restarts by resetting the streak, not by indexing past the end).
 function GameData.getDailyReward(streakDay)
-	local n = #GameData.DailyRewards
-	local idx = ((math.max(1, streakDay) - 1) % n) + 1
+	local idx = math.clamp(math.floor(streakDay or 1), 1, #GameData.DailyRewards)
 	return GameData.DailyRewards[idx], idx
 end
 
--- Short human label for a reward (client popup + confirmation).
+-- The reward as the player will actually receive it: a COPY with `amount` scaled
+-- to their progression. Used by both the grant and the on-screen preview, so the
+-- two can never disagree. Never mutates the authored ladder.
+-- Roughly what the player earns per second while idle. Subscriber ad revenue is
+-- the dominant passive source and grows linearly, which is exactly why a flat
+-- ladder stops mattering: $6,000 is a fortune on day one and a rounding error
+-- once you make $1,000/sec.
+function GameData.getPassiveIncomePerSecond(data)
+	return ((data and data.subscribers) or 0) * GameData.SubAdRevenuePerSec
+end
+
+-- How much to multiply the authored cash rewards by, so the calendar stays worth
+-- opening at every stage. The authored values ARE the reward for a brand-new
+-- player (multiplier 1); past the reference earning rate the reward tracks the
+-- player's own income instead, so it keeps its relative value rather than
+-- decaying into pocket change.
+GameData.DailyIncomeReferencePerSec = 4
+function GameData.getDailyRewardMultiplier(data)
+	local rate = GameData.getPassiveIncomePerSecond(data)
+	return math.max(1, rate / GameData.DailyIncomeReferencePerSec)
+end
+
+function GameData.getScaledDailyReward(data, streakDay)
+	local base = GameData.getDailyReward(streakDay)
+	local copy = {}
+	for k, v in pairs(base) do
+		copy[k] = v
+	end
+	if copy.amount then
+		copy.amount = math.floor(copy.amount * GameData.getDailyRewardMultiplier(data))
+	end
+	return copy
+end
+
+-- Short human label for a reward (client popup + calendar cells).
 function GameData.describeDailyReward(reward)
+	if reward.kind == "champion" then
+		return "\240\159\143\134 Champion Part!"
+	end
+	if reward.kind == "case" then
+		return ("\240\159\142\129 %d Lucky Spin"):format(reward.spins or 1)
+	end
 	if reward.kind == "boost" then
-		return ("%gx cash boost \194\183 %dm"):format(reward.mult, math.floor(reward.dur / 60))
+		return ("%gx cash \194\183 %dm"):format(reward.mult, math.floor(reward.dur / 60))
+	end
+	-- Cash, optionally with a boost attached (the day 7 milestone).
+	if reward.mult then
+		return ("$%d + %gx \194\183 %dm"):format(reward.amount, reward.mult, math.floor(reward.dur / 60))
 	end
 	return ("$%d"):format(reward.amount)
+end
+
+-- Decides, from the player's data alone, whether a daily reward is claimable and
+-- which calendar day it would be. PURE: it reports what should change but never
+-- mutates `data` -- DailyRewardService applies the results.
+--
+-- Returns a table:
+--   available       claimable right now (cooldown elapsed)
+--   nextStreak      the calendar day this claim would be (1..30)
+--   usedFreeSkip    true if a missed day was forgiven by the one free skip
+--   repairOffered   true if the streak is broken and a Robux repair applies
+--   brokenStreak    the streak being held for repair (0 when none)
+--   calendarRestart true when the previous claim finished day 30
+function GameData.evaluateDailyStreak(data, now)
+	local last = data.lastDailyClaim or 0
+	local prev = data.dailyStreak or 0
+	local pending = data.dailyBrokenStreak or 0
+	local elapsed = now - last
+	local available = (last == 0) or (elapsed >= GameData.DailyClaimCooldownSeconds)
+
+	local result = {
+		available = available,
+		nextStreak = 1,
+		usedFreeSkip = false,
+		repairOffered = false,
+		brokenStreak = 0,
+		calendarRestart = false,
+	}
+
+	-- A streak already awaiting repair keeps offering it; until it is bought the
+	-- player is on day 1.
+	if pending > 0 then
+		result.repairOffered = true
+		result.brokenStreak = pending
+		return result
+	end
+
+	if last == 0 then
+		return result -- first ever claim: day 1
+	end
+
+	if elapsed > GameData.DailyStreakResetSeconds then
+		-- They missed. The first miss per calendar is forgiven.
+		if not data.dailySkipUsed then
+			result.usedFreeSkip = true
+			result.nextStreak = prev + 1
+		else
+			result.repairOffered = true
+			result.brokenStreak = prev
+			result.nextStreak = 1
+		end
+	else
+		result.nextStreak = prev + 1
+	end
+
+	-- Finishing day 30 restarts the calendar (and refreshes the free skip).
+	if result.nextStreak > GameData.DailyCalendarDays then
+		result.nextStreak = 1
+		result.calendarRestart = true
+	end
+
+	return result
 end
 
 -- ---- Minigame scoring functions (per input kind) ----------------------------

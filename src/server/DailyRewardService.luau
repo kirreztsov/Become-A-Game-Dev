@@ -7,6 +7,7 @@
 
 local Players = game:GetService("Players")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
+local EventData = require(game.ReplicatedStorage.Shared.EventData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -16,33 +17,65 @@ local function nowSeconds()
 	return os.time()
 end
 
--- Is a reward claimable right now, and what streak day would it be?
-local function evaluate(data)
-	local now = nowSeconds()
-	local last = data.lastDailyClaim or 0
-	local elapsed = now - last
-	local available = (last == 0) or (elapsed >= GameData.DailyClaimCooldownSeconds)
-	-- Continue the streak if they returned before the reset window; else restart.
-	local nextStreak
-	if last == 0 or elapsed > GameData.DailyStreakResetSeconds then
-		nextStreak = 1
-	else
-		nextStreak = (data.dailyStreak or 0) + 1
+-- Applies one calendar reward to `data`. The reward must already be scaled (see
+-- GameData.getScaledDailyReward). Returns a description of what was actually
+-- granted, which can differ from the ladder entry: the day-30 Champion part
+-- falls back to consolation cash once all 7 are collected.
+local function grantReward(data, reward)
+	if reward.kind == "champion" then
+		local partId, bonus = EventData.rollChampionPart(data)
+		if partId then
+			EventData.applyChampionGrant(data, partId, bonus)
+			return ("\240\159\143\134 Champion %s!"):format(partId)
+		end
+		-- Scale the fallback the same way the calendar's cash is scaled. The
+		-- event's own consolation uses its frozen Sunday scale, which is 1 for a
+		-- player who reached day 30 without ever playing a Sunday -- that would
+		-- pay a flat $20,000 and make the grand prize worth less than day 28.
+		local consolation = math.floor(20000 * GameData.getDailyRewardMultiplier(data))
+		data.cash += consolation
+		return ("$%d"):format(consolation)
 	end
-	return available, nextStreak
+
+	if reward.spins then
+		data.luckySpinsOwned = (data.luckySpinsOwned or 0) + reward.spins
+	end
+	if reward.amount then
+		data.cash += reward.amount
+	end
+	if reward.mult then
+		-- Shared rule: only the duration stacks; the multiplier takes the higher
+		-- value (never the sum).
+		GameData.applyBoost(data, reward.mult, reward.dur, "\240\159\142\129", "Daily Boost", workspace:GetServerTimeNow())
+	end
+	return GameData.describeDailyReward(reward)
 end
 
 -- Tell a player whether a daily reward is waiting (called after their data
--- loads on join). Fires DailyRewardAvailable with the streak day + a preview.
+-- loads on join). Also tells them when a broken streak can be repaired.
 function DailyRewardService.checkForPlayer(player)
 	local data = PlayerData.get(player)
 	if not data then
 		return
 	end
-	local available, nextStreak = evaluate(data)
-	if available then
-		local reward = GameData.getDailyReward(nextStreak)
-		Remotes.DailyRewardAvailable:FireClient(player, nextStreak, GameData.describeDailyReward(reward))
+	local decision = GameData.evaluateDailyStreak(data, nowSeconds())
+
+	-- Persist the broken streak so the Robux repair has something to restore
+	-- (the receipt handler reads this field; without it a paid repair could
+	-- never be fulfilled).
+	if decision.repairOffered and (data.dailyBrokenStreak or 0) == 0 and decision.brokenStreak > 0 then
+		data.dailyBrokenStreak = decision.brokenStreak
+	end
+
+	if decision.available or decision.repairOffered then
+		local reward = GameData.getScaledDailyReward(data, decision.nextStreak)
+		Remotes.DailyRewardAvailable:FireClient(
+			player,
+			decision.nextStreak,
+			GameData.describeDailyReward(reward),
+			decision.repairOffered,
+			decision.brokenStreak
+		)
 	end
 end
 
@@ -52,25 +85,33 @@ function DailyRewardService.start()
 		if not data then
 			return
 		end
-		local available, nextStreak = evaluate(data)
-		if not available then
-			return -- not claimable yet (or double-fire); ignore
+		local decision = GameData.evaluateDailyStreak(data, nowSeconds())
+		if not decision.available then
+			return -- not claimable yet (or a double-fire); ignore
 		end
 
-		local reward = GameData.getDailyReward(nextStreak)
+		local reward = GameData.getScaledDailyReward(data, decision.nextStreak)
 		data.lastDailyClaim = nowSeconds()
-		data.dailyStreak = nextStreak
+		data.dailyStreak = decision.nextStreak
 
-		if reward.kind == "boost" then
-			-- Shared rule: only the duration stacks; the multiplier takes the
-			-- higher value (never the sum).
-			GameData.applyBoost(data, reward.mult, reward.dur, "\240\159\142\129", "Daily Boost", workspace:GetServerTimeNow())
-		else
-			data.cash += reward.amount
+		-- Apply the streak bookkeeping the pure evaluation reported.
+		if decision.usedFreeSkip then
+			data.dailySkipUsed = true
 		end
+		-- Any return to day 1 starts a fresh calendar, whether that came from
+		-- finishing day 30 or from a broken streak -- so the free skip comes back
+		-- either way. Without this a player who breaks once can never be
+		-- forgiven again.
+		if decision.nextStreak == 1 then
+			data.dailySkipUsed = false
+		end
+		-- Claiming without repairing accepts the loss and clears the offer.
+		data.dailyBrokenStreak = 0
+
+		local grantedDesc = grantReward(data, reward)
 
 		Remotes.PlayerStateUpdated:FireClient(player, data)
-		Remotes.DailyRewardClaimed:FireClient(player, nextStreak, GameData.describeDailyReward(reward))
+		Remotes.DailyRewardClaimed:FireClient(player, decision.nextStreak, grantedDesc)
 	end)
 end
 

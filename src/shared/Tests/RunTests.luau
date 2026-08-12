@@ -414,7 +414,7 @@ t:assertEqual(MinigameGuard.acceptTap(nil, 100), true, "guard: first tap of a ro
 t:assertEqual(MinigameGuard.acceptTap(100, 100.2), true, "guard: a human-paced tap is accepted")
 t:assertEqual(MinigameGuard.acceptTap(100, 100.001), false, "guard: a same-frame spam tap is rejected")
 t:assertEqual(MinigameGuard.acceptTap(100, 100 + MinigameGuard.MIN_TAP_INTERVAL), true, "guard: exactly at the interval is accepted (float epsilon)")
-	t:assertEqual(MinigameGuard.acceptTap(100, 100.049), false, "guard: just under the interval is still rejected")
+t:assertEqual(MinigameGuard.acceptTap(100, 100.049), false, "guard: just under the interval is still rejected")
 t:assertEqual(MinigameGuard.addTap(5, 10), 6, "guard: taps count up toward the target")
 t:assertEqual(MinigameGuard.addTap(10, 10), 10, "guard: taps never exceed the target")
 t:assertEqual(MinigameGuard.addTap(nil, 10), 1, "guard: first tap counts as 1")
@@ -450,5 +450,113 @@ t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, { 0, 1, 0, 1 }), 0, "gu
 t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, { 1, 0, -1, -1 }), 2, "guard: unanswered items never count")
 t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, 4), 0, "guard: claiming a number instead of answers scores 0")
 t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, {}), 0, "guard: an empty answer set scores 0")
+-- Daily login calendar (B1): 30-day ladder, scaling, and streak decisions
+t:assertEqual(GameData.DailyCalendarDays, 30, "daily: calendar is 30 days")
+t:assertEqual(#GameData.DailyRewards, 30, "daily: ladder has 30 entries")
+t:assertEqual(#GameData.DailyRewards, GameData.DailyCalendarDays, "daily: the ladder length matches the calendar length")
+t:assertEqual(GameData.DailyRewards[7].milestone, true, "daily: day 7 is a milestone")
+t:assertEqual(GameData.DailyRewards[14].milestone, true, "daily: day 14 is a milestone")
+t:assertEqual(GameData.DailyRewards[30].milestone, true, "daily: day 30 is a milestone")
+t:assertEqual(GameData.DailyRewards[14].kind, "case", "daily: day 14 grants a case spin")
+t:assertEqual(GameData.DailyRewards[30].kind, "champion", "daily: day 30 grants a champion part")
+t:assertEqual(GameData.DailyRewards[7].amount ~= nil and GameData.DailyRewards[7].mult ~= nil, true, "daily: day 7 grants cash AND a boost")
+
+-- indexing no longer wraps every 7 days; it clamps at 30
+local _, i1 = GameData.getDailyReward(1)
+t:assertEqual(i1, 1, "daily: day 1 indexes entry 1")
+local _, i8 = GameData.getDailyReward(8)
+t:assertEqual(i8, 8, "daily: day 8 indexes entry 8 (no 7-day wrap)")
+local _, i30 = GameData.getDailyReward(30)
+t:assertEqual(i30, 30, "daily: day 30 indexes entry 30")
+local _, i99 = GameData.getDailyReward(99)
+t:assertEqual(i99, 30, "daily: past the end clamps to entry 30")
+local _, i0 = GameData.getDailyReward(0)
+t:assertEqual(i0, 1, "daily: day 0 clamps up to entry 1")
+
+-- cash scales with progression; boosts and spins never do
+local freshP = { subscribers = 0 }
+local bigP = { subscribers = 100000 }
+local base5 = GameData.DailyRewards[5].amount
+t:assertEqual(GameData.getScaledDailyReward(freshP, 5).amount, base5, "daily: a fresh player gets the base amount")
+t:assertEqual(GameData.getScaledDailyReward(bigP, 5).amount > base5, true, "daily: a big player gets more")
+
+-- Rewards track the player's own earning rate, so the calendar keeps its value
+-- instead of decaying into pocket change once idle income takes over.
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 0 }), 1, "daily: a new player gets the authored values (multiplier 1)")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 400 }), 1, "daily: at the reference earning rate the multiplier is still 1")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 100 }), 1, "daily: below the reference rate never scales DOWN")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 4000 }), 10, "daily: 10x the reference rate -> 10x rewards")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 100000 }), 250, "daily: a late-game earner scales in proportion to their income")
+t:assertEqual(GameData.getPassiveIncomePerSecond({ subscribers = 100000 }), 1000, "daily: passive income is subscribers x the ad rate")
+t:assertEqual(GameData.getPassiveIncomePerSecond({}), 0, "daily: no subscribers means no passive income")
+-- the ladder stays in the same league as the pre-calendar economy for a newcomer
+local ladderTotal = 0
+for _, r in ipairs(GameData.DailyRewards) do
+	ladderTotal += r.amount or 0
+end
+t:assertEqual(ladderTotal < 60000, true, "daily: a new player's 30-day total stays under $60k (the PC shop costs ~$112k)")
+t:assertEqual(GameData.getScaledDailyReward(bigP, 3).mult, GameData.DailyRewards[3].mult, "daily: boost multiplier is never scaled")
+t:assertEqual(GameData.getScaledDailyReward(bigP, 3).dur, GameData.DailyRewards[3].dur, "daily: boost duration is never scaled")
+t:assertEqual(GameData.getScaledDailyReward(bigP, 14).spins, GameData.DailyRewards[14].spins, "daily: case spins are never scaled")
+t:assertEqual(GameData.getScaledDailyReward(bigP, 5) ~= GameData.DailyRewards[5], true, "daily: scaling returns a copy, not the shared entry")
+t:assertEqual(GameData.DailyRewards[5].amount, base5, "daily: scaling never mutates the authored ladder")
+
+-- descriptions
+t:assertEqual(GameData.describeDailyReward({ kind = "cash", amount = 500 }), "$500", "daily: cash description")
+t:assertEqual(GameData.describeDailyReward({ kind = "case", spins = 1 }):find("Lucky") ~= nil, true, "daily: case description mentions Lucky")
+t:assertEqual(GameData.describeDailyReward({ kind = "champion" }):find("Champion") ~= nil, true, "daily: champion description mentions Champion")
+
+-- streak decisions. COOLDOWN = 20h, RESET = 48h
+local DAY = 24 * 3600
+local RESET = GameData.DailyStreakResetSeconds
+
+-- brand new player: claimable immediately, day 1
+local newbie = { lastDailyClaim = 0, dailyStreak = 0 }
+local rNew = GameData.evaluateDailyStreak(newbie, 1000000)
+t:assertEqual(rNew.available, true, "daily: a new player can claim at once")
+t:assertEqual(rNew.nextStreak, 1, "daily: a new player is on day 1")
+
+-- claimed 4h ago: not claimable yet
+local tooSoon = { lastDailyClaim = 1000000, dailyStreak = 3 }
+t:assertEqual(GameData.evaluateDailyStreak(tooSoon, 1000000 + 4 * 3600).available, false, "daily: cannot claim inside the cooldown")
+
+-- claimed 25h ago (inside the reset window): streak continues
+local onTime = { lastDailyClaim = 1000000, dailyStreak = 3 }
+local rOn = GameData.evaluateDailyStreak(onTime, 1000000 + 25 * 3600)
+t:assertEqual(rOn.available, true, "daily: claimable after the cooldown")
+t:assertEqual(rOn.nextStreak, 4, "daily: an on-time return advances the streak")
+t:assertEqual(rOn.usedFreeSkip, false, "daily: an on-time return uses no free skip")
+t:assertEqual(rOn.repairOffered, false, "daily: an on-time return offers no repair")
+
+-- missed (past the reset window) with the free skip available: streak survives
+local missedOnce = { lastDailyClaim = 1000000, dailyStreak = 12, dailySkipUsed = false }
+local rMiss = GameData.evaluateDailyStreak(missedOnce, 1000000 + RESET + DAY)
+t:assertEqual(rMiss.nextStreak, 13, "daily: the free skip keeps the streak going")
+t:assertEqual(rMiss.usedFreeSkip, true, "daily: the free skip is reported as used")
+t:assertEqual(rMiss.repairOffered, false, "daily: no repair needed while the skip is available")
+t:assertEqual(missedOnce.dailySkipUsed, false, "daily: evaluate is pure and does not mutate")
+
+-- missed again with the skip already spent: streak held for repair
+local missedTwice = { lastDailyClaim = 1000000, dailyStreak = 12, dailySkipUsed = true }
+local rBroke = GameData.evaluateDailyStreak(missedTwice, 1000000 + RESET + DAY)
+t:assertEqual(rBroke.nextStreak, 1, "daily: a second miss drops to day 1")
+t:assertEqual(rBroke.repairOffered, true, "daily: a second miss offers the repair")
+t:assertEqual(rBroke.brokenStreak, 12, "daily: the lost streak is reported so it can be repaired")
+
+-- a streak already awaiting repair keeps offering it
+local awaiting = { lastDailyClaim = 1000000, dailyStreak = 1, dailySkipUsed = true, dailyBrokenStreak = 20 }
+local rAwait = GameData.evaluateDailyStreak(awaiting, 1000000 + 25 * 3600)
+t:assertEqual(rAwait.repairOffered, true, "daily: a pending repair is still offered")
+t:assertEqual(rAwait.brokenStreak, 20, "daily: the pending repair remembers the streak")
+
+-- finishing day 30 restarts the calendar
+local finished = { lastDailyClaim = 1000000, dailyStreak = 30, dailySkipUsed = true }
+local rWrap = GameData.evaluateDailyStreak(finished, 1000000 + 25 * 3600)
+t:assertEqual(rWrap.nextStreak, 1, "daily: after day 30 the calendar restarts at 1")
+t:assertEqual(rWrap.calendarRestart, true, "daily: the restart is reported so the free skip can reset")
+
+-- the repair product exists, unconfigured
+t:assertEqual(GameData.Products.StreakRepair ~= nil, true, "daily: a StreakRepair product exists")
+t:assertEqual(GameData.Products.StreakRepair.id, 0, "daily: StreakRepair ships as 'coming soon' (id 0)")
 
 t:summary()

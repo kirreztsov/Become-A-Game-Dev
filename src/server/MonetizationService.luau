@@ -149,6 +149,22 @@ function MonetizationService.start()
 			local mb = GameData.Products.MegaBoost
 			GameData.applyBoost(data, mb.boostMult, mb.boostDur, mb.icon, "Mega Boost", Workspace:GetServerTimeNow())
 			handled = true
+		elseif id ~= 0 and id == GameData.Products.StreakRepair.id then
+			-- Put the held streak back. Nothing to repair means nothing to sell,
+			-- so leave `handled` false and let Roblox retry rather than taking
+			-- money for a no-op.
+			local broken = data.dailyBrokenStreak or 0
+			if broken > 0 then
+				data.dailyStreak = broken
+				data.dailyBrokenStreak = 0
+				-- Also pull the last-claim stamp back inside the streak window,
+				-- otherwise the next evaluation immediately re-breaks the streak
+				-- the player just paid to restore. Sits one cooldown in the past
+				-- so today's reward is claimable right away.
+				data.lastDailyClaim = os.time() - GameData.DailyClaimCooldownSeconds
+				data.dailySkipUsed = false
+				handled = true
+			end
 		end
 		if not handled then
 			return Enum.ProductPurchaseDecision.NotProcessedYet

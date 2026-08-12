@@ -1,7 +1,118 @@
 local GameData = {}
 
-GameData.Genres = { "Racing", "Horror", "Adventure", "Simulator" }
-GameData.Topics = { "Space", "Zombies", "Sports", "Fantasy" }
+-- The original 4 of each stay free forever and grant no bonus. Tiers 1-6 are
+-- cash unlocks; the last 2 of each are Robux unlocks. Order matters: it's
+-- free-4, then tier1..tier6, then the two Robux entries, matching the ladder
+-- in ContentUnlocks below and the order the 2x6 unlock grid renders in.
+GameData.Genres = {
+	"Racing", "Horror", "Adventure", "Simulator",
+	"Obby", "Tycoon", "Roleplay", "Fighting", "Puzzle", "Survival",
+	"Battle Royale", "Anime",
+}
+GameData.Topics = {
+	"Space", "Zombies", "Sports", "Fantasy",
+	"Pets", "Ninjas", "Pirates", "Robots", "Dragons", "Superheroes",
+	"Aliens", "Dinosaurs",
+}
+
+-- ---- Content unlocks (A1): paid genres & topics ----------------------------
+-- Keyed by the genre/topic name itself (genres and topics never share a name,
+-- so one table covers both kinds). Free entries (the original 4 of each) are
+-- simply ABSENT from this table -- that absence IS the "is it free" check.
+-- Cash entries: { kind, price, minBonus, maxBonus, icon, order }. The bonus is
+-- a live roll inside [minBonus, maxBonus], refreshed by TrendsService on the
+-- trend cycle (see rollContentBonuses below).
+-- Robux entries: { kind, robuxProductKey, fixedBonus, icon, order } -- always
+-- the same bonus, no roll. `robuxProductKey` names the matching GameData.Products
+-- entry (ships with id = 0, "coming soon", until the real product exists).
+-- `order` is the entry's 1-8 position within its kind's paid ladder (tier1..6,
+-- then the two Robux entries) -- used by the client to lay out the grid.
+GameData.ContentUnlocks = {
+	-- Genres: cash tiers 1-6
+	Obby = { kind = "genre", price = 20000, minBonus = 0.10, maxBonus = 0.15, icon = "\240\159\167\151", order = 1 },
+	Tycoon = { kind = "genre", price = 60000, minBonus = 0.12, maxBonus = 0.17, icon = "\240\159\143\173", order = 2 },
+	Roleplay = { kind = "genre", price = 150000, minBonus = 0.15, maxBonus = 0.20, icon = "\240\159\142\173", order = 3 },
+	Fighting = { kind = "genre", price = 400000, minBonus = 0.18, maxBonus = 0.23, icon = "\240\159\165\138", order = 4 },
+	Puzzle = { kind = "genre", price = 1000000, minBonus = 0.20, maxBonus = 0.25, icon = "\240\159\167\169", order = 5 },
+	Survival = { kind = "genre", price = 2500000, minBonus = 0.22, maxBonus = 0.28, icon = "\240\159\143\149\239\184\143", order = 6 },
+	-- Genres: Robux tiers
+	["Battle Royale"] = { kind = "genre", robuxProductKey = "BattleRoyaleGenre", fixedBonus = 0.30, icon = "\226\154\148\239\184\143", order = 7 },
+	Anime = { kind = "genre", robuxProductKey = "AnimeGenre", fixedBonus = 0.35, icon = "\240\159\140\184", order = 8 },
+
+	-- Topics: cash tiers 1-6
+	Pets = { kind = "topic", price = 20000, minBonus = 0.10, maxBonus = 0.15, icon = "\240\159\144\182", order = 1 },
+	Ninjas = { kind = "topic", price = 60000, minBonus = 0.12, maxBonus = 0.17, icon = "\240\159\165\183", order = 2 },
+	Pirates = { kind = "topic", price = 150000, minBonus = 0.15, maxBonus = 0.20, icon = "\226\154\147", order = 3 },
+	Robots = { kind = "topic", price = 400000, minBonus = 0.18, maxBonus = 0.23, icon = "\240\159\164\150", order = 4 },
+	Dragons = { kind = "topic", price = 1000000, minBonus = 0.20, maxBonus = 0.25, icon = "\240\159\144\137", order = 5 },
+	Superheroes = { kind = "topic", price = 2500000, minBonus = 0.22, maxBonus = 0.28, icon = "\240\159\166\184", order = 6 },
+	-- Topics: Robux tiers
+	Aliens = { kind = "topic", robuxProductKey = "AliensTopic", fixedBonus = 0.30, icon = "\240\159\145\189", order = 7 },
+	Dinosaurs = { kind = "topic", robuxProductKey = "DinosaursTopic", fixedBonus = 0.35, icon = "\240\159\166\150", order = 8 },
+}
+
+-- True when `id` is one of the original free genres/topics (absent from
+-- ContentUnlocks entirely -- there is no separate "free list" to keep in sync).
+function GameData.isContentFree(id)
+	return GameData.ContentUnlocks[id] == nil
+end
+
+-- Free entries are always owned (nothing to buy). Paid entries are owned only
+-- once the player's save says so.
+function GameData.ownsContent(data, id)
+	if GameData.isContentFree(id) then
+		return true
+	end
+	return data ~= nil and data.contentOwned ~= nil and data.contentOwned[id] == true
+end
+
+-- The cash-release bonus contributed by owning `id`, given the CURRENT live
+-- roll table (id -> percentage) from TrendsService. Always a fraction (0.10 =
+-- +10%), matching PCParts' `bonus` convention.
+--   * free entries -> 0 (they're absent from ContentUnlocks, so `entry` is nil)
+--   * unowned paid entries -> 0 (you don't get the bonus until you buy it)
+--   * owned Robux entries -> their fixedBonus, ALWAYS (never reads rollTable)
+--   * owned cash entries -> rollTable[id] if the live roll is known, else the
+--     entry's band minimum (a safe floor before the first roll ever lands)
+function GameData.getContentBonus(data, id, rollTable)
+	local entry = GameData.ContentUnlocks[id]
+	if not entry then
+		return 0
+	end
+	if not GameData.ownsContent(data, id) then
+		return 0
+	end
+	if entry.fixedBonus then
+		return entry.fixedBonus
+	end
+	return (rollTable and rollTable[id]) or entry.minBonus
+end
+
+-- Cash multiplier a released game earns from its genre + topic choice. Purely
+-- ADDITIVE (never multiplicative) so the two content bonuses stack the same
+-- way PC parts do, and stay well under the existing cash-stack ceiling.
+function GameData.getReleaseContentMultiplier(data, genre, topic, rollTable)
+	return 1 + GameData.getContentBonus(data, genre, rollTable) + GameData.getContentBonus(data, topic, rollTable)
+end
+
+-- Rolls a fresh live percentage for every CASH content unlock (Robux entries
+-- are fixed and never rolled, so they're absent from the result). Called by
+-- TrendsService once per trend refresh; the result is server-owned and
+-- broadcast for display only.
+--
+-- rng contract: `rng` is a zero-argument function returning a float uniformly
+-- distributed in [0, 1), i.e. the same contract as `math.random()` with no
+-- arguments. Injected so tests can be deterministic; defaults to math.random.
+function GameData.rollContentBonuses(rng)
+	rng = rng or math.random
+	local rolls = {}
+	for id, entry in pairs(GameData.ContentUnlocks) do
+		if entry.minBonus ~= nil and entry.maxBonus ~= nil then
+			rolls[id] = entry.minBonus + rng() * (entry.maxBonus - entry.minBonus)
+		end
+	end
+	return rolls
+end
 
 GameData.StartingCash = 0 -- launch value: everyone starts from scratch
 -- Base cash a released game pays = PayoutMultiplier * devQuality (0..1 solo, higher
@@ -209,6 +320,13 @@ GameData.Products = {
 	StarterPack = { id = 3611343811, order = 1, icon = "\240\159\142\129", name = "Starter Pack", desc = "$500 cash + a 2x boost (10 min) + a guaranteed Rare worker!", cash = 500, boostMult = 2, boostDur = 600, worker = "Rare" },
 	MegaBoost = { id = 3611343857, order = 2, icon = "\226\154\161", name = "Mega Boost", desc = "3x cash for 15 minutes. Buy anytime!", boostMult = 3, boostDur = 900 },
 	StreakRepair = { id = 0, order = 3, icon = "\240\159\148\167", name = "Streak Repair", desc = "Broke your login streak? Put it back and carry on where you left off.", repair = true },
+	-- Content unlocks (A1): four Robux genre/topic unlocks, each granting the
+	-- matching ContentUnlocks entry (named by `contentId`) permanently, always
+	-- at its fixedBonus -- ships "coming soon" (id = 0) until real IDs exist.
+	BattleRoyaleGenre = { id = 0, order = 4, icon = "\226\154\148\239\184\143", name = "Battle Royale Genre", desc = "Unlock the Battle Royale genre. Always +30% cash on games that use it.", contentId = "Battle Royale" },
+	AliensTopic = { id = 0, order = 5, icon = "\240\159\145\189", name = "Aliens Topic", desc = "Unlock the Aliens topic. Always +30% cash on games that use it.", contentId = "Aliens" },
+	AnimeGenre = { id = 0, order = 6, icon = "\240\159\140\184", name = "Anime Genre", desc = "Unlock the Anime genre. Always +35% cash on games that use it.", contentId = "Anime" },
+	DinosaursTopic = { id = 0, order = 7, icon = "\240\159\166\150", name = "Dinosaurs Topic", desc = "Unlock the Dinosaurs topic. Always +35% cash on games that use it.", contentId = "Dinosaurs" },
 }
 
 -- Cash multiplier from owned passes (2x Cash and VIP stack multiplicatively).

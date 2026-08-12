@@ -763,35 +763,35 @@ GameData.DailyStreakResetSeconds = 48 * 3600 -- miss ~2 days and the streak rese
 GameData.DailyCalendarDays = 30
 GameData.DailyRewards = {
 	{ kind = "cash", amount = 100 },
-	{ kind = "cash", amount = 300 },
+	{ kind = "cash", amount = 150 },
 	{ kind = "boost", mult = 2, dur = 300 },
-	{ kind = "cash", amount = 800 },
-	{ kind = "cash", amount = 1500 },
+	{ kind = "cash", amount = 250 },
+	{ kind = "cash", amount = 450 },
 	{ kind = "boost", mult = 2, dur = 600 },
 	-- Day 7 milestone: cash AND a long boost.
-	{ kind = "cash", amount = 5000, mult = 3, dur = 900, milestone = true },
-	{ kind = "cash", amount = 2500 },
-	{ kind = "cash", amount = 3500 },
+	{ kind = "cash", amount = 1500, mult = 3, dur = 900, milestone = true },
+	{ kind = "cash", amount = 600 },
+	{ kind = "cash", amount = 800 },
 	{ kind = "boost", mult = 2, dur = 900 },
-	{ kind = "cash", amount = 5000 },
-	{ kind = "cash", amount = 6500 },
+	{ kind = "cash", amount = 1100 },
+	{ kind = "cash", amount = 1400 },
 	{ kind = "boost", mult = 3, dur = 600 },
 	-- Day 14 milestone: a Lucky Case spin.
 	{ kind = "case", spins = 1, milestone = true },
-	{ kind = "cash", amount = 9000 },
-	{ kind = "cash", amount = 11000 },
+	{ kind = "cash", amount = 1800 },
+	{ kind = "cash", amount = 2100 },
 	{ kind = "boost", mult = 3, dur = 900 },
-	{ kind = "cash", amount = 14000 },
-	{ kind = "cash", amount = 17000 },
+	{ kind = "cash", amount = 2500 },
+	{ kind = "cash", amount = 2900 },
 	{ kind = "boost", mult = 3, dur = 900 },
-	{ kind = "cash", amount = 21000 },
-	{ kind = "cash", amount = 25000 },
+	{ kind = "cash", amount = 3300 },
+	{ kind = "cash", amount = 3800 },
 	{ kind = "boost", mult = 3, dur = 1200 },
-	{ kind = "cash", amount = 30000 },
-	{ kind = "cash", amount = 36000 },
+	{ kind = "cash", amount = 4300 },
+	{ kind = "cash", amount = 4800 },
 	{ kind = "boost", mult = 3, dur = 1200 },
-	{ kind = "cash", amount = 43000 },
-	{ kind = "cash", amount = 50000 },
+	{ kind = "cash", amount = 5500 },
+	{ kind = "cash", amount = 6000 },
 	{ kind = "boost", mult = 3, dur = 1200 },
 	-- Day 30 grand prize: a random Champion PC part (see DailyRewardService).
 	{ kind = "champion", milestone = true },
@@ -807,15 +807,33 @@ end
 -- The reward as the player will actually receive it: a COPY with `amount` scaled
 -- to their progression. Used by both the grant and the on-screen preview, so the
 -- two can never disagree. Never mutates the authored ladder.
+-- Roughly what the player earns per second while idle. Subscriber ad revenue is
+-- the dominant passive source and grows linearly, which is exactly why a flat
+-- ladder stops mattering: $6,000 is a fortune on day one and a rounding error
+-- once you make $1,000/sec.
+function GameData.getPassiveIncomePerSecond(data)
+	return ((data and data.subscribers) or 0) * GameData.SubAdRevenuePerSec
+end
+
+-- How much to multiply the authored cash rewards by, so the calendar stays worth
+-- opening at every stage. The authored values ARE the reward for a brand-new
+-- player (multiplier 1); past the reference earning rate the reward tracks the
+-- player's own income instead, so it keeps its relative value rather than
+-- decaying into pocket change.
+GameData.DailyIncomeReferencePerSec = 4
+function GameData.getDailyRewardMultiplier(data)
+	local rate = GameData.getPassiveIncomePerSecond(data)
+	return math.max(1, rate / GameData.DailyIncomeReferencePerSec)
+end
+
 function GameData.getScaledDailyReward(data, streakDay)
-	local EventData = require(game.ReplicatedStorage.Shared.EventData)
 	local base = GameData.getDailyReward(streakDay)
 	local copy = {}
 	for k, v in pairs(base) do
 		copy[k] = v
 	end
 	if copy.amount then
-		copy.amount = math.floor(copy.amount * EventData.scale(data))
+		copy.amount = math.floor(copy.amount * GameData.getDailyRewardMultiplier(data))
 	end
 	return copy
 end

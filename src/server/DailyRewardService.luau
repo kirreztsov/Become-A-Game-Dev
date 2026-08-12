@@ -28,7 +28,11 @@ local function grantReward(data, reward)
 			EventData.applyChampionGrant(data, partId, bonus)
 			return ("\240\159\143\134 Champion %s!"):format(partId)
 		end
-		local consolation = EventData.consolationCash(data)
+		-- Scale the fallback the same way the calendar's cash is scaled. The
+		-- event's own consolation uses its frozen Sunday scale, which is 1 for a
+		-- player who reached day 30 without ever playing a Sunday -- that would
+		-- pay a flat $20,000 and make the grand prize worth less than day 28.
+		local consolation = math.floor(20000 * GameData.getDailyRewardMultiplier(data))
 		data.cash += consolation
 		return ("$%d"):format(consolation)
 	end

@@ -423,6 +423,22 @@ local bigP = { subscribers = 100000 }
 local base5 = GameData.DailyRewards[5].amount
 t:assertEqual(GameData.getScaledDailyReward(freshP, 5).amount, base5, "daily: a fresh player gets the base amount")
 t:assertEqual(GameData.getScaledDailyReward(bigP, 5).amount > base5, true, "daily: a big player gets more")
+
+-- Rewards track the player's own earning rate, so the calendar keeps its value
+-- instead of decaying into pocket change once idle income takes over.
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 0 }), 1, "daily: a new player gets the authored values (multiplier 1)")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 400 }), 1, "daily: at the reference earning rate the multiplier is still 1")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 100 }), 1, "daily: below the reference rate never scales DOWN")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 4000 }), 10, "daily: 10x the reference rate -> 10x rewards")
+t:assertEqual(GameData.getDailyRewardMultiplier({ subscribers = 100000 }), 250, "daily: a late-game earner scales in proportion to their income")
+t:assertEqual(GameData.getPassiveIncomePerSecond({ subscribers = 100000 }), 1000, "daily: passive income is subscribers x the ad rate")
+t:assertEqual(GameData.getPassiveIncomePerSecond({}), 0, "daily: no subscribers means no passive income")
+-- the ladder stays in the same league as the pre-calendar economy for a newcomer
+local ladderTotal = 0
+for _, r in ipairs(GameData.DailyRewards) do
+	ladderTotal += r.amount or 0
+end
+t:assertEqual(ladderTotal < 60000, true, "daily: a new player's 30-day total stays under $60k (the PC shop costs ~$112k)")
 t:assertEqual(GameData.getScaledDailyReward(bigP, 3).mult, GameData.DailyRewards[3].mult, "daily: boost multiplier is never scaled")
 t:assertEqual(GameData.getScaledDailyReward(bigP, 3).dur, GameData.DailyRewards[3].dur, "daily: boost duration is never scaled")
 t:assertEqual(GameData.getScaledDailyReward(bigP, 14).spins, GameData.DailyRewards[14].spins, "daily: case spins are never scaled")

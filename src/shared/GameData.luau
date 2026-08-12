@@ -720,7 +720,7 @@ end
 -- exchange for a permanent +bonus on ALL cash you earn, forever. The subscriber
 -- requirement grows each prestige so it stays a long-term goal.
 GameData.PrestigeBaseRequirement = 7500 -- subscribers needed for the 1st rebirth (grows each rebirth)
-GameData.PrestigeBonusPerLevel = 0.5 -- +50% permanent earnings per prestige level
+GameData.PrestigeBonusPerLevel = 0.15 -- +15% permanent earnings per prestige level (lowered from 0.5 now that rebirth also grants perk points; the perk tree is the main prestige reward)
 
 function GameData.getPrestigeRequirement(level)
 	return GameData.PrestigeBaseRequirement * ((level or 0) + 1)

@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
+local EventData = require(game.ReplicatedStorage.Shared.EventData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local DecorBuilder = require(game.ReplicatedStorage.Shared.DecorBuilder)
 local PCVisuals = require(game.ReplicatedStorage.Shared.PCVisuals)
@@ -2332,6 +2333,16 @@ function PlotManager.start()
 			Testing = { hired = false, level = 0 },
 		}
 		data.subscribers = 0
+		-- Prestige zeroes gamesReleased/subscribers, so rebase the Sunday event's
+		-- baseline too -- otherwise every games/subs quest reads 0 forever and the
+		-- sequential arc locks for the rest of the day. (cash/hits are lifetime
+		-- counters, untouched by prestige.) Re-freeze the arc scale to match the
+		-- player's new subscriber count so targets stay achievable.
+		if data.eventBaseline then
+			data.eventBaseline.games = 0
+			data.eventBaseline.subs = 0
+			data.eventScale = EventData.scale(data)
+		end
 		data.subMilestone = 0
 		data.subAdAccum = 0
 		data.roomsOwned = { Arcade = false, Merch = false }

@@ -3,7 +3,20 @@ local GameData = require(game.ReplicatedStorage.Shared.GameData)
 
 local playerStore = DataStoreService:GetDataStore("PlayerData_v2")
 
+-- ============================================================================
+-- DEV SWITCH -- set this to false before publishing to real players!
+-- While true, NOTHING is read from or written to the DataStore: every join
+-- starts from a fresh default save, so features can be tested from zero.
+-- Real players would lose all their progress on rejoin while this is on.
+-- ============================================================================
+local FRESH_START_NO_SAVING = true
+
 local PlayerData = {}
+
+-- Lets other code (and the startup warning) see the dev switch.
+function PlayerData.savingDisabled()
+	return FRESH_START_NO_SAVING
+end
 local cache = {}
 local failedLoads = {}
 
@@ -91,12 +104,34 @@ local function defaultData()
 		-- week index they belong to.
 		weekAnchor = require(game.ReplicatedStorage.Shared.GameData).getWeekIndex(os.time()),
 		weekly = { prestigeLevel = 0, subscribers = 0, cash = 0, gamesReleased = 0 },
+		-- Sunday Showdown event (see EventData): the day index the current arc's
+		-- baseline belongs to, the stat snapshot taken at that Sunday's start,
+		-- which quests are claimed, the permanently-collected Champion parts
+		-- (partId -> bonus), and the frozen per-arc scale. -1 forces a fresh
+		-- roll. Plus two lifetime counters the event's cash/trendy quests
+		-- measure deltas from.
+		eventDay = -1,
+		eventBaseline = { games = 0, subs = 0, cash = 0, hits = 0 },
+		eventQuestsClaimed = {},
+		eventParts = {},
+		eventScale = 1,
+		totalCashEarned = 0,
+		trendyHits = 0,
 		-- Placed furniture in the player's private Home room.
 		homeItems = {},
 	}
 end
 
 function PlayerData.load(player)
+	-- Dev switch: skip the DataStore entirely and hand out a fresh save, so every
+	-- test session starts from zero. NOT marked as a failed load -- this is a
+	-- deliberate blank slate, so claims/rewards still work normally in-session.
+	if FRESH_START_NO_SAVING then
+		cache[player.UserId] = defaultData()
+		failedLoads[player.UserId] = nil
+		return cache[player.UserId]
+	end
+
 	local success, data = pcall(function()
 		return playerStore:GetAsync("Player_" .. player.UserId)
 	end)
@@ -152,6 +187,15 @@ function PlayerData.load(player)
 			end
 			data.challengeBaseline = data.challengeBaseline or { games = 0, subs = 0 }
 			data.challengeClaimed = data.challengeClaimed or {}
+			if data.eventDay == nil then
+				data.eventDay = -1
+			end
+			data.eventBaseline = data.eventBaseline or { games = 0, subs = 0, cash = 0, hits = 0 }
+			data.eventQuestsClaimed = data.eventQuestsClaimed or {}
+			data.eventParts = data.eventParts or {}
+			data.eventScale = data.eventScale or 1
+			data.totalCashEarned = data.totalCashEarned or 0
+			data.trendyHits = data.trendyHits or 0
 			local GameDataMod = require(game.ReplicatedStorage.Shared.GameData)
 			if data.weekAnchor == nil then
 				data.weekAnchor = GameDataMod.getWeekIndex(os.time())
@@ -199,6 +243,11 @@ end
 -- Returns true only if the data was actually written to the DataStore. Callers
 -- that gate a Robux grant on a successful save (ProcessReceipt) rely on this.
 function PlayerData.save(player)
+	-- Dev switch: never write while we're testing from a blank slate.
+	if FRESH_START_NO_SAVING then
+		return false
+	end
+
 	-- Refuse to save if the most recent load failed; prevents overwriting real data with defaults
 	if failedLoads[player.UserId] then
 		warn(("Refusing to save data for %s: the most recent load failed; will not overwrite DataStore until a successful load clears this flag"):format(player.Name))

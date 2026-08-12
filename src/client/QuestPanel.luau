@@ -214,7 +214,10 @@ function QuestPanel.init(player, theme, playerState)
 		barLabel.Size = UDim2.fromScale(1, 1)
 		barLabel.BackgroundTransparency = 1
 		barLabel.Text = ""
-		barLabel.TextColor3 = Color3.fromRGB(60, 62, 72)
+		-- White + a dark stroke stays legible on the track in both light and dark mode.
+		barLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		barLabel.TextStrokeColor3 = Color3.fromRGB(25, 27, 38)
+		barLabel.TextStrokeTransparency = 0.35
 		barLabel.Font = Enum.Font.GothamBold
 		barLabel.TextSize = 11
 		barLabel.Parent = track

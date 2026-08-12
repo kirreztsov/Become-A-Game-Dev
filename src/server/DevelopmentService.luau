@@ -1,6 +1,7 @@
 local Workspace = game:GetService("Workspace")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
+local EventData = require(game.ReplicatedStorage.Shared.EventData)
 local TrendMatch = require(game.ReplicatedStorage.Shared.TrendMatch)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
@@ -385,17 +386,25 @@ function DevelopmentService.start()
 			-- active shop boost multiplies on top of that.
 			-- Subscribers give a permanent multiplier on cash you earn, on top
 			-- of the PC / floor / boost multipliers.
-			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data) * PerkData.cashMult(data))
+			local eventNow = os.time()
+			local eventBoost = EventData.isEventActive(eventNow) and 1.5 or 1
+			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts, data.eventParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data) * PerkData.cashMult(data) * eventBoost)
 
 			data.cash += cash
 			data.gamesReleased += 1
+			-- Lifetime cash-earned (monotonic) — the event's cash quests delta from this.
+			data.totalCashEarned = (data.totalCashEarned or 0) + cash
+			-- Trendy-hit counter (monotonic) — the event's trendy-hit quest delta from this.
+			if hitBonus then
+				data.trendyHits = (data.trendyHits or 0) + 1
+			end
 			PlayerData.addWeekly(data, "cash", cash, os.time())
 			PlayerData.addWeekly(data, "gamesReleased", 1, os.time())
 
 			-- Releasing a game grows your channel: more subscribers for a better
 			-- game, with a big bonus when it matched a trend. This can cross a
 			-- Play Button milestone (bonus cash + a trophy in the studio).
-			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data) * GameData.getPCPartsSubsMultiplier(data.pcParts) * PerkData.subsMult(data))
+			local subsGained = math.floor(GameData.getSubsForRelease(devQuality, hitBonus) * GameData.getPassSubsMultiplier(data) * GameData.getPCPartsSubsMultiplier(data.pcParts, data.eventParts) * PerkData.subsMult(data) * eventBoost)
 			local milestoneReached = PlotManager.grantSubscribers(player, data, subsGained)
 
 			Remotes.DevelopmentComplete:FireClient(player, cash, classification == "copy", hitBonus)

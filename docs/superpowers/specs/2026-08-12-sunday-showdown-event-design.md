@@ -49,11 +49,11 @@ would jam. See "Rejected ideas".)
 | # | Quest | Metric (today delta) | Base target |
 |---|-------|----------------------|-------------|
 | 1 | Release games today | `gamesReleased` | 5 |
-| 2 | Gain subscribers today | `subscribers` | 300 |
-| 3 | Earn cash today | `totalCashEarned` (new counter) | 2,000 |
+| 2 | Gain subscribers today | `subscribers` | 2,000 |
+| 3 | Earn cash today | `totalCashEarned` (new counter) | 10,000 |
 | 4 | Release more games today | `gamesReleased` | 12 |
 | 5 | Release a trendy hit today | `trendyHits` (new counter) | 1 |
-| 6 | Final push — earn cash today | `totalCashEarned` | 10,000 |
+| 6 | Final push — earn cash today | `totalCashEarned` | 50,000 |
 
 Base targets are tunable; real numbers get dialed in during playtest.
 

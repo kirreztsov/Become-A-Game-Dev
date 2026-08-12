@@ -407,6 +407,13 @@ function DevelopmentService.start()
 			return
 		end
 
+		-- Reject a genre/topic the player hasn't unlocked yet (paid content --
+		-- see GameData.ContentUnlocks). Matches how unknown genres/topics are
+		-- already handled above.
+		if not GameData.ownsContent(data, genre) or not GameData.ownsContent(data, topic) then
+			return
+		end
+
 		developing[player.UserId] = true
 
 		task.spawn(function()
@@ -442,7 +449,11 @@ function DevelopmentService.start()
 			-- of the PC / floor / boost multipliers.
 			local eventNow = os.time()
 			local eventBoost = EventData.isEventActive(eventNow) and 1.5 or 1
-			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts, data.eventParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data) * PerkData.cashMult(data) * eventBoost)
+			-- Genre/topic content unlocks (A1): additive cash-only bonus from the
+			-- SERVER's own live roll table -- never anything from the client.
+			-- Subscribers are deliberately untouched (see subsGained below).
+			local contentMult = GameData.getReleaseContentMultiplier(data, genre, topic, TrendsService.getContentRolls())
+			cash = math.floor(cash * GameData.getPCPartsCashMultiplier(data.pcParts, data.eventParts) * GameData.getFloorMultiplier(data.houseTier) * GameData.getBoostMultiplier(data, Workspace:GetServerTimeNow()) * GameData.getSubscriberMultiplier(data.subscribers) * GameData.getPrestigeMultiplier(data.prestigeLevel) * GameData.getPassCashMultiplier(data) * PerkData.cashMult(data) * eventBoost * contentMult)
 
 			data.cash += cash
 			data.gamesReleased += 1

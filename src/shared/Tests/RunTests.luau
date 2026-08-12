@@ -397,6 +397,7 @@ t:assertEqual(GameData.getPCPartsCashMultiplier({ CPU = 0 }, nil), baseCash, "ch
 -- Daily login calendar (B1): 30-day ladder, scaling, and streak decisions
 t:assertEqual(GameData.DailyCalendarDays, 30, "daily: calendar is 30 days")
 t:assertEqual(#GameData.DailyRewards, 30, "daily: ladder has 30 entries")
+t:assertEqual(#GameData.DailyRewards, GameData.DailyCalendarDays, "daily: the ladder length matches the calendar length")
 t:assertEqual(GameData.DailyRewards[7].milestone, true, "daily: day 7 is a milestone")
 t:assertEqual(GameData.DailyRewards[14].milestone, true, "daily: day 14 is a milestone")
 t:assertEqual(GameData.DailyRewards[30].milestone, true, "daily: day 30 is a milestone")

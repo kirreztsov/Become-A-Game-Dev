@@ -750,7 +750,8 @@ end
 -- ---- Daily reward streak ---------------------------------------------------
 -- Come back each day for an escalating reward. A reward is claimable once the
 -- cooldown has passed; the streak keeps climbing if you return before the
--- reset window, otherwise it restarts at day 1. Rewards cycle every 7 days.
+-- reset window, otherwise it restarts at day 1. The ladder is a 30-day calendar:
+-- day 30 is the last entry, and finishing it restarts the calendar at day 1.
 GameData.DailyClaimCooldownSeconds = 20 * 3600 -- claimable ~once a day (20h)
 GameData.DailyStreakResetSeconds = 48 * 3600 -- miss ~2 days and the streak resets
 

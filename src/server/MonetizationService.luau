@@ -157,6 +157,12 @@ function MonetizationService.start()
 			if broken > 0 then
 				data.dailyStreak = broken
 				data.dailyBrokenStreak = 0
+				-- Also pull the last-claim stamp back inside the streak window,
+				-- otherwise the next evaluation immediately re-breaks the streak
+				-- the player just paid to restore. Sits one cooldown in the past
+				-- so today's reward is claimable right away.
+				data.lastDailyClaim = os.time() - GameData.DailyClaimCooldownSeconds
+				data.dailySkipUsed = false
 				handled = true
 			end
 		end

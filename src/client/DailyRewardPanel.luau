@@ -20,6 +20,10 @@ function DailyRewardPanel.init(player, theme)
 	screenGui.DisplayOrder = 20
 	screenGui.Parent = player:WaitForChild("PlayerGui")
 
+	-- Latest player state, so calendar cells can show the SAME progression-scaled
+	-- values the server will actually grant (see GameData.getScaledDailyReward).
+	local latestState = nil
+
 	local backdrop = Instance.new("Frame")
 	backdrop.Size = UDim2.fromScale(1, 1)
 	backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -53,6 +57,21 @@ function DailyRewardPanel.init(player, theme)
 	title.Font = Enum.Font.FredokaOne
 	title.TextSize = 30
 	title.Parent = card
+
+	local close = Instance.new("TextButton")
+	close.Name = "Close"
+	close.Size = UDim2.fromOffset(34, 34)
+	close.Position = UDim2.new(1, -12, 0, 12)
+	close.AnchorPoint = Vector2.new(1, 0)
+	close.BackgroundTransparency = 1
+	close.Text = "\195\151"
+	close.TextColor3 = theme.TextMuted
+	close.Font = Enum.Font.GothamBold
+	close.TextSize = 26
+	close.Parent = card
+	close.MouseButton1Click:Connect(function()
+		screenGui.Enabled = false
+	end)
 
 	local streakLabel = Instance.new("TextLabel")
 	streakLabel.Size = UDim2.new(1, 0, 0, 22)
@@ -179,6 +198,14 @@ function DailyRewardPanel.init(player, theme)
 		end
 		rewardLabel.Text = rewardDesc
 
+		-- Refresh the hints against the player's current progression so the cells
+		-- agree with the headline figure.
+		if latestState then
+			for day, entry in pairs(cells) do
+				entry.hint.Text = GameData.describeDailyReward(GameData.getScaledDailyReward(latestState, day))
+			end
+		end
+
 		-- Past days are ticked off, today is highlighted, the rest stay dim.
 		for day, entry in pairs(cells) do
 			if day < streakDay then
@@ -215,6 +242,10 @@ function DailyRewardPanel.init(player, theme)
 	Remotes.DailyRewardClaimed.OnClientEvent:Connect(function()
 		screenGui.Enabled = false
 		Sound.play("DailyReward")
+	end)
+
+	Remotes.PlayerStateUpdated.OnClientEvent:Connect(function(data)
+		latestState = data
 	end)
 end
 

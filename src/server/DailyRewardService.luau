@@ -55,6 +55,14 @@ function DailyRewardService.checkForPlayer(player)
 		return
 	end
 	local decision = GameData.evaluateDailyStreak(data, nowSeconds())
+
+	-- Persist the broken streak so the Robux repair has something to restore
+	-- (the receipt handler reads this field; without it a paid repair could
+	-- never be fulfilled).
+	if decision.repairOffered and (data.dailyBrokenStreak or 0) == 0 and decision.brokenStreak > 0 then
+		data.dailyBrokenStreak = decision.brokenStreak
+	end
+
 	if decision.available or decision.repairOffered then
 		local reward = GameData.getScaledDailyReward(data, decision.nextStreak)
 		Remotes.DailyRewardAvailable:FireClient(
@@ -86,8 +94,12 @@ function DailyRewardService.start()
 		if decision.usedFreeSkip then
 			data.dailySkipUsed = true
 		end
-		if decision.calendarRestart then
-			data.dailySkipUsed = false -- a fresh calendar gets a fresh free skip
+		-- Any return to day 1 starts a fresh calendar, whether that came from
+		-- finishing day 30 or from a broken streak -- so the free skip comes back
+		-- either way. Without this a player who breaks once can never be
+		-- forgiven again.
+		if decision.nextStreak == 1 then
+			data.dailySkipUsed = false
 		end
 		-- Claiming without repairing accepts the loss and clears the offer.
 		data.dailyBrokenStreak = 0

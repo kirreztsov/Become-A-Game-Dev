@@ -23,6 +23,15 @@ local PerkService = require(script.PerkService)
 local OfflineEarnings = require(script.OfflineEarnings)
 local Lobby = require(script.Lobby)
 
+if PlayerData.savingDisabled() then
+	warn("=====================================================================")
+	warn("  FRESH START MODE: saving is OFF. Every join starts from zero and")
+	warn("  nothing is written to the DataStore. Robux purchases will NOT be")
+	warn("  granted while this is on. Set FRESH_START_NO_SAVING = false in")
+	warn("  src/server/PlayerData.luau before publishing to real players.")
+	warn("=====================================================================")
+end
+
 PlotManager.build()
 Lobby.build()
 LeaderboardService.build()

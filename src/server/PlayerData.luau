@@ -3,7 +3,20 @@ local GameData = require(game.ReplicatedStorage.Shared.GameData)
 
 local playerStore = DataStoreService:GetDataStore("PlayerData_v2")
 
+-- ============================================================================
+-- DEV SWITCH -- set this to false before publishing to real players!
+-- While true, NOTHING is read from or written to the DataStore: every join
+-- starts from a fresh default save, so features can be tested from zero.
+-- Real players would lose all their progress on rejoin while this is on.
+-- ============================================================================
+local FRESH_START_NO_SAVING = true
+
 local PlayerData = {}
+
+-- Lets other code (and the startup warning) see the dev switch.
+function PlayerData.savingDisabled()
+	return FRESH_START_NO_SAVING
+end
 local cache = {}
 local failedLoads = {}
 
@@ -110,6 +123,15 @@ local function defaultData()
 end
 
 function PlayerData.load(player)
+	-- Dev switch: skip the DataStore entirely and hand out a fresh save, so every
+	-- test session starts from zero. NOT marked as a failed load -- this is a
+	-- deliberate blank slate, so claims/rewards still work normally in-session.
+	if FRESH_START_NO_SAVING then
+		cache[player.UserId] = defaultData()
+		failedLoads[player.UserId] = nil
+		return cache[player.UserId]
+	end
+
 	local success, data = pcall(function()
 		return playerStore:GetAsync("Player_" .. player.UserId)
 	end)
@@ -221,6 +243,11 @@ end
 -- Returns true only if the data was actually written to the DataStore. Callers
 -- that gate a Robux grant on a successful save (ProcessReceipt) rely on this.
 function PlayerData.save(player)
+	-- Dev switch: never write while we're testing from a blank slate.
+	if FRESH_START_NO_SAVING then
+		return false
+	end
+
 	-- Refuse to save if the most recent load failed; prevents overwriting real data with defaults
 	if failedLoads[player.UserId] then
 		warn(("Refusing to save data for %s: the most recent load failed; will not overwrite DataStore until a successful load clears this flag"):format(player.Name))

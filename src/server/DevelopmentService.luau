@@ -350,6 +350,11 @@ function DevelopmentService.start()
 				table.insert(round.intervals, now - round.lastTap)
 				if not round.automated and MinigameGuard.isAutomated(round.intervals) then
 					round.automated = true
+					-- Tell the player once, so an honest player caught by a bad
+					-- guess isn't left wondering why their round scored badly.
+					Remotes.MinigameFlagged:FireClient(player)
+					warn(("[MinigameGuard] %s: %s round looked automated (tap rhythm too even)")
+						:format(player.Name, tostring(round.variantId)))
 				end
 			end
 			round.lastTap = now

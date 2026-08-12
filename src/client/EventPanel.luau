@@ -319,8 +319,7 @@ function EventPanel.init(player, theme, playerState)
 	end
 
 	local function rebuild()
-		local now = now()
-		local active = EventData.isEventActive(now)
+		local active = EventData.isEventActive(now())
 		openBtn.Visible = active
 		if not active then
 			backdrop.Visible = false

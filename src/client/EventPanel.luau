@@ -3,6 +3,11 @@
 -- ends in" countdown, and the 7-slot Champion-parts collection. Progress is
 -- computed client-side from the player's own data via the shared EventData;
 -- claiming is server-authoritative and Sunday-gated.
+-- Clock note: the Sunday check uses Workspace:GetServerTimeNow() (the synced
+-- server clock), NOT os.time(), so a player with a skewed device clock can't
+-- lose the event button or see one the server would reject.
+local Workspace = game:GetService("Workspace")
+
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local EventData = require(game.ReplicatedStorage.Shared.EventData)
 
@@ -26,7 +31,9 @@ end
 local function fmtCountdown(secs)
 	local h = math.floor(secs / 3600)
 	local m = math.floor((secs % 3600) / 60)
-	return string.format("Event ends in %dh %dm", h, m)
+	-- %% is a literal percent sign for string.format. The +50% matches the
+	-- eventBoost DevelopmentService applies to both cash and subs on release.
+	return string.format("Event ends in %dh %dm  •  +50%% cash & subs", h, m)
 end
 
 function EventPanel.init(player, theme, playerState)
@@ -240,7 +247,12 @@ function EventPanel.init(player, theme, playerState)
 		reward.AnchorPoint = Vector2.new(1, 0)
 		reward.BackgroundTransparency = 1
 		reward.TextXAlignment = Enum.TextXAlignment.Right
+		-- The final quest's headline reward is the Champion part, so say so --
+		-- otherwise it lands with no feedback at all.
 		reward.Text = "+$" .. short(entry.rewardCash)
+		if entry.index == #EventData.QUESTS then
+			reward.Text ..= "  + 🏆 Part"
+		end
 		reward.TextColor3 = theme.Gold
 		reward.Font = Enum.Font.FredokaOne
 		reward.TextSize = 15
@@ -297,7 +309,7 @@ function EventPanel.init(player, theme, playerState)
 	end
 
 	local function rebuild()
-		local now = os.time()
+		local now = Workspace:GetServerTimeNow()
 		local active = EventData.isEventActive(now)
 		openBtn.Visible = active
 		if not active then
@@ -333,7 +345,7 @@ function EventPanel.init(player, theme, playerState)
 
 	openBtn.MouseButton1Click:Connect(function()
 		rebuild()
-		countdown.Text = fmtCountdown(EventData.secondsUntilEnd(os.time()))
+		countdown.Text = fmtCountdown(EventData.secondsUntilEnd(Workspace:GetServerTimeNow()))
 		backdrop.Visible = true
 	end)
 	close.MouseButton1Click:Connect(function()
@@ -353,7 +365,7 @@ function EventPanel.init(player, theme, playerState)
 			task.wait(20)
 			rebuild()
 			if backdrop.Visible then
-				countdown.Text = fmtCountdown(EventData.secondsUntilEnd(os.time()))
+				countdown.Text = fmtCountdown(EventData.secondsUntilEnd(Workspace:GetServerTimeNow()))
 			end
 		end
 	end)

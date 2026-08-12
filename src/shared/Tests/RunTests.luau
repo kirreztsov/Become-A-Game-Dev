@@ -367,11 +367,15 @@ edF.totalCashEarned = EventData.target(edF, 6)
 local r6 = EventData.applyQuestClaim(edF, 6)
 t:assertEqual(r6 ~= nil and r6.final, true, "event: quest 6 claim is final")
 
--- Champion part roll: locked bonus = 1.25 * best part, excludes owned, nil at 7
+-- Champion part roll: locked bonus = 1.25 * the player's part IN THAT CATEGORY,
+-- excludes already-won categories, nil at 7
 local champData = { pcParts = { CPU = 5 }, eventParts = {} } -- CPU lvl 5 bonus 0.65
-t:assertEqual(math.abs(EventData.bestPartBonus(champData) - 0.65) < 1e-9, true, "event: best part bonus reads the top model")
+t:assertEqual(math.abs(EventData.partBonus(champData, "CPU") - 0.65) < 1e-9, true, "event: partBonus reads that category's equipped model")
+t:assertEqual(EventData.partBonus(champData, "GPU"), 0, "event: partBonus does NOT inherit another category's bonus")
+-- rng returns 1 and nothing is owned yet, so the pool is GameData.PCParts order
+-- and index 1 is CPU -- forcing the roll onto the maxed category.
 local pid, pbonus = EventData.rollChampionPart(champData, function() return 1 end)
-t:assertEqual(pid ~= nil, true, "event: rolls a part when some are unowned")
+t:assertEqual(pid, "CPU", "event: forced roll lands on the first unowned category (CPU)")
 t:assertEqual(math.abs(pbonus - 0.81) < 1e-9, true, "event: champion bonus = round2(1.25*0.65)=0.81")
 EventData.applyChampionGrant(champData, pid, pbonus)
 t:assertEqual(champData.eventParts[pid], pbonus, "event: grant stores the bonus")

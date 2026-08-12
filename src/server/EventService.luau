@@ -47,8 +47,11 @@ function EventService.start()
 			return -- not complete, locked, already claimed, or bad index
 		end
 		if result.cash then
+			-- Pay the reward but do NOT add it to totalCashEarned: that counter is
+			-- exactly what quests 3 and 6 measure, so crediting rewards to it would
+			-- let earlier quests pay for later ones. Only DevelopmentService (cash
+			-- earned by releasing a game) increments it.
 			data.cash += result.cash
-			data.totalCashEarned = (data.totalCashEarned or 0) + result.cash
 		end
 		-- Finishing the final quest grants a random un-owned Champion part, or
 		-- scaled consolation cash if the player has already collected all 7.
@@ -57,9 +60,9 @@ function EventService.start()
 			if partId then
 				EventData.applyChampionGrant(data, partId, bonus)
 			else
+				-- Same rule as above: reward cash never counts as "earned".
 				local consolation = EventData.consolationCash(data)
 				data.cash += consolation
-				data.totalCashEarned = (data.totalCashEarned or 0) + consolation
 			end
 		end
 		PlayerData.save(player)

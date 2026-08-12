@@ -1,10 +1,11 @@
 -- Sunday Showdown weekend event (roadmap B2). Active only on Sunday (server
 -- UTC). A 6-quest arc whose targets scale continuously with the player's
 -- progression; finishing all 6 grants a random "Champion" PC part worth 125% of
--- the player's best part. Progress is TODAY's gain vs a baseline snapshotted at
--- the start of the player's Sunday. All math here is pure (no side effects) so
--- the client renders from the same data it gets via PlayerStateUpdated, and the
--- server (EventService) owns baseline + claims. Tested in RunTests.
+-- the player's own part in that same category. Progress is TODAY's gain vs a
+-- baseline snapshotted at the start of the player's Sunday. All math here is
+-- pure (no side effects) so the client renders from the same data it gets via
+-- PlayerStateUpdated, and the server (EventService) owns baseline + claims.
+-- Tested in RunTests.
 local GameData = require(script.Parent.GameData)
 
 local EventData = {}
@@ -157,17 +158,11 @@ function EventData.applyQuestClaim(data, i)
 	return { cash = EventData.rewardCash(data, i), final = (i == #EventData.QUESTS) }
 end
 
--- The bonus of the player's single best-equipped shop part (max over all 7).
-function EventData.bestPartBonus(data)
+-- The bonus of the player's currently-equipped shop part in ONE category.
+function EventData.partBonus(data, partId)
 	local pcParts = (data and data.pcParts) or {}
-	local best = 0
-	for _, p in ipairs(GameData.PCParts) do
-		local model = GameData.getPCPartModel(p.id, pcParts[p.id] or 0)
-		if model and model.bonus > best then
-			best = model.bonus
-		end
-	end
-	return best
+	local model = GameData.getPCPartModel(partId, pcParts[partId] or 0)
+	return (model and model.bonus) or 0
 end
 
 local function round2(x)
@@ -175,8 +170,8 @@ local function round2(x)
 end
 
 -- Roll a random PC-part category the player has NOT yet won a Champion of, and
--- the locked bonus for it (125% of their best current part, floored to a
--- meaningful minimum). Returns (nil, nil) when all 7 are already collected.
+-- the locked bonus for it (125% of their current part IN THAT SAME CATEGORY,
+-- floored to a meaningful minimum). Returns (nil, nil) when all 7 are collected.
 -- rng(n) -> integer in [1, n]; defaults to math.random for live play.
 function EventData.rollChampionPart(data, rng)
 	rng = rng or math.random
@@ -191,7 +186,7 @@ function EventData.rollChampionPart(data, rng)
 		return nil, nil
 	end
 	local partId = pool[rng(#pool)]
-	local bonus = math.max(EventData.MIN_CHAMPION_BONUS, round2(EventData.CHAMPION_FACTOR * EventData.bestPartBonus(data)))
+	local bonus = math.max(EventData.MIN_CHAMPION_BONUS, round2(EventData.CHAMPION_FACTOR * EventData.partBonus(data, partId)))
 	return partId, bonus
 end
 
@@ -203,7 +198,7 @@ end
 -- Consolation cash when the final quest is finished but all 7 Champion parts are
 -- already collected (the chase is complete).
 function EventData.consolationCash(data)
-	return math.floor(20000 * EventData.scale(data))
+	return math.floor(20000 * EventData.frozenScale(data))
 end
 
 -- Client render: the 6 quests with progress/targets/flags/reward.

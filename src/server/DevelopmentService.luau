@@ -343,7 +343,21 @@ function DevelopmentService.start()
 			if not MinigameGuard.acceptTap(round.lastTap, now) then
 				return
 			end
+			-- Record the gap between taps so an autoclicker's tell-tale even
+			-- rhythm can be spotted (see MinigameGuard.isAutomated).
+			if round.lastTap then
+				round.intervals = round.intervals or {}
+				table.insert(round.intervals, now - round.lastTap)
+				if not round.automated and MinigameGuard.isAutomated(round.intervals) then
+					round.automated = true
+				end
+			end
 			round.lastTap = now
+			-- A flagged round stops accruing: the player keeps whatever they had
+			-- when the rhythm gave them away, and gains nothing further.
+			if round.automated then
+				return
+			end
 			round.count = MinigameGuard.addTap(
 				round.count,
 				round.params.targetTaps or round.params.targetBugs or round.params.targetCrashes

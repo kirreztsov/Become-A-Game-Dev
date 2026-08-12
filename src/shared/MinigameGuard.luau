@@ -21,6 +21,19 @@ MinigameGuard.MIN_TAP_INTERVAL = 0.05
 MinigameGuard.MIN_SECONDS_PER_SEQUENCE_ITEM = 0.06
 MinigameGuard.MIN_CHOICE_REACTION = 0.15
 
+-- Autoclicker detection. A rate limit only catches inhumanly FAST input -- an
+-- autoclicker set to a believable 12/sec walks straight through it. What gives
+-- a machine away is rhythm: it taps at near-identical intervals, while a real
+-- hand varies by tens of percent from tap to tap. So we measure the spread of
+-- the gaps (coefficient of variation = standard deviation / mean).
+--
+-- Thresholds are deliberately forgiving, because a false positive punishes an
+-- honest player: network jitter alone pushes a real autoclicker's measured
+-- spread above zero, and humans normally land well above 0.15. Requiring 6
+-- gaps first also means short rounds never trigger it.
+MinigameGuard.AUTOCLICK_MIN_SAMPLES = 6
+MinigameGuard.AUTOCLICK_MAX_SPREAD = 0.06
+
 -- Fields the client must NOT be told, per variant. QAQuiz/CompileCheck never
 -- read correctIndex client-side, and PassOrFail no longer needs truth now that
 -- the server scores its answers.
@@ -66,6 +79,31 @@ function MinigameGuard.addTap(count, target)
 		return math.min(nextCount, target)
 	end
 	return nextCount
+end
+
+-- True when a run of tap gaps is too evenly spaced to be a human hand.
+-- `intervals` is the gap in seconds between each accepted tap. Returns false
+-- until there are enough samples to judge, so a short round is never flagged.
+function MinigameGuard.isAutomated(intervals)
+	local n = #intervals
+	if n < MinigameGuard.AUTOCLICK_MIN_SAMPLES then
+		return false
+	end
+	local sum = 0
+	for _, gap in ipairs(intervals) do
+		sum += gap
+	end
+	local mean = sum / n
+	if mean <= 0 then
+		return true -- zero-length gaps are not a hand
+	end
+	local squares = 0
+	for _, gap in ipairs(intervals) do
+		local d = gap - mean
+		squares += d * d
+	end
+	local spread = math.sqrt(squares / n) / mean
+	return spread < MinigameGuard.AUTOCLICK_MAX_SPREAD
 end
 
 -- A self-reported sequence score, made safe: never more than the round actually

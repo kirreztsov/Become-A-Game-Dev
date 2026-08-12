@@ -419,6 +419,17 @@ t:assertEqual(MinigameGuard.addTap(10, 10), 10, "guard: taps never exceed the ta
 t:assertEqual(MinigameGuard.addTap(nil, 10), 1, "guard: first tap counts as 1")
 t:assertEqual(MinigameGuard.addTap(3, nil), 4, "guard: no target means no cap")
 
+-- autoclicker detection (even rhythm), and the false positives it must avoid
+-- spread = 0.00 (perfect machine) / 0.01 (machine + network jitter)
+t:assertEqual(MinigameGuard.isAutomated({ 0.1, 0.1, 0.1 }), false, "guard: too few samples is never flagged")
+t:assertEqual(MinigameGuard.isAutomated({ 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1 }), true, "guard: a perfectly even rhythm is an autoclicker")
+t:assertEqual(MinigameGuard.isAutomated({ 0.100, 0.101, 0.099, 0.100, 0.102, 0.098, 0.101 }), true, "guard: near-perfect rhythm (autoclicker + jitter) is caught")
+-- spread = 0.30 and 0.13 -- both far above the 0.06 threshold, so an honest
+-- player is never punished, which matters more than catching every cheat
+t:assertEqual(MinigameGuard.isAutomated({ 0.09, 0.14, 0.11, 0.20, 0.08, 0.16, 0.12 }), false, "guard: a human's uneven tapping is NOT flagged")
+t:assertEqual(MinigameGuard.isAutomated({ 0.12, 0.13, 0.11, 0.14, 0.12, 0.10, 0.15 }), false, "guard: even a steady human is not flagged")
+t:assertEqual(MinigameGuard.isAutomated({}), false, "guard: no samples is not flagged")
+
 -- self-reported sequence scores
 t:assertEqual(MinigameGuard.clampSequenceScore(5, 10, 10), 5, "guard: an honest sequence score passes through")
 t:assertEqual(MinigameGuard.clampSequenceScore(999, 10, 10), 10, "guard: an inflated claim is clamped to the round size")

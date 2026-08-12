@@ -95,7 +95,10 @@ function DarkMode.init(player, playerState)
 	local btn = Instance.new("TextButton")
 	btn.Name = "DarkModeToggle"
 	btn.Size = UDim2.fromOffset(46, 46)
-	btn.Position = UDim2.fromOffset(16, 16)
+	-- Top RIGHT: the left column is the main button stack, and it grew tall
+	-- enough (6 buttons) to collide with toggles parked at the top-left.
+	btn.AnchorPoint = Vector2.new(1, 0)
+	btn.Position = UDim2.new(1, -16, 0, 16)
 	btn.BackgroundColor3 = Color3.fromRGB(120, 90, 235)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.Font = Enum.Font.FredokaOne

@@ -140,7 +140,10 @@ function Sound.init(player, state)
 	local btn = Instance.new("TextButton")
 	btn.Name = "SoundToggle"
 	btn.Size = UDim2.fromOffset(46, 46)
-	btn.Position = UDim2.fromOffset(16, 70)
+	-- Top RIGHT, under the dark-mode toggle (see DarkMode.luau) -- keeps the
+	-- left column free for the main button stack.
+	btn.AnchorPoint = Vector2.new(1, 0)
+	btn.Position = UDim2.new(1, -16, 0, 70)
 	btn.BackgroundColor3 = Color3.fromRGB(120, 90, 235)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.Font = Enum.Font.FredokaOne

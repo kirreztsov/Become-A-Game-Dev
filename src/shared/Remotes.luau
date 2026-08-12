@@ -50,6 +50,7 @@ local REMOTE_NAMES = {
 	"RequestClaimQuest",
 	"QuestsUpdated",
 	"RequestClaimChallenge",
+	"RequestClaimEventQuest",
 	"RequestBuyPerk",
 	"OfflineEarningsReady",
 	"CollectOfflineEarnings",

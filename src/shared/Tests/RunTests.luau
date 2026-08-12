@@ -394,4 +394,49 @@ t:assertEqual(math.abs(GameData.getPCPartsSubsMultiplier({ GPU = 0 }, { CPU = 0.
 t:assertEqual(math.abs(GameData.getPCPartsSubsMultiplier({ GPU = 0 }, { GPU = 0.4 }) - (GameData.getPCPartsSubsMultiplier({ GPU = 0 }) + 0.4)) < 1e-9, true, "champion: GPU (followers) adds to subs multiplier")
 t:assertEqual(GameData.getPCPartsCashMultiplier({ CPU = 0 }, nil), baseCash, "champion: nil eventParts behaves as before")
 
+-- MinigameGuard: the anti-cheat checks on client-reported minigame input (E1)
+local MinigameGuard = require(script.Parent.Parent.MinigameGuard)
+
+-- answers must never be readable from the round payload sent to the client
+local quiz = { prompt = "q", options = { "a", "b" }, correctIndex = 2 }
+local sentQuiz = MinigameGuard.sanitizeRoundInfo("QAQuiz", quiz)
+t:assertEqual(sentQuiz.correctIndex, nil, "guard: QAQuiz answer is not sent to the client")
+t:assertEqual(sentQuiz.prompt, "q", "guard: QAQuiz keeps what it needs to render")
+t:assertEqual(#sentQuiz.options, 2, "guard: QAQuiz keeps its options")
+t:assertEqual(quiz.correctIndex, 2, "guard: sanitising does not damage the server's own copy")
+t:assertEqual(MinigameGuard.sanitizeRoundInfo("CompileCheck", { lines = {}, correctIndex = 3 }).correctIndex, nil, "guard: CompileCheck answer is not sent")
+t:assertEqual(MinigameGuard.sanitizeRoundInfo("PassOrFail", { items = {}, truth = { true } }).truth, nil, "guard: PassOrFail answer key is not sent")
+-- BugHunt must keep its answer: the client renders that tile glitched
+t:assertEqual(MinigameGuard.sanitizeRoundInfo("BugHunt", { correctIndex = 4 }).correctIndex, 4, "guard: BugHunt keeps correctIndex (needed to draw the round)")
+
+-- mash rate limiting
+t:assertEqual(MinigameGuard.acceptTap(nil, 100), true, "guard: first tap of a round is accepted")
+t:assertEqual(MinigameGuard.acceptTap(100, 100.2), true, "guard: a human-paced tap is accepted")
+t:assertEqual(MinigameGuard.acceptTap(100, 100.001), false, "guard: a same-frame spam tap is rejected")
+t:assertEqual(MinigameGuard.acceptTap(100, 100 + MinigameGuard.MIN_TAP_INTERVAL), true, "guard: exactly at the interval is accepted")
+t:assertEqual(MinigameGuard.addTap(5, 10), 6, "guard: taps count up toward the target")
+t:assertEqual(MinigameGuard.addTap(10, 10), 10, "guard: taps never exceed the target")
+t:assertEqual(MinigameGuard.addTap(nil, 10), 1, "guard: first tap counts as 1")
+t:assertEqual(MinigameGuard.addTap(3, nil), 4, "guard: no target means no cap")
+
+-- self-reported sequence scores
+t:assertEqual(MinigameGuard.clampSequenceScore(5, 10, 10), 5, "guard: an honest sequence score passes through")
+t:assertEqual(MinigameGuard.clampSequenceScore(999, 10, 10), 10, "guard: an inflated claim is clamped to the round size")
+t:assertEqual(MinigameGuard.clampSequenceScore(-5, 10, 10), 0, "guard: a negative claim scores 0")
+t:assertEqual(MinigameGuard.clampSequenceScore(0 / 0, 10, 10), 0, "guard: a NaN claim scores 0")
+t:assertEqual(MinigameGuard.clampSequenceScore(10, 10, 0), 0, "guard: an instantly-completed sequence scores 0")
+t:assertEqual(MinigameGuard.clampSequenceScore("12", 10, 10), 10, "guard: a string claim is coerced then clamped")
+
+-- choice reaction floor
+t:assertEqual(MinigameGuard.acceptChoice(1.0), true, "guard: a normal answer time is accepted")
+t:assertEqual(MinigameGuard.acceptChoice(0.01), false, "guard: an instant answer is rejected")
+
+-- PassOrFail scored from the player's answers, not their claim
+local pofTruth = { true, false, true, false }
+t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, { 1, 0, 1, 0 }), 4, "guard: all-correct answers score 4")
+t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, { 0, 1, 0, 1 }), 0, "guard: all-wrong answers score 0")
+t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, { 1, 0, -1, -1 }), 2, "guard: unanswered items never count")
+t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, 4), 0, "guard: claiming a number instead of answers scores 0")
+t:assertEqual(MinigameGuard.scorePassOrFail(pofTruth, 4, {}), 0, "guard: an empty answer set scores 0")
+
 t:summary()

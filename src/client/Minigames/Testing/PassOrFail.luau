@@ -23,7 +23,6 @@ local reportFn
 -- firing into the new round. Mirrors KeyCombo's activeToken pattern.
 local activeToken = nil
 local items = {}
-local truth = {}
 local total = 0
 local flashSeconds = 1.5
 local answers = {} -- index -> true/false (ship/cut), nil if never answered
@@ -37,22 +36,27 @@ local function corner(inst, r)
 	return c
 end
 
--- Scores the round item-by-item (an unanswered item never matches truth,
--- since answers[i] is nil) and reports it. Guarded so it only ever fires
--- once per round, whether triggered by the last item's advance or by a tap
--- on the final item.
+-- Reports the player's OWN answers and lets the server score them against the
+-- truth array it now keeps back. (This used to score locally and report just a
+-- count, so a script could simply claim a perfect round.) Sent as a dense
+-- numeric array -- 1 = ship, 0 = don't ship, -1 = never answered -- because a
+-- table with nil gaps does not survive the remote intact. Guarded so it only
+-- ever fires once per round, whether triggered by the last item's advance or by
+-- a tap on the final item.
 local function finalize(token)
 	if activeToken ~= token or roundDone then
 		return
 	end
 	roundDone = true
-	local correct = 0
+	local reported = table.create(total)
 	for i = 1, total do
-		if answers[i] ~= nil and answers[i] == truth[i] then
-			correct += 1
+		if answers[i] == nil then
+			reported[i] = -1
+		else
+			reported[i] = answers[i] and 1 or 0
 		end
 	end
-	reportFn(correct)
+	reportFn(reported)
 end
 
 local function showItem(token, index)
@@ -193,7 +197,8 @@ end
 
 function PassOrFail.startRound(difficulty, params, roundInfo)
 	items = (roundInfo and roundInfo.items) or {}
-	truth = (roundInfo and roundInfo.truth) or {}
+	-- NOTE: roundInfo no longer carries `truth` -- the server keeps the answer
+	-- key and scores the answers this module reports back.
 	total = (roundInfo and roundInfo.total) or #items
 	flashSeconds = (roundInfo and roundInfo.flashSeconds) or (params and params.flashSeconds) or 1.5
 	answers = {}

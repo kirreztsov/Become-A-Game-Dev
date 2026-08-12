@@ -3,6 +3,7 @@ local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local PerkData = require(game.ReplicatedStorage.Shared.PerkData)
 local EventData = require(game.ReplicatedStorage.Shared.EventData)
 local TrendMatch = require(game.ReplicatedStorage.Shared.TrendMatch)
+local MinigameGuard = require(game.ReplicatedStorage.Shared.MinigameGuard)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local PlayerData = require(script.Parent.PlayerData)
 local TrendsService = require(script.Parent.TrendsService)
@@ -302,12 +303,19 @@ local function runPhase(player, data, phase)
 		end
 
 		local roundInfo = generateRoundInfo(variantId, difficulty, params)
-		activeRounds[uid] = { kind = kind, params = params, roundInfo = roundInfo }
+		activeRounds[uid] = {
+			kind = kind,
+			params = params,
+			roundInfo = roundInfo,
+			variantId = variantId,
+			startedAt = Workspace:GetServerTimeNow(),
+		}
+		-- Send the client a copy with the answers stripped out (sanitizeRoundInfo).
 		Remotes.RoundStarted:FireClient(player, station, roundIndex, {
 			variantId = variantId,
 			difficulty = difficulty,
 			params = params,
-			roundInfo = roundInfo,
+			roundInfo = MinigameGuard.sanitizeRoundInfo(variantId, roundInfo),
 		})
 		local roundScore = waitAndScore(player, variantId, kind, params, roundInfo)
 		total += roundScore
@@ -325,17 +333,44 @@ function DevelopmentService.start()
 		if not round then
 			return
 		end
+		local now = Workspace:GetServerTimeNow()
+
+		local elapsed = now - (round.startedAt or now)
+
 		if round.kind == "mash" then
-			round.count = (round.count or 0) + 1
+			-- Without a rate limit a script fires this remote hundreds of times
+			-- in a single frame and scores a perfect round instantly.
+			if not MinigameGuard.acceptTap(round.lastTap, now) then
+				return
+			end
+			round.lastTap = now
+			round.count = MinigameGuard.addTap(
+				round.count,
+				round.params.targetTaps or round.params.targetBugs or round.params.targetCrashes
+			)
 		elseif round.kind == "timing" and not round.placed then
 			round.placed = true
-			round.placementTime = Workspace:GetServerTimeNow()
+			round.placementTime = now
 		elseif round.kind == "sequence" and not round.reported then
 			round.reported = true
-			round.correctCount = tonumber(value) or 0
+			if round.variantId == "PassOrFail" then
+				-- Scored from the player's own answers; the client no longer
+				-- receives the truth array nor reports its own tally.
+				round.correctCount = MinigameGuard.scorePassOrFail(
+					round.roundInfo.truth,
+					round.roundInfo.total,
+					value
+				)
+			else
+				-- The other sequence games still self-report, so the claim is
+				-- clamped to the round's size and rejected if it arrived faster
+				-- than a person could have played it.
+				round.correctCount = MinigameGuard.clampSequenceScore(value, round.roundInfo.total, elapsed)
+			end
 		elseif round.kind == "choice" and not round.chosen then
 			round.chosen = true
-			round.chosenIndex = tonumber(value)
+			-- Nobody reads the options and answers this fast.
+			round.chosenIndex = MinigameGuard.acceptChoice(elapsed) and tonumber(value) or nil
 		end
 	end)
 

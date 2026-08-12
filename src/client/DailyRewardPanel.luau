@@ -28,7 +28,7 @@ function DailyRewardPanel.init(player, theme)
 	backdrop.Parent = screenGui
 
 	local card = Instance.new("Frame")
-	card.Size = UDim2.fromOffset(470, 470) -- taller: it now holds a 30-cell grid
+	card.Size = UDim2.fromOffset(470, 600) -- taller: it now holds a 30-cell grid
 	card.Position = UDim2.fromScale(0.5, 0.5)
 	card.AnchorPoint = Vector2.new(0.5, 0.5)
 	card.BackgroundColor3 = theme.Panel

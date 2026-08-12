@@ -68,7 +68,10 @@ function MinigameGuard.acceptTap(lastTap, now)
 	if not lastTap then
 		return true
 	end
-	return (now - lastTap) >= MinigameGuard.MIN_TAP_INTERVAL
+	-- Epsilon because subtracting two floats loses precision: a tap landing on
+	-- exactly the interval computes as a hair under it and would be rejected,
+	-- making the real ceiling slightly stricter than the documented one.
+	return (now - lastTap) >= (MinigameGuard.MIN_TAP_INTERVAL - 1e-9)
 end
 
 -- Taps never help past the round's target (scoreMash clamps there anyway), so

@@ -11,6 +11,16 @@ local Workspace = game:GetService("Workspace")
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local EventData = require(game.ReplicatedStorage.Shared.EventData)
 
+-- Server-synced clock, so a skewed device clock can't hide the event. Falls
+-- back to os.time() if the first time-sync hasn't landed yet (GetServerTimeNow
+-- throws before then, and this runs during client init).
+local function now()
+	local ok, t = pcall(function()
+		return Workspace:GetServerTimeNow()
+	end)
+	return ok and t or os.time()
+end
+
 local EventPanel = {}
 
 local function corner(inst, r)
@@ -309,7 +319,7 @@ function EventPanel.init(player, theme, playerState)
 	end
 
 	local function rebuild()
-		local now = Workspace:GetServerTimeNow()
+		local now = now()
 		local active = EventData.isEventActive(now)
 		openBtn.Visible = active
 		if not active then
@@ -345,7 +355,7 @@ function EventPanel.init(player, theme, playerState)
 
 	openBtn.MouseButton1Click:Connect(function()
 		rebuild()
-		countdown.Text = fmtCountdown(EventData.secondsUntilEnd(Workspace:GetServerTimeNow()))
+		countdown.Text = fmtCountdown(EventData.secondsUntilEnd(now()))
 		backdrop.Visible = true
 	end)
 	close.MouseButton1Click:Connect(function()
@@ -365,7 +375,7 @@ function EventPanel.init(player, theme, playerState)
 			task.wait(20)
 			rebuild()
 			if backdrop.Visible then
-				countdown.Text = fmtCountdown(EventData.secondsUntilEnd(Workspace:GetServerTimeNow()))
+				countdown.Text = fmtCountdown(EventData.secondsUntilEnd(now()))
 			end
 		end
 	end)

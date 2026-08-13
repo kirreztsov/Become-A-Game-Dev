@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+local MarketplaceService = game:GetService("MarketplaceService")
 local GameData = require(game.ReplicatedStorage.Shared.GameData)
 local Remotes = require(game.ReplicatedStorage.Shared.Remotes)
 local Sound = require(script.Parent.Sound)
@@ -997,33 +998,106 @@ function UI.init()
 	genreLabel.TextXAlignment = Enum.TextXAlignment.Left
 	genreLabel.Parent = newProjectPanel
 
-	local genreRow = Instance.new("Frame")
-	genreRow.Size = UDim2.new(1, 0, 0, 34)
-	genreRow.LayoutOrder = 2
-	genreRow.BackgroundTransparency = 1
-	genreRow.Parent = newProjectPanel
+	-- Genre/topic pickers. There are 12 of each now (4 free, 6 bought with cash,
+	-- 2 bought with Robux -- see GameData.ContentUnlocks), so they wrap into a
+	-- 6-wide grid instead of a single row. A button is one of three things:
+	-- selectable (free or owned), locked-for-cash (shows its price, click buys),
+	-- or locked-for-Robux (click prompts the product).
+	local CONTENT_GRID_COLS = 6
+	local CONTENT_CELL_H = 30
+	local CONTENT_ROW_H = CONTENT_CELL_H * 2 + 6
+	local LOCK_ICON = "\240\159\148\146" -- lock
+	local FREE_GENRE_ICONS = { Racing = "\240\159\143\129", Horror = "\240\159\145\187", Adventure = "\240\159\151\186", Simulator = "\240\159\149\185" }
+	local FREE_TOPIC_ICONS = { Space = "\240\159\154\128", Zombies = "\240\159\167\159", Sports = "\226\154\189", Fantasy = "\240\159\144\137" }
 
-	local genreRowLayout = Instance.new("UIListLayout")
-	genreRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	genreRowLayout.Padding = UDim.new(0, 6)
-	genreRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	genreRowLayout.Parent = genreRow
+	-- Latest live bonus rolls, broadcast alongside the trends (id -> fraction).
+	local contentRolls = {}
 
-	local GENRE_ICONS = { Racing = "\240\159\143\129", Horror = "\240\159\145\187", Adventure = "\240\159\151\186", Simulator = "\240\159\149\185" }
-	local genreButtons = {}
-	for i, genre in ipairs(GameData.Genres) do
-		local button = makeButton(genreRow, i, genre, UDim2.new(0.25, -5, 1, 0), 13)
-		button.Text = (GENRE_ICONS[genre] or "") .. " " .. genre
-		genreButtons[genre] = button
-		button.MouseButton1Click:Connect(function()
-			selectedGenre = genre
-			for name, btn in pairs(genreButtons) do
-				local sel = name == genre
-				btn.BackgroundColor3 = sel and Theme.Accent or Theme.Neutral
-				btn.TextColor3 = sel and Color3.fromRGB(255, 255, 255) or Theme.Text
-			end
-		end)
+	local function commaNumber(n)
+		local s = tostring(math.floor(n))
+		local withCommas = s:reverse():gsub("(%d%d%d)", "%1,"):reverse()
+		return (withCommas:gsub("^,", ""))
 	end
+
+	local function contentIcon(id, freeIcons)
+		local entry = GameData.ContentUnlocks[id]
+		return (entry and entry.icon) or freeIcons[id] or ""
+	end
+
+	-- Builds one 6-wide grid of content buttons and returns a refresh function.
+	-- `onSelect(id)` fires only for entries the player actually owns, so a locked
+	-- genre/topic can never end up selected.
+	local function buildContentGrid(parent, order, list, freeIcons, getSelected, onSelect)
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, CONTENT_ROW_H)
+		row.LayoutOrder = order
+		row.BackgroundTransparency = 1
+		row.Parent = parent
+
+		local grid = Instance.new("UIGridLayout")
+		grid.CellSize = UDim2.new(1 / CONTENT_GRID_COLS, -6, 0, CONTENT_CELL_H)
+		grid.CellPadding = UDim2.new(0, 6, 0, 6)
+		grid.SortOrder = Enum.SortOrder.LayoutOrder
+		grid.Parent = row
+
+		local buttons = {}
+		local refresh
+
+		for i, id in ipairs(list) do
+			local button = makeButton(row, i, id, UDim2.new(1, 0, 0, CONTENT_CELL_H), 10)
+			buttons[id] = button
+			button.MouseButton1Click:Connect(function()
+				local entry = GameData.ContentUnlocks[id]
+				if GameData.ownsContent(playerState, id) then
+					onSelect(id)
+					refresh()
+					return
+				end
+				if entry and entry.price then
+					Remotes.RequestBuyContent:FireServer(id) -- server validates + charges
+				elseif entry and entry.robuxProductKey then
+					local product = GameData.Products[entry.robuxProductKey]
+					if not product or product.id == 0 then
+						button.Text = "Coming soon!"
+					else
+						MarketplaceService:PromptProductPurchase(player, product.id)
+					end
+				end
+			end)
+		end
+
+		refresh = function()
+			local selected = getSelected()
+			for id, button in pairs(buttons) do
+				local entry = GameData.ContentUnlocks[id]
+				local icon = contentIcon(id, freeIcons)
+				if GameData.ownsContent(playerState, id) then
+					local bonus = GameData.getContentBonus(playerState, id, contentRolls)
+					button.Text = bonus > 0
+						and ("%s %s +%d%%"):format(icon, id, math.floor(bonus * 100 + 0.5))
+						or ("%s %s"):format(icon, id)
+					local sel = id == selected
+					button.BackgroundColor3 = sel and Theme.Accent or Theme.Neutral
+					button.TextColor3 = sel and Color3.fromRGB(255, 255, 255) or Theme.Text
+				elseif entry and entry.price then
+					button.Text = ("%s %s $%s"):format(LOCK_ICON, id, commaNumber(entry.price))
+					button.BackgroundColor3 = Theme.Neutral
+					button.TextColor3 = Theme.TextMuted
+				else
+					button.Text = ("%s %s"):format(LOCK_ICON, id)
+					button.BackgroundColor3 = Theme.Gold
+					button.TextColor3 = Color3.fromRGB(60, 40, 10)
+				end
+			end
+		end
+
+		refresh()
+		return refresh
+	end
+
+	local refreshGenreGrid = buildContentGrid(newProjectPanel, 2, GameData.Genres, FREE_GENRE_ICONS,
+		function() return selectedGenre end,
+		function(id) selectedGenre = id end)
 
 	local topicLabel = Instance.new("TextLabel")
 	topicLabel.Text = "TOPIC"
@@ -1036,32 +1110,15 @@ function UI.init()
 	topicLabel.TextXAlignment = Enum.TextXAlignment.Left
 	topicLabel.Parent = newProjectPanel
 
-	local topicRow = Instance.new("Frame")
-	topicRow.Size = UDim2.new(1, 0, 0, 34)
-	topicRow.LayoutOrder = 4
-	topicRow.BackgroundTransparency = 1
-	topicRow.Parent = newProjectPanel
+	local refreshTopicGrid = buildContentGrid(newProjectPanel, 4, GameData.Topics, FREE_TOPIC_ICONS,
+		function() return selectedTopic end,
+		function(id) selectedTopic = id end)
 
-	local topicRowLayout = Instance.new("UIListLayout")
-	topicRowLayout.FillDirection = Enum.FillDirection.Horizontal
-	topicRowLayout.Padding = UDim.new(0, 6)
-	topicRowLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	topicRowLayout.Parent = topicRow
-
-	local TOPIC_ICONS = { Space = "\240\159\154\128", Zombies = "\240\159\167\159", Sports = "\226\154\189", Fantasy = "\240\159\144\137" }
-	local topicButtons = {}
-	for i, topic in ipairs(GameData.Topics) do
-		local button = makeButton(topicRow, i, topic, UDim2.new(0.25, -5, 1, 0), 13)
-		button.Text = (TOPIC_ICONS[topic] or "") .. " " .. topic
-		topicButtons[topic] = button
-		button.MouseButton1Click:Connect(function()
-			selectedTopic = topic
-			for name, btn in pairs(topicButtons) do
-				local sel = name == topic
-				btn.BackgroundColor3 = sel and Theme.Accent or Theme.Neutral
-				btn.TextColor3 = sel and Color3.fromRGB(255, 255, 255) or Theme.Text
-			end
-		end)
+	-- Re-render both grids: ownership comes from the player's state, the live
+	-- bonus percentages from the trend broadcast.
+	local function refreshContentGrids()
+		refreshGenreGrid()
+		refreshTopicGrid()
 	end
 
 	local startButton = makeButton(newProjectPanel, 5, "\240\159\154\128 Start Developing", UDim2.new(1, 0, 0, 40), 18)
@@ -1796,6 +1853,7 @@ function UI.init()
 		playerState.subMilestone = data.subMilestone or 0
 		playerState.roomsOwned = data.roomsOwned or playerState.roomsOwned
 		playerState.prestigeLevel = data.prestigeLevel or 0
+		playerState.contentOwned = data.contentOwned or {}
 		playerState.workers = data.workers
 		refreshBoostHud()
 
@@ -1827,6 +1885,9 @@ function UI.init()
 				end
 			end
 		end
+
+		-- Buying a genre/topic changes what's unlocked, so repaint the pickers.
+		refreshContentGrids()
 	end)
 
 	Remotes.SubscribersGained.OnClientEvent:Connect(function(amount, milestoneReached)
@@ -1840,10 +1901,14 @@ function UI.init()
 		end
 	end)
 
-	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2)
+	Remotes.TrendsUpdated.OnClientEvent:Connect(function(trend1, trend2, rolls)
 		updateTrendsSigns(("%s + %s\n%s + %s"):format(
 			trend1.genre, trend1.topic, trend2.genre, trend2.topic
 		))
+		-- The cash unlocks re-roll their bonus on the same cycle as the trends,
+		-- so the buttons' percentages move with them.
+		contentRolls = rolls or {}
+		refreshContentGrids()
 	end)
 
 	-- "Get VIP+" cosmetic reminder while standing in the tycoon lounge (M8).

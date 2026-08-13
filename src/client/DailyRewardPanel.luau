@@ -160,7 +160,9 @@ function DailyRewardPanel.init(player, theme)
 		dayLabel.Text = tostring(day)
 		dayLabel.TextColor3 = theme.TextMuted
 		dayLabel.Font = Enum.Font.GothamBold
-		dayLabel.TextSize = 11
+		-- Sized to survive MobileScale: a phone renders this at 0.55x, and text
+		-- below ~8px is unreadable, so 11px here became 6.1px on a phone.
+		dayLabel.TextSize = 14
 		dayLabel.TextXAlignment = Enum.TextXAlignment.Left
 		dayLabel.Parent = cell
 
@@ -178,13 +180,14 @@ function DailyRewardPanel.init(player, theme)
 		-- Short label ("$1.5K", "3x 15m", "SPIN", "PART") -- sized never to wrap.
 		local hint = Instance.new("TextLabel")
 		hint.Name = "Hint"
-		hint.Size = UDim2.new(1, -4, 0, 14)
-		hint.Position = UDim2.fromOffset(2, CELL - 17)
+		hint.Size = UDim2.new(1, -4, 0, 17)
+		hint.Position = UDim2.fromOffset(2, CELL - 19)
 		hint.BackgroundTransparency = 1
 		hint.Text = shortReward(reward)
 		hint.TextColor3 = tint
 		hint.Font = Enum.Font.FredokaOne
-		hint.TextSize = 11
+		-- 15px so a phone's 0.55x scale still lands above the ~8px readable floor.
+		hint.TextSize = 15
 		hint.TextWrapped = false
 		hint.Parent = cell
 

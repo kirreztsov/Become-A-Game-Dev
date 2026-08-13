@@ -124,6 +124,10 @@ local function defaultData()
 		trendyHits = 0,
 		-- Placed furniture in the player's private Home room.
 		homeItems = {},
+		-- Paid content unlocks (A1): genre/topic ids the player has bought
+		-- (id -> true). Free genres/topics are never keyed here (see
+		-- GameData.ownsContent).
+		contentOwned = {},
 	}
 end
 
@@ -220,6 +224,7 @@ function PlayerData.load(player)
 			if type(data.homeItems) ~= "table" then
 				data.homeItems = {}
 			end
+			data.contentOwned = data.contentOwned or {}
 			-- outfitColor is stored as a DataStore-safe {r,g,b} table (or nil).
 			cache[player.UserId] = data
 			failedLoads[player.UserId] = nil

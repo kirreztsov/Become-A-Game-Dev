@@ -85,6 +85,30 @@ function DailyRewardPanel.init(player, theme)
 
 	-- A 30-cell calendar: 6 columns x 5 rows. Each cell shows its day number,
 	-- with milestones (7/14/30) drawn larger and gold-ringed.
+	-- Compact label for a calendar cell. The full description ("$1500 + 3x - 15m")
+	-- is far too long for a 62px cell and wrapped onto two cramped lines, so each
+	-- reward gets a short form that always fits on one.
+	local function shortReward(reward)
+		if reward.kind == "champion" then
+			return "PART"
+		end
+		if reward.kind == "case" then
+			return "SPIN"
+		end
+		if reward.amount then
+			local a = reward.amount
+			local cash = a >= 1000
+				and ("$%s"):format((("%.1f"):format(a / 1000):gsub("%.0$", "")) .. "K")
+				or ("$%d"):format(a)
+			-- Day 7 pays cash AND a boost; show the cash and mark the extra.
+			return reward.mult and (cash .. "+") or cash
+		end
+		if reward.mult then
+			return ("%gx %dm"):format(reward.mult, math.floor((reward.dur or 0) / 60))
+		end
+		return ""
+	end
+
 	local GRID_COLS, CELL, GAP = 6, 62, 6
 	local gridRows = math.ceil(GameData.DailyCalendarDays / GRID_COLS)
 	local gridHeight = gridRows * CELL + (gridRows - 1) * GAP
@@ -102,42 +126,86 @@ function DailyRewardPanel.init(player, theme)
 		local col = (day - 1) % GRID_COLS
 		local row = math.floor((day - 1) / GRID_COLS)
 
-		local cell = Instance.new("TextLabel")
+		-- Each cell reads as a prize rather than a spreadsheet row: a big icon for
+		-- what you get, the day number tucked into the corner, and a short label
+		-- that never wraps. Milestones (7/14/30) are filled gold so the chase is
+		-- obvious at a glance.
+		local isBoost = reward.kind == "boost" or (reward.mult ~= nil and reward.amount == nil)
+		local faceIcon, tint
+		if reward.kind == "champion" then
+			faceIcon, tint = "\240\159\143\134", theme.Gold                      -- trophy
+		elseif reward.kind == "case" then
+			faceIcon, tint = "\240\159\142\129", Color3.fromRGB(120, 90, 235)    -- gift
+		elseif isBoost then
+			faceIcon, tint = "\226\154\161", Color3.fromRGB(150, 92, 255)        -- bolt
+		else
+			faceIcon, tint = "\240\159\146\176", Color3.fromRGB(56, 150, 90)     -- money bag
+		end
+
+		local cell = Instance.new("Frame")
 		cell.Name = "Day" .. day
 		cell.Size = UDim2.fromOffset(CELL, CELL)
 		cell.Position = UDim2.fromOffset(col * (CELL + GAP), row * (CELL + GAP))
 		cell.BackgroundColor3 = theme.Neutral
-		cell.Text = tostring(day)
-		cell.TextColor3 = theme.TextMuted
-		cell.Font = Enum.Font.FredokaOne
-		cell.TextSize = reward.milestone and 20 or 15
-		cell.TextYAlignment = Enum.TextYAlignment.Top
+		cell.BorderSizePixel = 0
 		cell.Parent = grid
-		corner(cell, 10)
+		corner(cell, 12)
 
-		-- Milestone days get a gold ring so the chase is visible at a glance.
+		-- Day number, small and out of the way in the top-left.
+		local dayLabel = Instance.new("TextLabel")
+		dayLabel.Name = "DayNum"
+		dayLabel.Size = UDim2.fromOffset(CELL - 10, 14)
+		dayLabel.Position = UDim2.fromOffset(6, 4)
+		dayLabel.BackgroundTransparency = 1
+		dayLabel.Text = tostring(day)
+		dayLabel.TextColor3 = theme.TextMuted
+		dayLabel.Font = Enum.Font.GothamBold
+		-- Sized to survive MobileScale: a phone renders this at 0.55x, and text
+		-- below ~8px is unreadable, so 11px here became 6.1px on a phone.
+		dayLabel.TextSize = 14
+		dayLabel.TextXAlignment = Enum.TextXAlignment.Left
+		dayLabel.Parent = cell
+
+		-- The prize itself, front and centre.
+		local face = Instance.new("TextLabel")
+		face.Name = "Face"
+		face.Size = UDim2.new(1, 0, 0, 24)
+		face.Position = UDim2.fromOffset(0, 16)
+		face.BackgroundTransparency = 1
+		face.Text = faceIcon
+		face.TextSize = reward.milestone and 24 or 19
+		face.Font = Enum.Font.FredokaOne
+		face.Parent = cell
+
+		-- Short label ("$1.5K", "3x 15m", "SPIN", "PART") -- sized never to wrap.
+		local hint = Instance.new("TextLabel")
+		hint.Name = "Hint"
+		hint.Size = UDim2.new(1, -4, 0, 17)
+		hint.Position = UDim2.fromOffset(2, CELL - 19)
+		hint.BackgroundTransparency = 1
+		hint.Text = shortReward(reward)
+		hint.TextColor3 = tint
+		hint.Font = Enum.Font.FredokaOne
+		-- 15px so a phone's 0.55x scale still lands above the ~8px readable floor.
+		hint.TextSize = 15
+		hint.TextWrapped = false
+		hint.Parent = cell
+
+		-- Milestones: filled gold with a ring, so they read as real prizes.
 		if reward.milestone then
+			cell.BackgroundColor3 = Color3.fromRGB(255, 238, 200)
+			dayLabel.TextColor3 = Color3.fromRGB(150, 105, 20)
+			hint.TextColor3 = Color3.fromRGB(150, 105, 20)
 			local ring = Instance.new("UIStroke")
 			ring.Color = theme.Gold
-			ring.Thickness = 2
-			ring.Transparency = 0.15
+			ring.Thickness = 2.5
+			ring.Transparency = 0.1
 			ring.Parent = cell
 		end
 
-		-- Small reward hint under the day number.
-		local hint = Instance.new("TextLabel")
-		hint.Name = "Hint"
-		hint.Size = UDim2.new(1, -6, 0, 26)
-		hint.Position = UDim2.fromOffset(3, CELL - 28)
-		hint.BackgroundTransparency = 1
-		hint.Text = GameData.describeDailyReward(reward)
-		hint.TextColor3 = theme.TextMuted
-		hint.Font = Enum.Font.GothamMedium
-		hint.TextSize = 9
-		hint.TextWrapped = true
-		hint.Parent = cell
-
-		cells[day] = { cell = cell, hint = hint }
+		-- `faceIcon` is kept so a collected day (which shows a tick) can be put
+		-- back to its prize icon when the calendar restarts.
+		cells[day] = { cell = cell, hint = hint, face = face, dayLabel = dayLabel, tint = tint, faceIcon = faceIcon, milestone = reward.milestone }
 	end
 
 	local rewardLabel = Instance.new("TextLabel")
@@ -188,7 +256,8 @@ function DailyRewardPanel.init(player, theme)
 	end)
 
 	local function showFor(streakDay, rewardDesc, repairOffered, brokenStreak)
-		if repairOffered and (brokenStreak or 0) > 0 then
+		local showRepair = repairOffered and (brokenStreak or 0) > 0
+		if showRepair then
 			streakLabel.Text = ("Streak broken at day %d!"):format(brokenStreak)
 			repairBtn.Visible = true
 			repairBtn.Text = "\240\159\148\167 Repair streak"
@@ -198,26 +267,42 @@ function DailyRewardPanel.init(player, theme)
 		end
 		rewardLabel.Text = rewardDesc
 
-		-- Refresh the hints against the player's current progression so the cells
-		-- agree with the headline figure.
-		if latestState then
-			for day, entry in pairs(cells) do
-				entry.hint.Text = GameData.describeDailyReward(GameData.getScaledDailyReward(latestState, day))
-			end
-		end
+		-- The repair button is usually hidden, and both buttons are anchored to
+		-- the card's bottom edge -- so a fixed height left its slot as a band of
+		-- dead space under the reward. Size the card to what is actually shown.
+		card.Size = UDim2.fromOffset(470, showRepair and 604 or 564)
 
-		-- Past days are ticked off, today is highlighted, the rest stay dim.
+		-- Repaint every cell for its state. The cell is a Frame holding a day
+		-- number, a big icon and a short label, so colours go on those children
+		-- rather than the frame itself.
+		local MILESTONE_FILL = Color3.fromRGB(255, 238, 200)
+		local MILESTONE_INK = Color3.fromRGB(150, 105, 20)
 		for day, entry in pairs(cells) do
+			-- Label reflects the player's own progression, so a cell never
+			-- disagrees with the headline figure.
+			local scaled = latestState and GameData.getScaledDailyReward(latestState, day)
+				or GameData.getDailyReward(day)
+
 			if day < streakDay then
+				-- Already collected: a clean green tick, nothing else competing.
 				entry.cell.BackgroundColor3 = theme.Success
-				entry.cell.TextColor3 = Color3.fromRGB(255, 255, 255)
-				entry.hint.Text = "\226\156\133"
+				entry.face.Text = "\226\156\133"
+				entry.hint.Text = ""
+				entry.dayLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 			elseif day == streakDay then
+				-- Today: gold, and the prize spelled out.
 				entry.cell.BackgroundColor3 = theme.Gold
-				entry.cell.TextColor3 = Color3.fromRGB(60, 40, 10)
+				entry.face.Text = entry.faceIcon -- back from a tick if the calendar restarted
+				entry.hint.Text = shortReward(scaled)
+				entry.dayLabel.TextColor3 = Color3.fromRGB(90, 60, 10)
+				entry.hint.TextColor3 = Color3.fromRGB(90, 60, 10)
 			else
-				entry.cell.BackgroundColor3 = theme.Neutral
-				entry.cell.TextColor3 = theme.TextMuted
+				-- Still to come. Milestones keep their gold so the chase stays visible.
+				entry.cell.BackgroundColor3 = entry.milestone and MILESTONE_FILL or theme.Neutral
+				entry.face.Text = entry.faceIcon -- back from a tick if the calendar restarted
+				entry.hint.Text = shortReward(scaled)
+				entry.dayLabel.TextColor3 = entry.milestone and MILESTONE_INK or theme.TextMuted
+				entry.hint.TextColor3 = entry.milestone and MILESTONE_INK or entry.tint
 			end
 		end
 

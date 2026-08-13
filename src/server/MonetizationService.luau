@@ -74,6 +74,14 @@ local function grantPass(player, data, key)
 end
 
 -- One-time Starter Pack bundle: cash + a boost + a guaranteed Rare worker.
+-- Mark a paid genre/topic unlock as owned. Guards the table itself: an old save
+-- backfills `contentOwned`, but this runs on the real-money path, so it must not
+-- be able to error on a nil field.
+local function grantContentUnlock(data, contentId)
+	data.contentOwned = data.contentOwned or {}
+	data.contentOwned[contentId] = true
+end
+
 local function grantStarterPack(player, data)
 	if data.starterPackBought then
 		return
@@ -165,6 +173,18 @@ function MonetizationService.start()
 				data.dailySkipUsed = false
 				handled = true
 			end
+		elseif id ~= 0 and id == GameData.Products.BattleRoyaleGenre.id then
+			grantContentUnlock(data, GameData.Products.BattleRoyaleGenre.contentId)
+			handled = true
+		elseif id ~= 0 and id == GameData.Products.AliensTopic.id then
+			grantContentUnlock(data, GameData.Products.AliensTopic.contentId)
+			handled = true
+		elseif id ~= 0 and id == GameData.Products.AnimeGenre.id then
+			grantContentUnlock(data, GameData.Products.AnimeGenre.contentId)
+			handled = true
+		elseif id ~= 0 and id == GameData.Products.DinosaursTopic.id then
+			grantContentUnlock(data, GameData.Products.DinosaursTopic.contentId)
+			handled = true
 		end
 		if not handled then
 			return Enum.ProductPurchaseDecision.NotProcessedYet

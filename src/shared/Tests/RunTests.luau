@@ -559,4 +559,95 @@ t:assertEqual(rWrap.calendarRestart, true, "daily: the restart is reported so th
 t:assertEqual(GameData.Products.StreakRepair ~= nil, true, "daily: a StreakRepair product exists")
 t:assertEqual(GameData.Products.StreakRepair.id, 0, "daily: StreakRepair ships as 'coming soon' (id 0)")
 
+-- Content unlocks (A1): 12 genres/topics, ContentUnlocks table, roll maths
+local function hasDuplicates(list)
+	local seen = {}
+	for _, v in ipairs(list) do
+		if seen[v] then
+			return true
+		end
+		seen[v] = true
+	end
+	return false
+end
+
+t:assertEqual(#GameData.Genres, 12, "content: 12 genres")
+t:assertEqual(#GameData.Topics, 12, "content: 12 topics")
+t:assertEqual(hasDuplicates(GameData.Genres), false, "content: no duplicate genres")
+t:assertEqual(hasDuplicates(GameData.Topics), false, "content: no duplicate topics")
+
+-- every ContentUnlocks entry (the paid ones) has a non-empty icon
+local missingIcon = 0
+for _, entry in pairs(GameData.ContentUnlocks) do
+	if not entry.icon or entry.icon == "" then
+		missingIcon += 1
+	end
+end
+t:assertEqual(missingIcon, 0, "content: every paid unlock has an icon")
+
+-- free entries: free, always owned, always 0% bonus
+t:assertEqual(GameData.isContentFree("Racing"), true, "content: Racing (original genre) is free")
+t:assertEqual(GameData.isContentFree("Space"), true, "content: Space (original topic) is free")
+t:assertEqual(GameData.isContentFree("Obby"), false, "content: Obby (paid genre) is not free")
+t:assertEqual(GameData.isContentFree("Aliens"), false, "content: Aliens (paid Robux topic) is not free")
+t:assertEqual(GameData.ownsContent({ contentOwned = {} }, "Racing"), true, "content: a free genre is always owned")
+t:assertEqual(GameData.ownsContent({ contentOwned = {} }, "Fantasy"), true, "content: a free topic is always owned")
+t:assertEqual(GameData.getContentBonus({ contentOwned = {} }, "Racing", {}), 0, "content: a free genre never grants a bonus")
+
+-- unowned paid entries: never owned, contribute 0 even if a roll exists for them
+t:assertEqual(GameData.ownsContent({ contentOwned = {} }, "Obby"), false, "content: an unowned paid genre is not owned")
+t:assertEqual(GameData.getContentBonus({ contentOwned = {} }, "Puzzle", { Puzzle = 0.23 }), 0, "content: an unowned paid entry contributes 0 even with a live roll")
+
+-- owned cash entries: use the live roll when supplied, else the band minimum
+t:assertEqual(GameData.ownsContent({ contentOwned = { Obby = true } }, "Obby"), true, "content: a bought paid genre is owned")
+t:assertEqual(GameData.getContentBonus({ contentOwned = { Obby = true } }, "Obby", { Obby = 0.13 }), 0.13, "content: an owned cash entry uses the current live roll")
+t:assertEqual(GameData.getContentBonus({ contentOwned = { Obby = true } }, "Obby", {}), GameData.ContentUnlocks.Obby.minBonus, "content: an owned cash entry with no roll falls back to its band minimum")
+
+-- owned Robux entries: fixed bonus, always, ignoring the roll table entirely
+t:assertEqual(GameData.getContentBonus({ contentOwned = { ["Battle Royale"] = true } }, "Battle Royale", { ["Battle Royale"] = 0.99 }), 0.30, "content: an owned Robux genre ignores the roll table and returns its fixed bonus")
+t:assertEqual(GameData.getContentBonus({ contentOwned = { Dinosaurs = true } }, "Dinosaurs", {}), 0.35, "content: an owned Robux topic returns its fixed bonus with no roll table at all")
+
+-- rollContentBonuses: one roll per CASH entry, landing inside its band; Robux entries excluded
+local rollsMid = GameData.rollContentBonuses(function() return 0.5 end)
+local rollCount = 0
+for id, entry in pairs(GameData.ContentUnlocks) do
+	if entry.minBonus ~= nil and entry.maxBonus ~= nil then
+		rollCount += 1
+		local r = rollsMid[id]
+		t:assertEqual(r ~= nil and r >= entry.minBonus and r <= entry.maxBonus, true, ("content: rolled bonus for %s lands inside its band"):format(id))
+	end
+end
+t:assertEqual(rollCount, 12, "content: there are 12 cash unlocks (6 genre tiers + 6 topic tiers)")
+t:assertEqual(rollsMid["Battle Royale"], nil, "content: rollContentBonuses excludes Robux genres")
+t:assertEqual(rollsMid.Dinosaurs, nil, "content: rollContentBonuses excludes Robux topics")
+
+local rollsFloor = GameData.rollContentBonuses(function() return 0 end)
+t:assertEqual(rollsFloor.Obby, GameData.ContentUnlocks.Obby.minBonus, "content: rng()=0 rolls the exact band minimum")
+local rollsCeil = GameData.rollContentBonuses(function() return 1 end)
+t:assertEqual(rollsCeil.Survival, GameData.ContentUnlocks.Survival.maxBonus, "content: rng()=1 rolls the exact band maximum")
+
+-- getReleaseContentMultiplier: additive, 1.0 for two free picks
+t:assertEqual(GameData.getReleaseContentMultiplier({ contentOwned = {} }, "Racing", "Space", {}), 1, "content: two free picks give a 1.0x multiplier")
+
+-- Ceilings: two maxed tier-6 rolls = +56%; both top Robux unlocks = +70%
+local tier6Owned = { contentOwned = { Survival = true, Superheroes = true } }
+local tier6MaxRoll = { Survival = GameData.ContentUnlocks.Survival.maxBonus, Superheroes = GameData.ContentUnlocks.Superheroes.maxBonus }
+local tier6Mult = GameData.getReleaseContentMultiplier(tier6Owned, "Survival", "Superheroes", tier6MaxRoll)
+t:assertEqual(math.abs(tier6Mult - 1.56) < 1e-9, true, "content: two maxed tier-6 rolls reach the +56% ceiling")
+
+local topRobuxOwned = { contentOwned = { Anime = true, Dinosaurs = true } }
+local topRobuxMult = GameData.getReleaseContentMultiplier(topRobuxOwned, "Anime", "Dinosaurs", {})
+t:assertEqual(math.abs(topRobuxMult - 1.70) < 1e-9, true, "content: both top Robux unlocks reach the +70% ceiling")
+
+-- Products: the four Robux unlocks ship "coming soon" (id = 0), and each
+-- ContentUnlocks Robux entry's robuxProductKey resolves to a real Products entry.
+t:assertEqual(GameData.Products.BattleRoyaleGenre.id, 0, "content: BattleRoyaleGenre ships as id 0 (coming soon)")
+t:assertEqual(GameData.Products.AliensTopic.id, 0, "content: AliensTopic ships as id 0 (coming soon)")
+t:assertEqual(GameData.Products.AnimeGenre.id, 0, "content: AnimeGenre ships as id 0 (coming soon)")
+t:assertEqual(GameData.Products.DinosaursTopic.id, 0, "content: DinosaursTopic ships as id 0 (coming soon)")
+t:assertEqual(GameData.Products[GameData.ContentUnlocks["Battle Royale"].robuxProductKey] ~= nil, true, "content: Battle Royale's robuxProductKey resolves to a real Products entry")
+t:assertEqual(GameData.Products[GameData.ContentUnlocks.Aliens.robuxProductKey] ~= nil, true, "content: Aliens' robuxProductKey resolves to a real Products entry")
+t:assertEqual(GameData.Products[GameData.ContentUnlocks.Anime.robuxProductKey] ~= nil, true, "content: Anime's robuxProductKey resolves to a real Products entry")
+t:assertEqual(GameData.Products[GameData.ContentUnlocks.Dinosaurs.robuxProductKey] ~= nil, true, "content: Dinosaurs' robuxProductKey resolves to a real Products entry")
+
 t:summary()

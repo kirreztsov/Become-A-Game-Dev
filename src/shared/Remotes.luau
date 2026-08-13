@@ -61,6 +61,7 @@ local REMOTE_NAMES = {
 	"RequestMoveHomeItem",
 	"RequestRemoveHomeItem",
 	"HomeStateUpdated",
+	"RequestBuyContent",
 }
 
 local Remotes = {}

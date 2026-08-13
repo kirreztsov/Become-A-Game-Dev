@@ -253,7 +253,8 @@ function DailyRewardPanel.init(player, theme)
 	end)
 
 	local function showFor(streakDay, rewardDesc, repairOffered, brokenStreak)
-		if repairOffered and (brokenStreak or 0) > 0 then
+		local showRepair = repairOffered and (brokenStreak or 0) > 0
+		if showRepair then
 			streakLabel.Text = ("Streak broken at day %d!"):format(brokenStreak)
 			repairBtn.Visible = true
 			repairBtn.Text = "\240\159\148\167 Repair streak"
@@ -262,6 +263,11 @@ function DailyRewardPanel.init(player, theme)
 			repairBtn.Visible = false
 		end
 		rewardLabel.Text = rewardDesc
+
+		-- The repair button is usually hidden, and both buttons are anchored to
+		-- the card's bottom edge -- so a fixed height left its slot as a band of
+		-- dead space under the reward. Size the card to what is actually shown.
+		card.Size = UDim2.fromOffset(470, showRepair and 604 or 564)
 
 		-- Repaint every cell for its state. The cell is a Frame holding a day
 		-- number, a big icon and a short label, so colours go on those children
